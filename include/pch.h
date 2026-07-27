@@ -1,5 +1,4 @@
-#ifndef PCH_H
-#define PCH_H
+#pragma once
 
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
@@ -54,5 +53,3 @@ extern "C" {
 #include <vector>
 
 using namespace std::chrono_literals;
-
-#endif
