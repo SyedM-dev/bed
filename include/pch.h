@@ -4,16 +4,16 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #define PCRE_WORKSPACE_SIZE 512
 
-#include "mruby.h"
-#include "mruby/array.h"
-#include "mruby/compile.h"
-#include "mruby/hash.h"
-#include "mruby/irep.h"
-#include "mruby/string.h"
+#include <mruby.h>
+#include <mruby/array.h>
+#include <mruby/compile.h>
+#include <mruby/hash.h>
+#include <mruby/irep.h>
+#include <mruby/string.h>
 #include <pcre2.h>
 extern "C" {
-#include "unicode_width.h"
 #include <grapheme.h>
+#include <unicode_width.h>
 }
 #include <algorithm>
 #include <atomic>
