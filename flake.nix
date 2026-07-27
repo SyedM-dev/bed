@@ -62,6 +62,7 @@
 
         buildInputs = with pkgs; [
           libgrapheme
+          pcre2
 
           mruby
         ];
@@ -69,8 +70,8 @@
         buildPhase = ''
           make \
             MRBC=${mruby}/bin/mrbc \
-            MRUBY_INCLUDE=${mruby}/include \
-            MRUBY_LIB=${mruby}/lib/libmruby.a
+            MRUBY_CFLAGS=-I${mruby}/include \
+            MRUBY_LIBS=-L${mruby}/lib -lmruby
         '';
 
         installPhase = ''
@@ -105,12 +106,12 @@
         ];
 
         shellHook = ''
-          export CC="ccache gcc"
-          export CXX="ccache g++"
+          export CC="ccache $CC"
+          export CXX="ccache $CXX"
 
           export MRBC=${mruby}/bin/mrbc
-          export MRUBY_INCLUDE=${mruby}/include
-          export MRUBY_LIB=${mruby}/lib/libmruby.a
+          export MRUBY_CFLAGS=-I${mruby}/include
+          export MRUBY_LIBS="-L${mruby}/lib -lmruby"
         '';
       };
     };

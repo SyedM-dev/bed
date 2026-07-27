@@ -1,0 +1,7 @@
+result
+p.vim
+compile_commands.json
+
+bin/
+build/
+.cache/
