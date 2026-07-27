@@ -3,14 +3,17 @@ BIN_DIR := bin
 OBJ_DIR := build
 INCLUDE_DIR := include
 
+CXX ?= g++
+CC ?= gcc
+
 TARGET_DEBUG := $(BIN_DIR)/crib-dbg
 TARGET_RELEASE := $(BIN_DIR)/crib
 
-PCH_DEBUG := $(OBJ_DIR)/debug/pch.h.gch
-PCH_RELEASE := $(OBJ_DIR)/release/pch.h.gch
+PCH_DIR_DEBUG := $(OBJ_DIR)/debug/pch
+PCH_DIR_RELEASE := $(OBJ_DIR)/release/pch
 
-CXX ?= g++
-CC ?= gcc
+PCH_DEBUG := $(PCH_DIR_DEBUG)/pch.h.gch
+PCH_RELEASE := $(PCH_DIR_RELEASE)/pch.h.gch
 
 PCRE_CFLAGS := $(shell pkg-config --cflags libpcre2-8)
 PCRE_LIBS := $(shell pkg-config --static --libs libpcre2-8)
@@ -18,8 +21,8 @@ PCRE_LIBS := $(shell pkg-config --static --libs libpcre2-8)
 LIBGRAPHEME_CFLAGS := $(shell pkg-config --cflags libgrapheme)
 LIBGRAPHEME_LIBS := $(shell pkg-config --static --libs libgrapheme)
 
-MRUBY_CFLAGS ?= ./libs/mruby/build/host/include
-MRUBY_LIBS ?= ./libs/mruby/build/host/lib/libmruby.a
+MRUBY_CFLAGS ?= -I./libs/mruby/build/host/include
+MRUBY_LIBS ?= -L./libs/mruby/build/host/lib -lmruby
 
 CFLAGS_DEBUG :=\
 	-std=c++20 -Wall -Wextra -static \
@@ -36,13 +39,8 @@ CFLAGS_RELEASE :=\
 CFLAGS_DEBUG += $(PCRE_CFLAGS) $(LIBGRAPHEME_CFLAGS) $(MRUBY_CFLAGS) $(C_SANITIZER)
 CFLAGS_RELEASE += $(PCRE_CFLAGS) $(LIBGRAPHEME_CFLAGS) $(MRUBY_CFLAGS)
 
-PCH_CFLAGS_DEBUG := $(CFLAGS_DEBUG) -x c++-header
-PCH_CFLAGS_RELEASE := $(CFLAGS_RELEASE) -x c++-header
-
 UNICODE_SRC := $(wildcard libs/unicode_width/*.c)
-
-UNICODE_OBJ_DEBUG := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/debug/unicode_width/%.o,$(UNICODE_SRC))
-UNICODE_OBJ_RELEASE := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/release/unicode_width/%.o,$(UNICODE_SRC))
+UNICODE_OBJ := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/unicode_width/%.o,$(UNICODE_SRC))
 
 LIBS := $(PCRE_LIBS) $(LIBGRAPHEME_LIBS) $(MRUBY_LIBS)
 
@@ -62,42 +60,46 @@ debug: $(TARGET_DEBUG)
 release: $(TARGET_RELEASE)
 
 $(PCH_DEBUG): $(INCLUDE_DIR)/pch.h
-	mkdir -p $(dir $@)
-	$(CXX) $(PCH_CFLAGS_DEBUG) -o $@ $<
+	@mkdir -p $(PCH_DIR_DEBUG)
+	@$(CXX) $(CFLAGS_DEBUG) -x c++-header -o $@ $(INCLUDE_DIR)/pch.h
+	@echo "Debug Precompiled header generated at $@"
 
 $(PCH_RELEASE): $(INCLUDE_DIR)/pch.h
-	mkdir -p $(dir $@)
-	$(CXX) $(PCH_CFLAGS_RELEASE) -o $@ $<
+	@mkdir -p $(PCH_DIR_RELEASE)
+	@$(CXX) $(CFLAGS_RELEASE) -x c++-header -o $@ $(INCLUDE_DIR)/pch.h
+	@echo "Release Precompiled header generated at $@"
 
-$(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG)
-	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ_DEBUG) $(LIBS)
+$(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ)
+	@mkdir -p $(BIN_DIR)
+	@$(CXX) $(CFLAGS_DEBUG) -o $@ $(OBJ_DEBUG) $(UNICODE_OBJ) $(LIBS)
+	@echo "Debug build complete: $@"
 
-$(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE)
-	mkdir -p $(BIN_DIR)
-	$(CXX) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ_RELEASE) $(LIBS)
+$(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ)
+	@mkdir -p $(BIN_DIR)
+	@$(CXX) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ) $(LIBS)
+	@echo "Release build complete: $@"
 
 $(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc $(PCH_DEBUG) $(GENERATED_HEADER)
-	mkdir -p $(dir $@)
-	$(CXX) $(CFLAGS_DEBUG) -include $(INCLUDE_DIR)/pch.h -MMD -MP -c $< -o $@
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CFLAGS_DEBUG) -I$(PCH_DIR_DEBUG) -include pch.h -MMD -MP -c $< -o $@
+	@echo "[CXX] Debug object file generated: $@ from $<"
 
 $(OBJ_DIR)/release/%.o: $(SRC_DIR)/%.cc $(PCH_RELEASE) $(GENERATED_HEADER)
-	mkdir -p $(dir $@)
-	$(CXX) $(CFLAGS_RELEASE) -include $(INCLUDE_DIR)/pch.h -MMD -MP -c $< -o $@
+	@mkdir -p $(dir $@)
+	@$(CXX) $(CFLAGS_RELEASE) -I$(PCH_DIR_RELEASE) -include pch.h -MMD -MP -c $< -o $@
+	@echo "[CXX] release object file generated: $@ from $<"
 
-$(OBJ_DIR)/debug/unicode_width/%.o: libs/unicode_width/%.c
-	mkdir -p $(dir $@)
-	$(CC) -MMD -MP -c $< -o $@
+$(OBJ_DIR)/unicode_width/%.o: libs/unicode_width/%.c
+	@mkdir -p $(dir $@)
+	@$(CC) -MMD -MP -c $< -o $@
+	@echo "[CC] Object file generated: $@ from $<"
 
-$(OBJ_DIR)/release/unicode_width/%.o: libs/unicode_width/%.c
-	mkdir -p $(dir $@)
-	$(CC) -MMD -MP -c $< -o $@
-
-DEP_DEBUG += $(UNICODE_OBJ_DEBUG:.o=.d)
-DEP_RELEASE += $(UNICODE_OBJ_RELEASE:.o=.d)
+DEP_DEBUG += $(UNICODE_OBJ:.o=.d)
+DEP_RELEASE += $(UNICODE_OBJ:.o=.d)
 
 -include $(DEP_DEBUG)
 -include $(DEP_RELEASE)
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@rm -rf $(OBJ_DIR) $(BIN_DIR)
+	@echo "Cleaned build artifacts."
