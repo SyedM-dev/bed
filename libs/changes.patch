@@ -1,0 +1,53 @@
+--- ./mruby/build_config/default.rb
++++ ./mruby/build_config/default.rb
+@@ -1,6 +1,18 @@
+ MRuby::Build.new do |conf|
+   # load specific toolchain settings
+-  conf.toolchain
++  conf.toolchain :gcc
++
++  conf.cc do |cc|
++    cc.command = ENV['CC']
++  end
++
++  conf.cxx do |cxx|
++    cxx.command = ENV['CXX']
++  end
++
++  conf.linker do |linker|
++    linker.command = ENV['CXX']
++  end
+ 
+   # Use mrbgems
+   # conf.gem 'examples/mrbgems/ruby_extension_example'
+@@ -16,6 +28,10 @@
+   # include the GEM box
+   conf.gembox 'default'
+ 
++  conf.gem '../mgems/mruby-env'
++  conf.gem '../mgems/mruby-process'
++  conf.gem '../mgems/mruby-marshal-c'
++
+   # C compiler settings
+   # conf.cc do |cc|
+   #   cc.command = ENV['CC'] || 'gcc'
+@@ -79,5 +79,5 @@
+   # Turn on `enable_debug` for better debugging
+   # conf.enable_debug
+-  conf.enable_bintest
+-  conf.enable_test
++  # conf.enable_bintest
++  # conf.enable_test
+ end
+--- ./mgems/mruby-process/mrbgem.rake
++++ ./mgems/mruby-process/mrbgem.rake
+@@ -54,4 +54,9 @@
+   else
+     spec.objs.delete objfile("#{build_dir}/src/win32")
+   end
++
++  spec.objs.delete objfile("#{build_dir}/src/internal")
++  spec.objs.delete objfile("#{build_dir}/src/dln")
++  spec.objs.delete objfile("#{build_dir}/src/signal")
++  spec.objs.delete objfile("#{build_dir}/src/status")
+ end

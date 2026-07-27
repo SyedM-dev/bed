@@ -1,0 +1,16 @@
+[submodule "libs/mgems/mruby-marshal-c"]
+  path = libs/mgems/mruby-marshal-c
+  url = https://github.com/LanzaSchneider/mruby-marshal-c.git
+  ignore = dirty
+[submodule "libs/mgems/mruby-env"]
+  path = libs/mgems/mruby-env
+  url = https://github.com/iij/mruby-env.git
+  ignore = dirty
+[submodule "libs/mgems/mruby-process"]
+  path = libs/mgems/mruby-process
+  url = https://github.com/katzer/mruby-process
+  ignore = dirty
+[submodule "libs/mruby"]
+  path = libs/mruby
+  url = https://github.com/mruby/mruby.git
+  ignore = dirty
