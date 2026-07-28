@@ -25,7 +25,7 @@ MRUBY_CFLAGS ?= -I./libs/mruby/build/host/include
 MRUBY_LIBS ?= -L./libs/mruby/build/host/lib -lmruby
 
 CFLAGS_DEBUG :=\
-	-std=c++26 -Wall -Wextra -static \
+	-std=c++26 -Wall -Wextra \
 	-O0 -fno-inline -gsplit-dwarf \
 	-g -fno-omit-frame-pointer -ffast-math \
 	-I./include -I./libs/unicode_width

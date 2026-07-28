@@ -88,7 +88,7 @@
         mruby = mruby;
       };
 
-      devShells.${system}.default = pkgs.mkShell {
+      devShells.${system}.default = hostPkgs.mkShell {
         inputsFrom = [ crib ];
 
         packages = [
