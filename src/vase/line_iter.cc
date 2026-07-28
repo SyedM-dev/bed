@@ -39,15 +39,15 @@ void LineIterator::seek_line(uint32_t line_index) {
     descend(root);
     return;
   }
-  uint32_t nth = line_index; // we want the position right after the nth '\n' (1-indexed)
+  uint32_t nth = line_index;
   Shard *s = root;
   while (s->kind == Shard::ShardKind::Branch) {
     auto *b = static_cast<Branch *>(s);
     if (nth <= b->left->lines) {
-      stack.push_back(b); // still need to visit b->right later
+      stack.push_back(b);
       s = b->left;
     } else {
-      nth -= b->left->lines; // left fully skipped, don't revisit it
+      nth -= b->left->lines;
       s = b->right;
     }
   }
