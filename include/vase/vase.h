@@ -1,7 +1,7 @@
 #pragma once
 
-#include "append_buffer.h"
-#include "original_buffer.h"
+#include "buffer/append.h"
+#include "buffer/original.h"
 #include "pch.h"
 #include "shard.h"
 
@@ -21,7 +21,7 @@ struct Vase {
     root = new Petal(
       length,
       original.newlines.size(),
-      Petal::Kind::Original,
+      &original,
       0
     );
   }

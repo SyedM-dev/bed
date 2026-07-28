@@ -30,6 +30,7 @@ extern "C" {
 #include <fstream>
 #include <functional>
 #include <immintrin.h>
+#include <iostream>
 #include <limits.h>
 #include <map>
 #include <mutex>

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "buffer/buffer.h"
 #include "pch.h"
 
 struct Shard {
@@ -14,7 +15,7 @@ struct Shard {
   std::atomic_uint32_t refs;
 
   Shard(ShardKind kind, uint32_t length, uint32_t lines)
-      : kind(kind), length(length), lines(lines) {};
+      : kind(kind), length(length), lines(lines), refs(0) {};
 };
 
 struct ShardPtr {
@@ -53,17 +54,18 @@ struct Branch : Shard {
 
   Branch(Shard *l, Shard *r)
       : Shard(ShardKind::Branch, l->length + r->length, l->lines + r->lines),
-        left(ShardPtr(l)), right(ShardPtr(r)) {};
+        left(l), right(r) {};
 };
 
 struct Petal : Shard {
-  enum struct Kind {
-    Original,
-    Append
-  } source;
+  Buffer *source;
 
   uint32_t pos;
 
-  Petal(uint32_t length, uint32_t lines, Kind source, uint32_t pos)
+  Petal(uint32_t length, uint32_t lines, Buffer *source, uint32_t pos)
       : Shard(ShardKind::Petal, length, lines), source(source), pos(pos) {};
 };
+
+std::pair<ShardPtr, ShardPtr> split(Shard *n, uint32_t offset);
+
+void print_shard(const Shard *shard, int depth = 0);

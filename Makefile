@@ -44,7 +44,7 @@ UNICODE_OBJ := $(patsubst libs/unicode_width/%.c,$(OBJ_DIR)/unicode_width/%.o,$(
 
 LIBS := $(PCRE_LIBS) $(LIBGRAPHEME_LIBS) $(MRUBY_LIBS)
 
-SRC := $(wildcard $(SRC_DIR)/**/*.cc) $(wildcard $(SRC_DIR)/*.cc)
+SRC := $(shell find $(SRC_DIR) -type f -name '*.cc')
 OBJ_DEBUG := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/debug/%.o,$(SRC))
 OBJ_RELEASE := $(patsubst $(SRC_DIR)/%.cc,$(OBJ_DIR)/release/%.o,$(SRC))
 

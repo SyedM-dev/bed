@@ -58,6 +58,7 @@
           gnumake
           xxd
           bash
+          findutils
         ];
 
         buildInputs = with pkgs; [
@@ -100,6 +101,7 @@
           hostPkgs.xxd
           hostPkgs.gdb
           hostPkgs.binutils
+          hostPkgs.findutils
 
           pkgs.libgrapheme
           pkgs.pcre2

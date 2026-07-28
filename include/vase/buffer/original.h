@@ -1,8 +1,9 @@
 #pragma once
 
+#include "buffer.h"
 #include "pch.h"
 
-struct OriginalBuffer {
+struct OriginalBuffer : Buffer {
   char *buf;
   uint32_t length;
   std::vector<uint32_t> newlines;
@@ -23,4 +24,7 @@ struct OriginalBuffer {
   ~OriginalBuffer() {
     free(buf);
   }
+
+  const char *read(uint32_t pos, uint32_t *out_len);
+  uint32_t count_lines(uint32_t pos, uint32_t length);
 };
