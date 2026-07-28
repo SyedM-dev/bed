@@ -15,5 +15,11 @@ int main() {
 
   print_shard(vase.root.ptr);
 
+  std::cout << "\n->\n\n";
+
+  vase.insert(14, "gr\ntt", 5);
+
+  print_shard(vase.root.ptr);
+
   return 0;
 }

@@ -1,3 +1,5 @@
 Diagnostics:
   Suppress:
     - unused-includes
+Completion:
+  HeaderInsertion: Never

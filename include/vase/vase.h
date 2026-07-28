@@ -25,4 +25,18 @@ struct Vase {
       0
     );
   }
+
+  void insert(uint32_t offset, const char *data, uint32_t len) {
+    uint32_t lines = 0;
+    uint32_t pos = append.append(data, len, &lines);
+
+    ShardPtr inserted = new Petal(len, lines, &append, pos);
+
+    auto [left, right] = split_shard(root.ptr, offset);
+
+    root = concat_shard(
+      concat_shard(left, inserted),
+      right
+    );
+  }
 };

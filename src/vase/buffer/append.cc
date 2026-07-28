@@ -12,7 +12,7 @@ AppendBuffer::~AppendBuffer() {
     free(p);
 }
 
-inline void AppendBuffer::key(char c) {
+inline uint32_t AppendBuffer::key(char c) {
   if (t_offset == CHUNK_SIZE)
     new_text_chunk();
 
@@ -24,9 +24,13 @@ inline void AppendBuffer::key(char c) {
     (*l_current)[l_offset++] = current_offset;
   }
   ++current_offset;
+
+  return current_offset - 1;
 }
 
-void AppendBuffer::append(const char *text, uint32_t length) {
+uint32_t AppendBuffer::append(const char *text, uint32_t length, uint32_t *line_count) {
+  uint32_t start = current_offset;
+
   while (length) {
     uint32_t space = CHUNK_SIZE - t_offset;
 
@@ -36,11 +40,13 @@ void AppendBuffer::append(const char *text, uint32_t length) {
     }
 
     uint32_t copy = length < space ? length : space;
-    _append(text, copy);
+    *line_count += _append(text, copy);
 
     text += copy;
     length -= copy;
   }
+
+  return start;
 }
 
 const char *AppendBuffer::read(uint32_t pos, uint32_t *out_len) {
@@ -125,12 +131,13 @@ inline void AppendBuffer::new_line_chunk() {
   l_offset = 0;
 }
 
-inline void AppendBuffer::_append(const char *text, uint32_t length) {
+inline uint32_t AppendBuffer::_append(const char *text, uint32_t length) {
   memcpy((*t_current) + t_offset, text, length);
 
   const char *p = text;
   const char *end = text + length;
 
+  uint32_t start_index = l_offset;
   while (p < end) {
     p = (const char *)memchr(p, '\n', end - p);
     if (!p)
@@ -143,4 +150,6 @@ inline void AppendBuffer::_append(const char *text, uint32_t length) {
 
   t_offset += length;
   current_offset += length;
+
+  return l_offset - start_index;
 }

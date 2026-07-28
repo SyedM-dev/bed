@@ -66,6 +66,7 @@ struct Petal : Shard {
       : Shard(ShardKind::Petal, length, lines), source(source), pos(pos) {};
 };
 
-std::pair<ShardPtr, ShardPtr> split(Shard *n, uint32_t offset);
+std::pair<ShardPtr, ShardPtr> split_shard(Shard *n, uint32_t offset);
+ShardPtr concat_shard(ShardPtr left, ShardPtr right);
 
 void print_shard(const Shard *shard, int depth = 0);
