@@ -21,7 +21,7 @@ struct AppendBuffer : Buffer {
 
   ~AppendBuffer();
 
-  inline uint32_t key(char c);
+  uint32_t key(char c);
   uint32_t append(const char *text, uint32_t length, uint32_t *line_count);
 
   const char *read(uint32_t pos, uint32_t *out_len);

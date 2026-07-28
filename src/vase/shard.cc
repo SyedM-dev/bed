@@ -155,10 +155,8 @@ ShardPtr append_leaf(Shard *root, Shard *leaf) {
     return ShardPtr(leaf);
   if (root->kind == Shard::ShardKind::Petal)
     return merge_leaves(root, leaf);
-
   Branch *b = (Branch *)root;
   auto new_right = append_leaf(b->right.ptr, leaf);
-
   return balance(new Branch(b->left.ptr, new_right.ptr));
 }
 

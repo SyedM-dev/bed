@@ -12,7 +12,7 @@ AppendBuffer::~AppendBuffer() {
     free(p);
 }
 
-inline uint32_t AppendBuffer::key(char c) {
+uint32_t AppendBuffer::key(char c) {
   if (t_offset == CHUNK_SIZE)
     new_text_chunk();
 
