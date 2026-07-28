@@ -2,7 +2,6 @@
 
 #include "buffer.h"
 #include "pch.h"
-#include <cstdint>
 
 struct AppendBuffer : Buffer {
   static constexpr uint32_t CHUNK_SIZE = 1 << 16;
