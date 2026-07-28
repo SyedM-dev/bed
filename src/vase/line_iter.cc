@@ -13,7 +13,7 @@ LineIterator::~LineIterator() {
 
 void LineIterator::descend(Shard *s) {
   while (s->kind == Shard::ShardKind::Branch) {
-    auto *b = static_cast<Branch *>(s);
+    auto *b = (Branch *)s;
     stack.push_back(b);
     s = b->left;
   }
@@ -42,7 +42,7 @@ void LineIterator::seek_line(uint32_t line_index) {
   uint32_t nth = line_index;
   Shard *s = root;
   while (s->kind == Shard::ShardKind::Branch) {
-    auto *b = static_cast<Branch *>(s);
+    auto *b = (Branch *)s;
     if (nth <= b->left->lines) {
       stack.push_back(b);
       s = b->left;
@@ -51,7 +51,7 @@ void LineIterator::seek_line(uint32_t line_index) {
       s = b->right;
     }
   }
-  petal = static_cast<Petal *>(s);
+  petal = (Petal *)s;
   uint32_t nl_pos = petal->source->nth_newline(petal->pos, nth);
   petal_offset = (nl_pos - petal->pos) + 1;
   if (petal_offset >= petal->length)
