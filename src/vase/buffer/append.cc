@@ -108,6 +108,25 @@ uint32_t AppendBuffer::find_newline(uint32_t target, uint32_t low, uint32_t high
   return chunk * CHUNK_SIZE + l;
 }
 
+inline uint32_t AppendBuffer::newline_value_at(uint32_t flat_index) {
+  uint32_t chunk = flat_index / CHUNK_SIZE;
+  uint32_t off = flat_index % CHUNK_SIZE;
+  return (*newlines[chunk])[off];
+}
+
+uint32_t AppendBuffer::next_newline(uint32_t pos) {
+  uint32_t total = CHUNK_SIZE * (uint32_t)(newlines.size() - 1) + l_offset;
+  uint32_t idx = find_newline(pos, 0, total);
+  return idx >= total ? UINT32_MAX : newline_value_at(idx);
+}
+
+uint32_t AppendBuffer::nth_newline(uint32_t pos, uint32_t n) {
+  uint32_t total = CHUNK_SIZE * (uint32_t)(newlines.size() - 1) + l_offset;
+  uint32_t idx0 = find_newline(pos, 0, total);
+  uint32_t idx = idx0 + (n - 1);
+  return idx >= total ? UINT32_MAX : newline_value_at(idx);
+}
+
 uint32_t AppendBuffer::count_lines(uint32_t pos, uint32_t length) {
   if (newlines.empty())
     return 0;

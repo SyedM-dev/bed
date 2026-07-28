@@ -4,17 +4,17 @@
 #include "vase/vase.h"
 
 int main() {
-  const char *text_o = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n";
+  const char *text_o =
+    "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr\n"
+    "st\n"
+    "uv\n"
+    "wx\n"
+    "yzabcdefghijklmnopqrstuvwxyz\n";
+
   uint32_t len = strlen(text_o);
   char *text = strdup(text_o);
 
   Vase vase = Vase(text, len);
-
-  std::cout << vase.to_string() << "\n";
-
-  print_shard(vase.root);
-
-  std::cout << "\n->\n\n";
 
   vase.insert(14, "gr\ntt", 5);
   vase.insert(58, "gr\ntt", 5);
@@ -28,7 +28,13 @@ int main() {
 
   print_shard(vase.root);
 
-  std::cout << "\n"
+  LineIterator it(vase.root, 3);
+  std::string line;
+  while (it.next(line)) {
+    std::cout << line << "\n";
+  }
+
+  std::cout << "\n\n"
             << vase.to_string();
 
   return 0;

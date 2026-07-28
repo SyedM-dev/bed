@@ -2,6 +2,7 @@
 
 #include "buffer/append.h"
 #include "buffer/original.h"
+#include "line_iter.h"
 #include "pch.h"
 #include "shard.h"
 

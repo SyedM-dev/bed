@@ -27,7 +27,12 @@ struct AppendBuffer : Buffer {
   const char *read(uint32_t pos, uint32_t *out_len);
   uint32_t count_lines(uint32_t pos, uint32_t length);
 
+  uint32_t next_newline(uint32_t pos);
+  uint32_t nth_newline(uint32_t pos, uint32_t n);
+
 private:
+  inline uint32_t newline_value_at(uint32_t flat_index);
+
   inline void new_text_chunk();
   inline void new_line_chunk();
 
