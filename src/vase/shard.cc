@@ -6,115 +6,116 @@ int height(Shard *n) {
 
 int balance_factor(Shard *n) {
   Branch *b = (Branch *)n;
-  return height(b->left.ptr) - height(b->right.ptr);
+  return height(b->left) - height(b->right);
 }
 
-ShardPtr rotate_right(Branch *z) {
-  Branch *y = (Branch *)z->left.ptr;
+Shard *rotate_right(Branch *z) {
+  Branch *y = (Branch *)z->left;
 
-  return new Branch(
-    y->left.ptr,
-    new Branch(y->right.ptr, z->right.ptr)
-  );
+  Shard *middle = new Branch(y->right, z->right);
+  Shard *out = new Branch(y->left, middle);
+
+  Shard::release(middle);
+  Shard::release(z);
+
+  return out;
 }
 
-ShardPtr rotate_left(Branch *z) {
-  Branch *y = (Branch *)z->right.ptr;
+Shard *rotate_left(Branch *z) {
+  Branch *y = (Branch *)z->right;
 
-  return new Branch(
-    new Branch(z->left.ptr, y->left.ptr),
-    y->right.ptr
-  );
+  Shard *middle = new Branch(z->left, y->left);
+  Shard *out = new Branch(middle, y->right);
+
+  Shard::release(middle);
+  Shard::release(z);
+
+  return out;
 }
 
-ShardPtr balance(Shard *node) {
+Shard *balance(Shard *node) {
   if (!node || node->kind == Shard::ShardKind::Petal)
-    return ShardPtr(node);
+    return node;
 
   Branch *b = (Branch *)node;
-
   int bf = balance_factor(node);
 
-  // left heavy
   if (bf > 1) {
-    Branch *left = (Branch *)b->left.ptr;
-
-    // Left-right case
+    Branch *left = (Branch *)b->left;
     if (balance_factor(left) < 0) {
       auto new_left = rotate_left(left);
-
-      auto rebuilt = new Branch(
-        new_left.ptr,
-        b->right.ptr
-      );
-
-      return rotate_right((Branch *)rebuilt);
+      auto rebuilt = new Branch(new_left, b->right);
+      auto result = rotate_right((Branch *)rebuilt);
+      Shard::release(new_left);
+      return result;
     }
-
-    // Left-left case
     return rotate_right(b);
   }
 
-  // right heavy
   if (bf < -1) {
-    Branch *right = (Branch *)b->right.ptr;
-
-    // Right-left case
+    Branch *right = (Branch *)b->right;
     if (balance_factor(right) > 0) {
       auto new_right = rotate_right(right);
-
-      auto rebuilt = new Branch(
-        b->left.ptr,
-        new_right.ptr
-      );
-
-      return rotate_left((Branch *)rebuilt);
+      auto rebuilt = new Branch(b->left, new_right);
+      auto result = rotate_left((Branch *)rebuilt);
+      Shard::release(new_right);
+      return result;
     }
-
-    // Right-right case
     return rotate_left(b);
   }
 
-  return ShardPtr(node);
+  return node;
 }
 
-ShardPtr merge(Shard *a, Shard *b) {
+Shard *merge(Shard *a, Shard *b) {
   if (!a)
-    return ShardPtr(b);
+    return b ? (Shard::retain(b), b) : nullptr;
   if (!b)
-    return ShardPtr(a);
+    return (Shard::retain(a), a);
 
   if (a->height > b->height + 1) {
     Branch *ba = (Branch *)a;
-    auto r = merge(ba->right.ptr, b);
-    return balance(new Branch(ba->left.ptr, r.ptr));
+    Shard *r = merge(ba->right, b);
+    Shard *out = balance(new Branch(ba->left, r));
+    Shard::release(r);
+    return out;
   }
 
   if (b->height > a->height + 1) {
     Branch *bb = (Branch *)b;
-    auto l = merge(a, bb->left.ptr);
-    return balance(new Branch(l.ptr, bb->right.ptr));
+    Shard *l = merge(a, bb->left);
+    Shard *out = balance(new Branch(l, bb->right));
+    Shard::release(l);
+    return out;
   }
 
   return balance(new Branch(a, b));
 }
 
-std::pair<ShardPtr, ShardPtr> split_shard(Shard *n, uint32_t offset) {
+std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset) {
   if (!n)
     return {nullptr, nullptr};
-  if (offset == 0)
-    return {nullptr, ShardPtr(n)};
-  if (offset == n->length)
-    return {ShardPtr(n), nullptr};
+  if (offset == 0) {
+    Shard::retain(n);
+    return {nullptr, n};
+  }
+  if (offset == n->length) {
+    Shard::retain(n);
+    return {n, nullptr};
+  }
 
   if (n->kind == Shard::ShardKind::Branch) {
     Branch *b = (Branch *)n;
-    if (offset < b->left.ptr->length) {
-      auto [a, b2] = split_shard(b->left.ptr, offset);
-      return {a, merge(b2.ptr, b->right.ptr)};
+    if (offset < b->left->length) {
+      auto [a, b2] = split_shard(b->left, offset);
+      Shard *right = merge(b2, b->right);
+      Shard::release(b2);
+      return {a, right};
     } else {
-      auto [a, b2] = split_shard(b->right.ptr, offset - b->left.ptr->length);
-      return {merge(b->left.ptr, a.ptr), b2};
+      auto [a, b2] = split_shard(b->right, offset - b->left->length);
+      Shard *left = merge(b->left, a);
+      Shard::release(a);
+      return {left, b2};
     }
   } else {
     Petal *p = (Petal *)n;
@@ -130,12 +131,11 @@ std::pair<ShardPtr, ShardPtr> split_shard(Shard *n, uint32_t offset) {
       p->source,
       p->pos + offset
     );
-
-    return {ShardPtr(left), ShardPtr(right)};
+    return {left, right};
   }
 }
 
-ShardPtr merge_leaves(Shard *a, Shard *b) {
+Shard *merge_leaves(Shard *a, Shard *b) {
   if (a->kind != Shard::ShardKind::Petal || b->kind != Shard::ShardKind::Petal)
     return merge(a, b);
   Petal *pa = (Petal *)a;
@@ -150,18 +150,20 @@ ShardPtr merge_leaves(Shard *a, Shard *b) {
   );
 }
 
-ShardPtr append_leaf(Shard *root, Shard *leaf) {
+Shard *append_leaf(Shard *root, Shard *leaf) {
   if (!root)
-    return ShardPtr(leaf);
+    return leaf;
   if (root->kind == Shard::ShardKind::Petal)
     return merge_leaves(root, leaf);
   Branch *b = (Branch *)root;
-  auto new_right = append_leaf(b->right.ptr, leaf);
-  return balance(new Branch(b->left.ptr, new_right.ptr));
+  auto new_right = append_leaf(b->right, leaf);
+  auto out = balance(new Branch(b->left, new_right));
+  Shard::release(new_right);
+  return out;
 }
 
-ShardPtr concat_shard(ShardPtr left, ShardPtr right) {
-  return merge(left.ptr, right.ptr);
+Shard *concat_shard(Shard *left, Shard *right) {
+  return merge(left, right);
 }
 
 void print_shard(const Shard *shard, int depth) {
@@ -186,10 +188,10 @@ void print_shard(const Shard *shard, int depth) {
       << "\n";
 
     std::cout << indent << "├─ left:\n";
-    print_shard(branch->left.ptr, depth + 2);
+    print_shard(branch->left, depth + 2);
 
     std::cout << indent << "└─ right:\n";
-    print_shard(branch->right.ptr, depth + 2);
+    print_shard(branch->right, depth + 2);
   } else {
     auto *petal = static_cast<const Petal *>(shard);
 

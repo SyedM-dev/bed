@@ -17,44 +17,24 @@ struct Shard {
   std::atomic_uint32_t refs;
 
   Shard(ShardKind kind, uint32_t length, uint32_t lines, uint8_t height)
-      : kind(kind), length(length), lines(lines), height(height), refs(0) {};
+      : kind(kind), length(length), lines(lines), height(height), refs(1) {};
 
   virtual ~Shard() = default;
-};
 
-struct ShardPtr {
-  Shard *ptr;
-
-  ShardPtr(const ShardPtr &other) : ptr(other.ptr) {
-    if (ptr)
-      ptr->refs++;
+  static void retain(Shard *n) {
+    n->refs++;
   }
 
-  ShardPtr &operator=(const ShardPtr &other) {
-    if (ptr == other.ptr)
-      return *this;
-    if (ptr && --ptr->refs == 0)
-      delete ptr;
-    ptr = other.ptr;
-    if (ptr)
-      ptr->refs++;
-    return *this;
-  }
-
-  ShardPtr(Shard *p = nullptr) : ptr(p) {
-    if (ptr)
-      ptr->refs++;
-  }
-
-  ~ShardPtr() {
-    if (ptr && --ptr->refs == 0)
-      delete ptr;
+  static void release(Shard *n) {
+    if (!n || --n->refs > 0)
+      return;
+    delete n;
   }
 };
 
 struct Branch : Shard {
-  ShardPtr left;
-  ShardPtr right;
+  Shard *left;
+  Shard *right;
 
   Branch(Shard *l, Shard *r)
       : Shard(
@@ -63,7 +43,15 @@ struct Branch : Shard {
           l->lines + r->lines,
           1 + std::max(l->height, r->height)
         ),
-        left(l), right(r) {};
+        left(l), right(r) {
+    retain(left);
+    retain(right);
+  };
+
+  ~Branch() {
+    release(left);
+    release(right);
+  }
 };
 
 struct Petal : Shard {
@@ -76,10 +64,10 @@ struct Petal : Shard {
         source(source), pos(pos) {};
 };
 
-std::pair<ShardPtr, ShardPtr> split_shard(Shard *n, uint32_t offset);
-ShardPtr concat_shard(ShardPtr left, ShardPtr right);
-ShardPtr merge(Shard *a, Shard *b);
-ShardPtr merge_leaves(Shard *a, Shard *b);
-ShardPtr append_leaf(Shard *root, Shard *leaf);
+std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset);
+Shard *concat_shard(Shard *left, Shard *right);
+Shard *merge(Shard *a, Shard *b);
+Shard *merge_leaves(Shard *a, Shard *b);
+Shard *append_leaf(Shard *root, Shard *leaf);
 
 void print_shard(const Shard *shard, int depth = 0);

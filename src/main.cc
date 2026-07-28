@@ -12,7 +12,7 @@ int main() {
 
   std::cout << vase.to_string() << "\n";
 
-  print_shard(vase.root.ptr);
+  print_shard(vase.root);
 
   std::cout << "\n->\n\n";
 
@@ -26,7 +26,7 @@ int main() {
   vase.type(7, 'm');
   vase.type(8, 'n');
 
-  print_shard(vase.root.ptr);
+  print_shard(vase.root);
 
   std::cout << "\n"
             << vase.to_string();
