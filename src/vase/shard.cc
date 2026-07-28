@@ -125,13 +125,13 @@ std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset) {
     Petal *p = (Petal *)n;
     auto left = new Petal(
       offset,
-      p->source->count_lines(0, offset),
+      p->source->count_lines(p->pos, offset),
       p->source,
       p->pos
     );
     auto right = new Petal(
       p->length - offset,
-      p->source->count_lines(offset, p->length),
+      p->source->count_lines(p->pos + offset, p->length - offset),
       p->source,
       p->pos + offset
     );

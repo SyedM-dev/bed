@@ -105,4 +105,6 @@ struct Vase {
       flatten(b->right, out);
     }
   }
+
+  uint32_t offset_of(uint32_t line_number, uint32_t col);
 };

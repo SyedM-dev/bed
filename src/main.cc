@@ -26,9 +26,11 @@ int main() {
   vase.type(7, '3');
   vase.type(8, '4');
 
-  vase.erase(9, -2);
+  vase.erase(vase.offset_of(7, 3), -3);
 
   print_shard(vase.root);
+
+  std::cout << (int)vase.offset_of(6, 0) << "\n\n";
 
   LineIterator it(vase.root, 3);
   std::string line;
