@@ -21,18 +21,19 @@ int main() {
   vase.insert(100, "gr\ntt", 5);
   vase.insert(20, "gr\ntt", 5);
 
-  vase.type(5, 'k');
-  vase.type(6, 'l');
-  vase.type(7, 'm');
-  vase.type(8, 'n');
+  vase.type(5, '1');
+  vase.type(6, '2');
+  vase.type(7, '3');
+  vase.type(8, '4');
+
+  vase.erase(9, -2);
 
   print_shard(vase.root);
 
   LineIterator it(vase.root, 3);
   std::string line;
-  while (it.next(line)) {
+  while (it.next(line))
     std::cout << line << "\n";
-  }
 
   std::cout << "\n\n"
             << vase.to_string();

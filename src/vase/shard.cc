@@ -43,10 +43,12 @@ Shard *balance(Shard *node) {
   if (bf > 1) {
     Branch *left = (Branch *)b->left;
     if (balance_factor(left) < 0) {
+      Shard::retain(left);
       auto new_left = rotate_left(left);
       auto rebuilt = new Branch(new_left, b->right);
       auto result = rotate_right((Branch *)rebuilt);
       Shard::release(new_left);
+      Shard::release(b);
       return result;
     }
     return rotate_right(b);
@@ -55,10 +57,12 @@ Shard *balance(Shard *node) {
   if (bf < -1) {
     Branch *right = (Branch *)b->right;
     if (balance_factor(right) > 0) {
+      Shard::retain(right);
       auto new_right = rotate_right(right);
       auto rebuilt = new Branch(b->left, new_right);
       auto result = rotate_left((Branch *)rebuilt);
       Shard::release(new_right);
+      Shard::release(b);
       return result;
     }
     return rotate_left(b);
