@@ -15,6 +15,7 @@ extern "C" {
 #include <unicode_width.h>
 }
 #include <algorithm>
+#include <assert.h>
 #include <atomic>
 #include <cctype>
 #include <chrono>

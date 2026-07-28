@@ -12,10 +12,14 @@ struct Shard {
   uint32_t length;
   uint32_t lines;
 
+  uint8_t height;
+
   std::atomic_uint32_t refs;
 
-  Shard(ShardKind kind, uint32_t length, uint32_t lines)
-      : kind(kind), length(length), lines(lines), refs(0) {};
+  Shard(ShardKind kind, uint32_t length, uint32_t lines, uint8_t height)
+      : kind(kind), length(length), lines(lines), height(height), refs(0) {};
+
+  virtual ~Shard() = default;
 };
 
 struct ShardPtr {
@@ -53,7 +57,12 @@ struct Branch : Shard {
   ShardPtr right;
 
   Branch(Shard *l, Shard *r)
-      : Shard(ShardKind::Branch, l->length + r->length, l->lines + r->lines),
+      : Shard(
+          ShardKind::Branch,
+          l->length + r->length,
+          l->lines + r->lines,
+          1 + std::max(l->height, r->height)
+        ),
         left(l), right(r) {};
 };
 
@@ -63,10 +72,14 @@ struct Petal : Shard {
   uint32_t pos;
 
   Petal(uint32_t length, uint32_t lines, Buffer *source, uint32_t pos)
-      : Shard(ShardKind::Petal, length, lines), source(source), pos(pos) {};
+      : Shard(ShardKind::Petal, length, lines, 1),
+        source(source), pos(pos) {};
 };
 
 std::pair<ShardPtr, ShardPtr> split_shard(Shard *n, uint32_t offset);
 ShardPtr concat_shard(ShardPtr left, ShardPtr right);
+ShardPtr merge(Shard *a, Shard *b);
+ShardPtr merge_leaves(Shard *a, Shard *b);
+ShardPtr append_leaf(Shard *root, Shard *leaf);
 
 void print_shard(const Shard *shard, int depth = 0);

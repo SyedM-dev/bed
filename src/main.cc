@@ -4,12 +4,9 @@
 #include "vase/vase.h"
 
 int main() {
-  char *text;
-  uint32_t len;
-
-  int s = read_file("./flake.nix", &text, &len);
-  if (!s)
-    return 1;
+  const char *text_o = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  uint32_t len = strlen(text_o);
+  char *text = strdup(text_o);
 
   Vase vase = Vase(text, len);
 
@@ -18,6 +15,9 @@ int main() {
   std::cout << "\n->\n\n";
 
   vase.insert(14, "gr\ntt", 5);
+  vase.insert(200, "gr\ntt", 5);
+  vase.insert(100, "gr\ntt", 5);
+  vase.insert(20, "gr\ntt", 5);
 
   print_shard(vase.root.ptr);
 

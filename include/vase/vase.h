@@ -26,6 +26,10 @@ struct Vase {
     );
   }
 
+  uint32_t length() {
+    return root.ptr->length;
+  }
+
   void insert(uint32_t offset, const char *data, uint32_t len) {
     uint32_t lines = 0;
     uint32_t pos = append.append(data, len, &lines);
@@ -34,9 +38,8 @@ struct Vase {
 
     auto [left, right] = split_shard(root.ptr, offset);
 
-    root = concat_shard(
-      concat_shard(left, inserted),
-      right
-    );
+    left = append_leaf(left.ptr, inserted.ptr);
+
+    root = concat_shard(left, right);
   }
 };
