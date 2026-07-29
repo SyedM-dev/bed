@@ -3,15 +3,26 @@
 #include "vase/shard.h"
 #include "vase/vase.h"
 
-int main() {
-  const char *text_o =
+int main(int argc, char *argv[]) {
+  /*const char *text_o =
     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n"
     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n"
     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n"
     "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
 
   uint32_t len = strlen(text_o);
-  char *text = strdup(text_o);
+  char *text = strdup(text_o);*/
+
+  const char *path;
+
+  if (argc >= 2)
+    path = argv[1];
+  else
+    throw "Please give filename.";
+
+  uint32_t len;
+  char *text;
+  read_file(path, &text, &len);
 
   Vase vase = Vase(text, len);
 

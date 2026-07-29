@@ -29,7 +29,6 @@ extern "C" {
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <immintrin.h>
 #include <iostream>
 #include <limits.h>
 #include <map>
@@ -51,4 +50,5 @@ extern "C" {
 #include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>

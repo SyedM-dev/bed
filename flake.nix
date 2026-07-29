@@ -59,6 +59,7 @@
           xxd
           bash
           findutils
+          binutils
         ];
 
         buildInputs = with pkgs; [

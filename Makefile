@@ -25,13 +25,13 @@ MRUBY_CFLAGS ?= -I./libs/mruby/build/host/include
 MRUBY_LIBS ?= -L./libs/mruby/build/host/lib -lmruby
 
 CFLAGS_DEBUG :=\
-	-std=c++26 -Wall -Wextra \
-	-O0 -fno-inline -gsplit-dwarf \
+	-std=c++20 -Wall -Wextra -fno-rtti \
+	-Og -fno-inline -gsplit-dwarf \
 	-g -fno-omit-frame-pointer -ffast-math \
 	-I./include -I./libs/unicode_width
 
 CFLAGS_RELEASE :=\
-	-std=c++26 -O3 -march=x86-64 -mtune=generic -fno-rtti \
+	-std=c++20 -O3 -mtune=generic -fno-rtti \
 	-fvisibility=hidden -static -ffast-math \
 	-fomit-frame-pointer -DNDEBUG -s \
 	-I./include -I./libs/unicode_width
@@ -77,6 +77,7 @@ $(TARGET_DEBUG): $(PCH_DEBUG) $(OBJ_DEBUG) $(UNICODE_OBJ)
 $(TARGET_RELEASE): $(PCH_RELEASE) $(OBJ_RELEASE) $(UNICODE_OBJ)
 	@mkdir -p $(BIN_DIR)
 	@$(CXX) $(CFLAGS_RELEASE) -o $@ $(OBJ_RELEASE) $(UNICODE_OBJ) $(LIBS)
+	@strip $@
 	@echo "Release build complete: $@"
 
 $(OBJ_DIR)/debug/%.o: $(SRC_DIR)/%.cc $(PCH_DEBUG) $(GENERATED_HEADER)
