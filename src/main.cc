@@ -5,7 +5,10 @@
 
 int main() {
   const char *text_o =
-    "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
+    "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n"
+    "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n"
+    "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz\n"
+    "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
 
   uint32_t len = strlen(text_o);
   char *text = strdup(text_o);
@@ -25,22 +28,18 @@ int main() {
 
   vase.erase(offset_of(vase.root, 7, 3), -3);
 
-  std::vector<RegexMatch> matches = regex_search(vase.root, "a(.)c", 0, vase.length(), PCRE2_MULTILINE, false);
-  print_regex(matches);
-  std::cout << "\n\n";
+  // supports gisxUn and m as inverse (as multiline is default.)
+  std::vector<RegexMatch> matches = regex_search(vase.root, "a(.)c", 0, vase.length(), "s");
+  print_regex(matches); // debug
 
-  std::cout << "\n\n"
-            << vase.to_string();
-
-  // supports gisxUn
-  vase.regex_search_replace("a(.)c", 0, vase.length(), "|$1|", "g");
-
-  /*print_shard(vase.root);
+  print_shard(vase.root); // debug
 
   LineIterator it(vase.root, 0);
   std::string line;
   while (it.next(line))
     std::cout << line << "\n";
+
+  vase.regex_search_replace("a(.)c", 0, vase.length(), "|$1|", "g");
 
   std::cout << "\n\n";
 
@@ -48,7 +47,7 @@ int main() {
   const char *data;
   uint32_t length;
   while (it2.next(&data, &length))
-    std::cout << std::string(data, length) << "\n|\n";*/
+    std::cout << std::string(data, length);
 
   std::cout << "\n\n"
             << vase.to_string();

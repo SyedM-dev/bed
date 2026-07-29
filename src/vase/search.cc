@@ -1,7 +1,40 @@
 #include "vase/search.h"
 #include "vase/iterators/chunk.h"
 
-const std::vector<RegexMatch> regex_search(Shard *root, std::string_view pattern_str, uint32_t start_offset, uint32_t end_offset, uint32_t flags, bool global) {
+const std::vector<RegexMatch> regex_search(
+  Shard *root, std::string_view pattern_str,
+  uint32_t start_offset, uint32_t end_offset,
+  std::string_view options
+) {
+  bool global = false;
+  uint32_t flags = PCRE2_MULTILINE;
+
+  for (char c : options) {
+    switch (c) {
+    case 'g':
+      global = true;
+      break;
+    case 'i':
+      flags |= PCRE2_CASELESS;
+      break;
+    case 's':
+      flags |= PCRE2_DOTALL;
+      break;
+    case 'x':
+      flags |= PCRE2_EXTENDED;
+      break;
+    case 'U':
+      flags |= PCRE2_UNGREEDY;
+      break;
+    case 'n':
+      flags |= PCRE2_NO_AUTO_CAPTURE;
+      break;
+    case 'm':
+      flags &= ~PCRE2_MULTILINE;
+      break;
+    }
+  }
+
   std::vector<RegexMatch> results;
 
   int errornumber;
@@ -242,4 +275,6 @@ void print_regex(const std::vector<RegexMatch> &matches) {
 
     std::cout << "  }\n";
   }
+
+  std::cout << "\n\n";
 }

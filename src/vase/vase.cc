@@ -177,34 +177,12 @@ static void append_piece(Shard *&accum, Shard *piece) {
   accum = combined;
 }
 
-void Vase::regex_search_replace(std::string_view pattern, uint32_t start_offset, uint32_t end_offset, std::string_view replace, std::string_view options) {
-  bool global = false;
-  uint32_t flags = 0;
-
-  for (char c : options) {
-    switch (c) {
-    case 'g':
-      global = true;
-      break;
-    case 'i':
-      flags |= PCRE2_CASELESS;
-      break;
-    case 's':
-      flags |= PCRE2_DOTALL;
-      break;
-    case 'x':
-      flags |= PCRE2_EXTENDED;
-      break;
-    case 'U':
-      flags |= PCRE2_UNGREEDY;
-      break;
-    case 'n':
-      flags |= PCRE2_NO_AUTO_CAPTURE;
-      break;
-    }
-  }
-
-  const std::vector<RegexMatch> matches = regex_search(root, pattern, start_offset, end_offset, flags | PCRE2_MULTILINE, global);
+void Vase::regex_search_replace(
+  std::string_view pattern,
+  uint32_t start_offset, uint32_t end_offset,
+  std::string_view replace, std::string_view options
+) {
+  const std::vector<RegexMatch> matches = regex_search(root, pattern, start_offset, end_offset, options);
   if (matches.empty())
     return;
 

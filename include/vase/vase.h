@@ -31,5 +31,17 @@ struct Vase {
   void insert(uint32_t offset, const char *data, uint32_t len);
   void erase(uint32_t cursor, int64_t amount);
 
-  void regex_search_replace(std::string_view pattern, uint32_t start_offset, uint32_t end_offset, std::string_view replace, std::string_view options);
+  // Grapheme clusters or the specail cluster "\r\n'
+  void erase_clusters(uint32_t cursor, int64_t amount);
+
+  // moves in clusters from line,col and sets new position to line,col returns false if not enough space to jump.
+  bool jump_clusters(uint32_t *line, uint32_t *col, int64_t amount);
+
+  // need to also make helpers for line width.
+
+  void regex_search_replace(
+    std::string_view pattern,
+    uint32_t start_offset, uint32_t end_offset,
+    std::string_view replace, std::string_view options
+  );
 };

@@ -15,5 +15,9 @@ struct RegexMatch {
   std::vector<RegexGroup> groups{};
 };
 
-const std::vector<RegexMatch> regex_search(Shard *root, std::string_view pattern_str, uint32_t start_offset, uint32_t end_offset, uint32_t flags, bool global);
+const std::vector<RegexMatch> regex_search(
+  Shard *root, std::string_view pattern_str,
+  uint32_t start_offset, uint32_t end_offset,
+  std::string_view options
+);
 void print_regex(const std::vector<RegexMatch> &matches);
