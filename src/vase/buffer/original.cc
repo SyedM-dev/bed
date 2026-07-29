@@ -1,5 +1,21 @@
 #include "vase/buffer/original.h"
 
+OriginalBuffer::OriginalBuffer(char *buf, uint32_t length) : buf(buf), length(length) {
+  const char *p = buf;
+  const char *end = buf + length;
+  while (p < end) {
+    p = (const char *)memchr(p, '\n', end - p);
+    if (!p)
+      break;
+    newlines.push_back(uint32_t(p - buf));
+    p++;
+  }
+}
+
+OriginalBuffer::~OriginalBuffer() {
+  free(buf);
+}
+
 const char *OriginalBuffer::read(uint32_t pos, uint32_t *out_len) {
   if (pos >= length)
     return nullptr;

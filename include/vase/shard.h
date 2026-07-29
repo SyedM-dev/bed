@@ -70,4 +70,6 @@ Shard *merge(Shard *a, Shard *b);
 Shard *merge_leaves(Shard *a, Shard *b);
 Shard *append_leaf(Shard *root, Shard *leaf);
 
+uint32_t offset_of(Shard *s, uint32_t line_number, uint32_t col);
+
 void print_shard(const Shard *shard, int depth = 0);

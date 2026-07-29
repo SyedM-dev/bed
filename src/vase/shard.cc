@@ -170,6 +170,30 @@ Shard *concat_shard(Shard *left, Shard *right) {
   return merge(left, right);
 }
 
+uint32_t offset_of(Shard *s, uint32_t line_number, uint32_t col) {
+  if (line_number == 0)
+    return col;
+
+  uint32_t nth = line_number;
+  uint32_t base_offset = 0;
+
+  while (s->kind == Shard::ShardKind::Branch) {
+    auto *b = (Branch *)s;
+    if (nth <= b->left->lines) {
+      s = b->left;
+    } else {
+      nth -= b->left->lines;
+      base_offset += b->left->length;
+      s = b->right;
+    }
+  }
+
+  auto *petal = (Petal *)s;
+  uint32_t nl_pos = petal->source->nth_newline(petal->pos, nth);
+  uint32_t offset_in_petal = (nl_pos - petal->pos) + 1;
+  return base_offset + offset_in_petal + col;
+}
+
 void print_shard(const Shard *shard, int depth) {
   if (!shard) {
     std::cout << std::string(depth * 2, ' ') << "<null>\n";
@@ -180,7 +204,7 @@ void print_shard(const Shard *shard, int depth) {
   std::cout << indent;
 
   if (shard->kind == Shard::ShardKind::Branch) {
-    auto *branch = static_cast<const Branch *>(shard);
+    auto *branch = (const Branch *)shard;
 
     std::cout
       << "Branch"
@@ -197,7 +221,7 @@ void print_shard(const Shard *shard, int depth) {
     std::cout << indent << "└─ right:\n";
     print_shard(branch->right, depth + 2);
   } else {
-    auto *petal = static_cast<const Petal *>(shard);
+    auto *petal = (const Petal *)(shard);
 
     std::cout
       << "Petal"
