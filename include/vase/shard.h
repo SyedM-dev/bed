@@ -4,20 +4,20 @@
 #include "pch.h"
 
 struct Shard {
-  enum struct ShardKind {
+  enum struct ShardKind : uint8_t {
     Branch,
     Petal
   } kind;
 
+  uint8_t height;
+
   uint32_t length;
   uint32_t lines;
-
-  uint8_t height;
 
   std::atomic_uint32_t refs;
 
   Shard(ShardKind kind, uint32_t length, uint32_t lines, uint8_t height)
-      : kind(kind), length(length), lines(lines), height(height), refs(1) {};
+      : kind(kind), height(height), length(length), lines(lines), refs(1) {};
 
   virtual ~Shard() = default;
 

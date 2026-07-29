@@ -1,7 +1,7 @@
 #include "vase/search.h"
 #include "vase/iterators/chunk.h"
 
-const std::vector<RegexMatch> regex_search(
+std::vector<RegexMatch> regex_search(
   Shard *root, std::string_view pattern_str,
   uint32_t start_offset, uint32_t end_offset,
   std::string_view options
@@ -51,12 +51,8 @@ const std::vector<RegexMatch> regex_search(
     NULL
   );
 
-  if (re == NULL) {
-    PCRE2_UCHAR buffer[256];
-    pcre2_get_error_message(errornumber, buffer, sizeof(buffer));
-    printf("Compilation failed at offset %d: %s\n", (int)erroroffset, buffer);
+  if (re == NULL)
     return results;
-  }
 
   pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
 
@@ -77,14 +73,13 @@ const std::vector<RegexMatch> regex_search(
       .start = global_offset + (uint32_t)ovector[0],
       .end = global_offset + (uint32_t)ovector[1]
     };
-    match.groups.reserve(rc - 1);
-    for (int i = 1; i < rc; ++i) {
+    for (int i = 1; i < rc && i <= 9; ++i) {
       PCRE2_SIZE s = ovector[2 * i];
       PCRE2_SIZE e = ovector[2 * i + 1];
-      if (s == PCRE2_UNSET)
-        match.groups.push_back({0, 0, false});
-      else
-        match.groups.push_back({global_offset + (uint32_t)s, global_offset + (uint32_t)e, true});
+      if (s != PCRE2_UNSET) {
+        match.groups[i].start = global_offset + (uint32_t)s;
+        match.groups[i].end = global_offset + (uint32_t)e;
+      }
     }
     results.push_back(std::move(match));
   };
@@ -186,7 +181,6 @@ const std::vector<RegexMatch> regex_search(
             offset = 0;
             break;
           } else {
-            printf("A matching error occurred: %d\n", rc);
             break;
           }
         }
@@ -237,7 +231,6 @@ const std::vector<RegexMatch> regex_search(
         break;
       } else {
         offset = length;
-        printf("A matching error occurred: %d\n", rc);
         break;
       }
     }
@@ -250,31 +243,4 @@ const std::vector<RegexMatch> regex_search(
   pcre2_code_free(re);
 
   return results;
-}
-
-void print_regex(const std::vector<RegexMatch> &matches) {
-  std::cout << "RegexMatches (" << matches.size() << "):\n";
-
-  for (size_t i = 0; i < matches.size(); ++i) {
-    const auto &match = matches[i];
-
-    std::cout << "  [" << i << "] {\n";
-    std::cout << "    start: " << match.start << '\n';
-    std::cout << "    end:   " << match.end << '\n';
-    std::cout << "    groups (" << match.groups.size() << "):\n";
-
-    for (size_t j = 0; j < match.groups.size(); ++j) {
-      const auto &group = match.groups[j];
-
-      std::cout << "      [" << j << "] { "
-                << "matched: " << (group.matched ? "true" : "false")
-                << ", start: " << group.start
-                << ", end: " << group.end
-                << " }\n";
-    }
-
-    std::cout << "  }\n";
-  }
-
-  std::cout << "\n\n";
 }

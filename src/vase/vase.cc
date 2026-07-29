@@ -98,18 +98,20 @@ struct ReplacePart {
     Constant
   } type;
 
-  std::variant<uint8_t, std::string> value;
+  std::variant<uint8_t, Shard *> value;
 };
 
-std::vector<ReplacePart> parse_replace(std::string_view s) {
+std::vector<ReplacePart> parse_replace(AppendBuffer &buf, std::string_view s) {
   std::vector<ReplacePart> parts;
   std::string constant;
   auto flush_constant = [&]() {
     if (!constant.empty()) {
+      uint32_t lines = 0;
+      uint32_t pos = buf.append(constant.data(), (uint32_t)constant.size(), &lines);
       parts.push_back(
         ReplacePart{
           .type = ReplacePart::PartType::Constant,
-          .value = std::move(constant)
+          .value = new Petal((uint32_t)constant.size(), lines, &buf, pos)
         }
       );
       constant.clear();
@@ -153,28 +155,16 @@ std::vector<ReplacePart> parse_replace(std::string_view s) {
   return parts;
 }
 
-static Shard *extract_range(Shard *tree, uint32_t start, uint32_t end) {
-  if (end <= start)
-    return nullptr;
-  auto [left, rest] = split_shard(tree, start);
-  auto [mid, right] = split_shard(rest, end - start);
+Shard *build_balanced(Shard **pieces, size_t lo, size_t hi) {
+  if (hi - lo == 1)
+    return pieces[lo];
+  size_t mid = lo + (hi - lo) / 2;
+  Shard *left = build_balanced(pieces, lo, mid);
+  Shard *right = build_balanced(pieces, mid, hi);
+  Shard *node = new Branch(left, right);
   Shard::release(left);
-  Shard::release(rest);
   Shard::release(right);
-  return mid;
-}
-
-static void append_piece(Shard *&accum, Shard *piece) {
-  if (!piece)
-    return;
-  if (!accum) {
-    accum = piece;
-    return;
-  }
-  Shard *combined = concat_shard(accum, piece);
-  Shard::release(accum);
-  Shard::release(piece);
-  accum = combined;
+  return node;
 }
 
 void Vase::regex_search_replace(
@@ -182,73 +172,81 @@ void Vase::regex_search_replace(
   uint32_t start_offset, uint32_t end_offset,
   std::string_view replace, std::string_view options
 ) {
-  const std::vector<RegexMatch> matches = regex_search(root, pattern, start_offset, end_offset, options);
+  std::vector<RegexMatch> matches = regex_search(root, pattern, start_offset, end_offset, options);
   if (matches.empty())
     return;
 
-  std::vector<ReplacePart> replace_parts = parse_replace(replace);
+  std::vector<ReplacePart> replace_parts = parse_replace(append, replace);
 
-  struct ConstantRef {
-    uint32_t pos = 0;
-    uint32_t lines = 0;
-  };
-  std::vector<ConstantRef> constants(replace_parts.size());
-  for (size_t i = 0; i < replace_parts.size(); ++i) {
-    if (replace_parts[i].type != ReplacePart::PartType::Constant)
-      continue;
-    const std::string &text = std::get<std::string>(replace_parts[i].value);
-    uint32_t lines = 0;
-    uint32_t pos = append.append(text.data(), (uint32_t)text.size(), &lines);
-    constants[i] = {pos, lines};
-  }
+  std::vector<Shard *> pieces;
+  pieces.reserve(matches.size() * 2 + 1);
 
-  for (auto it = matches.rbegin(); it != matches.rend(); ++it) {
-    const RegexMatch &match = *it;
+  Shard *remaining = root;
+  Shard::retain(remaining);
+  uint32_t cursor = 0;
 
-    Shard *replacement = nullptr;
+  for (const RegexMatch &match : matches) {
+    uint32_t gap = match.start - cursor;
+    if (gap > 0) {
+      auto [keep, rest] = split_shard(remaining, gap);
+      Shard::release(remaining);
+      pieces.push_back(keep);
+      remaining = rest;
+    }
+
+    auto [dropped, rest2] = split_shard(remaining, match.end - match.start);
+    Shard::release(remaining);
+    remaining = rest2;
+
     for (size_t i = 0; i < replace_parts.size(); ++i) {
       const ReplacePart &part = replace_parts[i];
       switch (part.type) {
-      case ReplacePart::PartType::Constant: {
-        const std::string &text = std::get<std::string>(part.value);
-        const ConstantRef &ref = constants[i];
-        Shard *piece = new Petal((uint32_t)text.size(), ref.lines, &append, ref.pos);
-        append_piece(replacement, piece);
+      case ReplacePart::PartType::Constant:
+        Shard::retain(std::get<Shard *>(part.value));
+        pieces.push_back(std::get<Shard *>(part.value));
         break;
-      }
       case ReplacePart::PartType::FullMatch:
-        append_piece(replacement, extract_range(root, match.start, match.end));
+        Shard::retain(dropped);
+        pieces.push_back(dropped);
         break;
       case ReplacePart::PartType::CaptureGroup: {
         uint8_t idx = std::get<uint8_t>(part.value);
-        if (idx <= match.groups.size()) {
+        if (idx <= 9) {
           const RegexGroup &group = match.groups[idx - 1];
-          if (group.matched)
-            append_piece(replacement, extract_range(root, group.start, group.end));
+          if (group.start != UINT32_MAX) {
+            uint32_t ls = group.start - match.start;
+            uint32_t le = group.end - match.start;
+            auto [a, b] = split_shard(dropped, ls);
+            auto [g, c] = split_shard(b, le - ls);
+            Shard::release(a);
+            Shard::release(b);
+            Shard::release(c);
+            pieces.push_back(g);
+          }
         }
         break;
       }
       }
     }
-
-    auto [left, rest] = split_shard(root, match.start);
-    auto [dropped, right] = split_shard(rest, match.end - match.start);
     Shard::release(dropped);
-    Shard::release(rest);
-
-    Shard *new_root;
-    if (replacement) {
-      Shard *left2 = concat_shard(left, replacement);
-      Shard::release(left);
-      Shard::release(replacement);
-      new_root = concat_shard(left2, right);
-      Shard::release(left2);
-    } else {
-      new_root = concat_shard(left, right);
-      Shard::release(left);
-    }
-    Shard::release(right);
-    Shard::release(root);
-    root = new_root;
+    cursor = match.end;
   }
+  pieces.push_back(remaining);
+
+  for (auto &part : replace_parts)
+    if (part.type == ReplacePart::PartType::Constant)
+      Shard::release(std::get<Shard *>(part.value));
+
+  std::vector<Shard *> compact;
+  compact.reserve(pieces.size());
+  for (Shard *p : pieces) {
+    if (p && p->length > 0)
+      compact.push_back(p);
+    else if (p)
+      Shard::release(p);
+  }
+
+  Shard *new_root = compact.empty() ? nullptr : build_balanced(compact.data(), 0, compact.size());
+  Shard::release(root);
+  root = new_root;
 }

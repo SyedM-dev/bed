@@ -24,7 +24,15 @@ int main(int argc, char *argv[]) {
   char *text;
   read_file(path, &text, &len);
 
+  auto start = std::chrono::steady_clock::now();
   Vase vase = Vase(text, len);
+  auto end = std::chrono::steady_clock::now();
+  std::cout << "Time to load: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+            << " ms\n";
+
+  std::cout << "Press Enter to continue...";
+  std::cin.get();
 
   vase.insert(1, "bcgr\ntt", 5);
   vase.insert(2, "cgr\ntt", 5);
@@ -40,28 +48,41 @@ int main(int argc, char *argv[]) {
   vase.erase(offset_of(vase.root, 7, 3), -3);
 
   // supports gisxUn and m as inverse (as multiline is default.)
-  std::vector<RegexMatch> matches = regex_search(vase.root, "a(.)c", 0, vase.length(), "s");
-  print_regex(matches); // debug
+  // print_regex(matches); // debug
+  start = std::chrono::steady_clock::now();
+  std::vector<RegexMatch> matches = regex_search(vase.root, "here", 0, vase.length(), "");
+  end = std::chrono::steady_clock::now();
+  std::cout << "Time search: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+            << " ms\n";
 
-  print_shard(vase.root); // debug
+  // print_shard(vase.root); // debug
 
-  LineIterator it(vase.root, 0);
+  /*LineIterator it(vase.root, 0);
   std::string line;
   while (it.next(line))
-    std::cout << line << "\n";
+    std::cout << line << "\n";*/
 
-  vase.regex_search_replace("a(.)c", 0, vase.length(), "|$1|", "g");
+  /*start = std::chrono::steady_clock::now();
+  vase.regex_search_replace("here", 0, vase.length(), "hello", "");
+  end = std::chrono::steady_clock::now();
+  std::cout << "Time replace: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+            << " ms\n";*/
 
-  std::cout << "\n\n";
+  std::cout << "\n\n"
+            << (int)vase.root->height << " append:" << (int)vase.append.current_offset;
 
-  ChunkIterator it2(vase.root);
+  std::cout << "Press Enter to continue...";
+  std::cin.get();
+
+  /*ChunkIterator it2(vase.root);
   const char *data;
   uint32_t length;
   while (it2.next(&data, &length))
-    std::cout << std::string(data, length);
+    std::cout << std::string(data, length);*/
 
-  std::cout << "\n\n"
-            << vase.to_string();
+  // std::cout          << vase.to_string();
 
   return 0;
 }
