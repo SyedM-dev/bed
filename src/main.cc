@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
   if (argc >= 2)
     path = argv[1];
   else
-    throw "Please give filename.";
+    throw std::runtime_error("Please give filename.");
 
   uint32_t len;
   char *text;
