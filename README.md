@@ -1,5 +1,4 @@
 # Crib
----
 
 A set of text editing tools (still in early development).
 
@@ -27,6 +26,7 @@ Not done yet.
 
 `lsp` is a generic plug for lsp's.
 <br/>
+<br/>
 It should support:
 - Lsp over ssh or stdin/out or unix sockets etc.
 - Handling multiple lsps at once (including over a single file.)
@@ -34,5 +34,6 @@ It should support:
 - Loading lsp features etc. automatically.
 - Error handling.
 - And more.
+<br/>
 <br/>
 Not done yet.
