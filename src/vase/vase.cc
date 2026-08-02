@@ -1,9 +1,11 @@
 #include "vase/vase.h"
+#include "utils/utils.h"
+#include "vase/iterators/line.h"
 #include "vase/search.h"
 
-Vase::Vase(char *data, uint32_t length) : original(data, length), append() {
-  root = new Petal(length, original.newlines.size(), &original, 0);
-}
+Vase::Vase(char *data, uint32_t length)
+    : original(data, length), append(),
+      root(create_shards(&original)) {}
 
 Vase::~Vase() {
   Shard::release(root);
@@ -19,10 +21,15 @@ std::string Vase::to_string() {
   return out;
 }
 
-void Vase::type(uint32_t offset, char key) {
+void Vase::input(Point *point, char key) {
+  if (key == '\n')
+    *point = {point->row + 1, 0};
+  else
+    point->col++;
   uint32_t pos = append.key(key);
+  // limit petal size to 32KiB here later.
   Shard *inserted = new Petal(1, key == '\n', &append, pos);
-  auto [left, right] = split_shard(root, offset);
+  auto [left, right] = split_shard(root, offset_of(*point));
   Shard *left2 = append_leaf(left, inserted);
   Shard *new_root = concat_shard(left2, right);
   Shard::release(left);
@@ -33,9 +40,33 @@ void Vase::type(uint32_t offset, char key) {
   root = new_root;
 }
 
-void Vase::insert(uint32_t offset, const char *data, uint32_t len) {
+void Vase::insert(Point *point, const char *data, uint32_t len) {
+  if (len == 0)
+    return;
+  uint32_t offset = offset_of(*point);
+  uint32_t pos = append.append(data, len);
   uint32_t lines = 0;
-  uint32_t pos = append.append(data, len, &lines);
+  const char *start = data;
+  const char *last_line = start;
+  const char *end = start + len;
+  while ((data = (const char *)memchr(data, '\n', end - data))) {
+    ++lines;
+    last_line = ++data;
+  }
+  uint32_t col = 0;
+  uint32_t remaining = end - last_line;
+  while (remaining) {
+    uint32_t n = grapheme_next_character_break_utf8(last_line, remaining);
+    last_line += n;
+    remaining -= n;
+    ++col;
+  }
+  if (lines) {
+    point->row += lines;
+    point->col = col;
+  } else {
+    point->col += col;
+  }
   Shard *inserted = new Petal(len, lines, &append, pos);
   auto [left, right] = split_shard(root, offset);
   Shard *left2 = append_leaf(left, inserted);
@@ -48,16 +79,18 @@ void Vase::insert(uint32_t offset, const char *data, uint32_t len) {
   root = new_root;
 }
 
-void Vase::erase(uint32_t cursor, int64_t amount) {
+void Vase::erase(Point *point, int64_t amount) {
+  // wrong: havta make amount be in clusters not bytes
+  uint32_t offset = offset_of(*point);
   if (amount == 0)
     return;
   uint32_t start;
   uint32_t count;
   if (amount < 0) {
-    count = std::min<uint32_t>(-amount, cursor);
-    start = cursor - count;
+    count = std::min<uint32_t>(-amount, offset);
+    start = offset - count;
   } else {
-    start = cursor;
+    start = offset;
     count = amount;
   }
   auto [a, b] = split_shard(root, start);
@@ -91,6 +124,34 @@ void Vase::flatten(Shard *s, std::string &out) {
   }
 }
 
+uint32_t Vase::offset_of(Point point) {
+  LineIterator it(root, point.row);
+  std::string line;
+  uint32_t offset = 0;
+  if (it.next(line)) {
+    const char *ptr = line.data();
+    uint32_t remaining = line.length();
+    while (point.col && remaining) {
+      uint32_t next_len = grapheme_next_character_break_utf8(ptr, remaining);
+      remaining -= next_len;
+      ptr += next_len;
+      offset += next_len;
+      point.col--;
+    }
+  }
+  return it.byte_offset() + offset;
+}
+
+bool Vase::jump(Point *, int64_t) {
+  // todo.
+  return false;
+}
+
+bool Vase::clamp(Point *) {
+  // todo.
+  return false;
+}
+
 struct ReplacePart {
   enum struct PartType {
     FullMatch,
@@ -107,7 +168,7 @@ std::vector<ReplacePart> parse_replace(AppendBuffer &buf, std::string_view s) {
   auto flush_constant = [&]() {
     if (!constant.empty()) {
       uint32_t lines = 0;
-      uint32_t pos = buf.append(constant.data(), (uint32_t)constant.size(), &lines);
+      uint32_t pos = buf.append(constant.data(), (uint32_t)constant.size());
       parts.push_back(
         ReplacePart{
           .type = ReplacePart::PartType::Constant,
@@ -155,24 +216,12 @@ std::vector<ReplacePart> parse_replace(AppendBuffer &buf, std::string_view s) {
   return parts;
 }
 
-Shard *build_balanced(Shard **pieces, size_t lo, size_t hi) {
-  if (hi - lo == 1)
-    return pieces[lo];
-  size_t mid = lo + (hi - lo) / 2;
-  Shard *left = build_balanced(pieces, lo, mid);
-  Shard *right = build_balanced(pieces, mid, hi);
-  Shard *node = new Branch(left, right);
-  Shard::release(left);
-  Shard::release(right);
-  return node;
-}
-
 void Vase::regex_search_replace(
   std::string_view pattern,
-  uint32_t start_offset, uint32_t end_offset,
+  Point start, Point end,
   std::string_view replace, std::string_view options
 ) {
-  std::vector<RegexMatch> matches = regex_search(root, pattern, start_offset, end_offset, options);
+  std::vector<RegexMatch> matches = regex_search(root, pattern, offset_of(start), offset_of(end), options);
   if (matches.empty())
     return;
 

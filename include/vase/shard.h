@@ -1,7 +1,9 @@
 #pragma once
 
 #include "buffer/buffer.h"
+#include "buffer/original.h"
 #include "pch.h"
+#include "utils/utils.h"
 
 struct Shard {
   enum struct ShardKind : uint8_t {
@@ -19,17 +21,8 @@ struct Shard {
   Shard(ShardKind kind, uint32_t length, uint32_t lines, uint8_t height)
       : kind(kind), height(height), length(length), lines(lines), refs(1) {};
 
-  virtual ~Shard() = default;
-
-  static void retain(Shard *n) {
-    n->refs++;
-  }
-
-  static void release(Shard *n) {
-    if (!n || --n->refs > 0)
-      return;
-    delete n;
-  }
+  static void retain(Shard *n);
+  static void release(Shard *n);
 };
 
 struct Branch : Shard {
@@ -47,11 +40,6 @@ struct Branch : Shard {
     retain(left);
     retain(right);
   };
-
-  ~Branch() {
-    release(left);
-    release(right);
-  }
 };
 
 struct Petal : Shard {
@@ -64,12 +52,11 @@ struct Petal : Shard {
         source(source), pos(pos) {};
 };
 
+Shard *create_shards(Buffer *o);
+
 std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset);
 Shard *concat_shard(Shard *left, Shard *right);
 Shard *merge(Shard *a, Shard *b);
 Shard *merge_leaves(Shard *a, Shard *b);
 Shard *append_leaf(Shard *root, Shard *leaf);
-
-uint32_t offset_of(Shard *s, uint32_t line_number, uint32_t col);
-
-void print_shard(const Shard *shard, int depth = 0);
+Shard *build_balanced(Shard **pieces, uint32_t lo, uint32_t hi);

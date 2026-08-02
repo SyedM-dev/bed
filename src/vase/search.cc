@@ -9,6 +9,8 @@ std::vector<RegexMatch> regex_search(
   bool global = false;
   uint32_t flags = PCRE2_MULTILINE;
 
+  const char *dot = "(?:(?!\\n)\\X)";
+
   for (char c : options) {
     switch (c) {
     case 'g':
@@ -18,7 +20,7 @@ std::vector<RegexMatch> regex_search(
       flags |= PCRE2_CASELESS;
       break;
     case 's':
-      flags |= PCRE2_DOTALL;
+      dot = "(?:\\X)";
       break;
     case 'x':
       flags |= PCRE2_EXTENDED;
@@ -40,11 +42,36 @@ std::vector<RegexMatch> regex_search(
   int errornumber;
   PCRE2_SIZE erroroffset;
 
-  PCRE2_SPTR pattern = (PCRE2_SPTR)pattern_str.data();
+  std::string out;
+  out.reserve(pattern_str.size() * 2);
+
+  bool escaped = false;
+
+  for (char c : pattern_str) {
+    // TODO: also dont switch out in [.] style groups.
+    if (escaped) {
+      out += c;
+      escaped = false;
+      continue;
+    }
+
+    if (c == '\\') {
+      out += c;
+      escaped = true;
+      continue;
+    }
+
+    if (c == '.') {
+      out += dot;
+      continue;
+    }
+
+    out += c;
+  }
 
   pcre2_code *re = pcre2_compile(
-    pattern,
-    pattern_str.size(),
+    (PCRE2_SPTR)out.data(),
+    out.size(),
     flags,
     &errornumber,
     &erroroffset,
@@ -56,7 +83,8 @@ std::vector<RegexMatch> regex_search(
 
   pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
 
-  ChunkIterator it(root, start_offset);
+  ChunkIterator it(root);
+  it.seek_offset(start_offset);
 
   const char *data;
   uint32_t length;

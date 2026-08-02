@@ -5,16 +5,17 @@
 #include "pch.h"
 
 struct LineIterator {
-  uint32_t offset;
   ChunkIterator it;
 
   const char *cursor = nullptr;
-  uint32_t remaining = 0;
   bool eof = false;
+  uint32_t remaining = 0;
+  uint32_t line_offset = 0;
 
   LineIterator(Shard *r, uint32_t start_line);
 
-  ~LineIterator();
+  ~LineIterator() = default;
 
   bool next(std::string &line);
+  uint32_t byte_offset();
 };

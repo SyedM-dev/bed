@@ -1,5 +1,21 @@
 #include "vase/shard.h"
 
+void Shard::retain(Shard *n) {
+  n->refs++;
+};
+
+void Shard::release(Shard *n) {
+  if (!n || --n->refs > 0)
+    return;
+  if (n->kind == Shard::ShardKind::Branch) {
+    release(((Branch *)n)->left);
+    release(((Branch *)n)->right);
+    delete (Branch *)n;
+  } else {
+    delete (Petal *)n;
+  }
+}
+
 int height(Shard *n) {
   return n ? n->height : 0;
 }
@@ -123,15 +139,37 @@ std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset) {
     }
   } else {
     Petal *p = (Petal *)n;
+    uint32_t count[2]{0};
+    uint32_t read_offset = 0;
+    while (read_offset < p->length) {
+      uint32_t got = 0;
+      const char *c = p->source->read(p->pos + read_offset, &got);
+      const char *end = c + std::min(got, p->length - read_offset);
+      const char *cursor = c;
+      while (cursor < end) {
+        const char *nl = (const char *)memchr(cursor, '\n', end - cursor);
+        if (!nl) {
+          cursor = end;
+          break;
+        }
+        uint32_t nl_pos = read_offset + (uint32_t)(nl - c);
+        if (nl_pos < offset)
+          count[0]++;
+        else
+          count[1]++;
+        cursor = nl + 1;
+      }
+      read_offset += (uint32_t)(cursor - c);
+    }
     auto left = new Petal(
       offset,
-      p->source->count_lines(p->pos, offset),
+      count[0],
       p->source,
       p->pos
     );
     auto right = new Petal(
       p->length - offset,
-      p->source->count_lines(p->pos + offset, p->length - offset),
+      count[1],
       p->source,
       p->pos + offset
     );
@@ -157,7 +195,7 @@ Shard *merge_leaves(Shard *a, Shard *b) {
 Shard *append_leaf(Shard *root, Shard *leaf) {
   if (!root)
     return leaf;
-  if (root->kind == Shard::ShardKind::Petal)
+  if (root->kind == Shard::ShardKind::Petal && root->length < 32 * 1024)
     return merge_leaves(root, leaf);
   Branch *b = (Branch *)root;
   auto new_right = append_leaf(b->right, leaf);
@@ -170,67 +208,47 @@ Shard *concat_shard(Shard *left, Shard *right) {
   return merge(left, right);
 }
 
-uint32_t offset_of(Shard *s, uint32_t line_number, uint32_t col) {
-  if (line_number == 0)
-    return col;
-
-  uint32_t nth = line_number;
-  uint32_t base_offset = 0;
-
-  while (s->kind == Shard::ShardKind::Branch) {
-    auto *b = (Branch *)s;
-    if (nth <= b->left->lines) {
-      s = b->left;
-    } else {
-      nth -= b->left->lines;
-      base_offset += b->left->length;
-      s = b->right;
-    }
-  }
-
-  auto *petal = (Petal *)s;
-  uint32_t nl_pos = petal->source->nth_newline(petal->pos, nth);
-  uint32_t offset_in_petal = (nl_pos - petal->pos) + 1;
-  return base_offset + offset_in_petal + col;
+Shard *build_balanced(Shard **pieces, uint32_t lo, uint32_t hi) {
+  if (hi - lo == 1)
+    return pieces[lo];
+  size_t mid = lo + (hi - lo) / 2;
+  Shard *left = build_balanced(pieces, lo, mid);
+  Shard *right = build_balanced(pieces, mid, hi);
+  Shard *node = new Branch(left, right);
+  Shard::release(left);
+  Shard::release(right);
+  return node;
 }
 
-void print_shard(const Shard *shard, int depth) {
-  if (!shard) {
-    std::cout << std::string(depth * 2, ' ') << "<null>\n";
-    return;
+Shard *create_shards(Buffer *o) {
+  constexpr uint32_t PETAL_SIZE = 32 * 1024;
+  std::vector<Shard *> pieces;
+  uint32_t pos = 0;
+  const uint32_t total = o->length();
+  pieces.reserve((total + PETAL_SIZE - 1) / PETAL_SIZE);
+
+  while (pos < total) {
+    uint32_t len = 0;
+    const char *data = o->read(pos, &len);
+    uint32_t take = std::min(len, PETAL_SIZE);
+    uint32_t lines = 0;
+    const char *p = data;
+    const char *end = data + take;
+    while (p < end) {
+      const void *nl = memchr(p, '\n', end - p);
+      if (!nl)
+        break;
+      lines++;
+      p = (const char *)nl + 1;
+    }
+    pieces.push_back(new Petal(take, lines, o, pos));
+    pos += take;
   }
 
-  std::string indent(depth * 2, ' ');
-  std::cout << indent;
+  if (pieces.empty())
+    return nullptr;
+  if (pieces.size() == 1)
+    return pieces[0];
 
-  if (shard->kind == Shard::ShardKind::Branch) {
-    auto *branch = (const Branch *)shard;
-
-    std::cout
-      << "Branch"
-      << " @" << shard
-      << " len=" << shard->length
-      << " lines=" << shard->lines
-      << " height=" << (int)shard->height
-      << " refs=" << shard->refs.load()
-      << "\n";
-
-    std::cout << indent << "├─ left:\n";
-    print_shard(branch->left, depth + 2);
-
-    std::cout << indent << "└─ right:\n";
-    print_shard(branch->right, depth + 2);
-  } else {
-    auto *petal = (const Petal *)(shard);
-
-    std::cout
-      << "Petal"
-      << " @" << shard
-      << " len=" << shard->length
-      << " lines=" << shard->lines
-      << " refs=" << shard->refs.load()
-      << " source=@" << petal->source
-      << " pos=" << petal->pos
-      << "\n";
-  }
+  return build_balanced(pieces.data(), 0, pieces.size());
 }
