@@ -3,14 +3,20 @@
 #include "../shard.h"
 #include "pch.h"
 
+enum struct Direction : uint8_t {
+  Forward,
+  Backward
+};
+
 struct ChunkIterator {
+  Direction dir;
   Shard *root = nullptr;
   std::vector<Shard *> stack;
   Petal *petal = nullptr;
   uint32_t petal_offset = 0;
-  uint32_t global_offset;
+  uint32_t global_offset = 0;
 
-  ChunkIterator(Shard *r);
+  ChunkIterator(Shard *r, Direction dir);
 
   ~ChunkIterator();
 

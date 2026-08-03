@@ -3,12 +3,18 @@
 #include "vase/iterators/line.h"
 #include "vase/search.h"
 
-Vase::Vase(char *data, uint32_t length)
-    : original(data, length), append(),
-      root(create_shards(&original)) {}
+Vase::Vase(std::string path)
+    : original(path), append(),
+      root(create_shards(&original)) {
+  history.push_back(root);
+  Shard::retain(root);
+  history_top = 0;
+}
 
 Vase::~Vase() {
   Shard::release(root);
+  for (auto s : history)
+    Shard::release(s);
 }
 
 uint32_t Vase::length() {
@@ -21,13 +27,56 @@ std::string Vase::to_string() {
   return out;
 }
 
-void Vase::input(Point *point, char key) {
+LineIterator Vase::iterate(uint32_t line) {
+  return LineIterator(root, line, Direction::Forward);
+}
+
+bool Vase::undo() {
+  if (history_top == 0)
+    return false;
+  Shard::release(root);
+  history_top--;
+  root = history[history_top];
+  Shard::retain(root);
+  return true;
+}
+
+bool Vase::redo() {
+  if (history_top + 1 >= history.size())
+    return false;
+  Shard::release(root);
+  history_top++;
+  root = history[history_top];
+  Shard::retain(root);
+  return true;
+}
+
+void Vase::snapshot() {
+  if (history[history_top] == root)
+    return;
+  while (history.size() > history_top + 1) {
+    Shard::release(history.back());
+    history.pop_back();
+  }
+  Shard::retain(root);
+  history.push_back(root);
+  history_top++;
+}
+
+void Vase::prune_history(uint32_t n) {
+  n = std::min(n, history_top);
+  for (uint32_t i = 0; i < n; ++i)
+    Shard::release(history[i]);
+  history.erase(history.begin(), history.begin() + n);
+  history_top -= n;
+}
+
+void Vase::insert(Point *point, char key) {
   if (key == '\n')
     *point = {point->row + 1, 0};
   else
     point->col++;
   uint32_t pos = append.key(key);
-  // limit petal size to 32KiB here later.
   Shard *inserted = new Petal(1, key == '\n', &append, pos);
   auto [left, right] = split_shard(root, offset_of(*point));
   Shard *left2 = append_leaf(left, inserted);
@@ -41,6 +90,15 @@ void Vase::input(Point *point, char key) {
 }
 
 void Vase::insert(Point *point, const char *data, uint32_t len) {
+  while (len) {
+    uint32_t chunk_size = std::min<uint32_t>(len, PETAL_SIZE_MAX);
+    _insert(point, data, chunk_size);
+    len -= chunk_size;
+    data += chunk_size;
+  }
+}
+
+void Vase::_insert(Point *point, const char *data, uint32_t len) {
   if (len == 0)
     return;
   uint32_t offset = offset_of(*point);
@@ -80,20 +138,20 @@ void Vase::insert(Point *point, const char *data, uint32_t len) {
 }
 
 void Vase::erase(Point *point, int64_t amount) {
-  // wrong: havta make amount be in clusters not bytes
-  uint32_t offset = offset_of(*point);
   if (amount == 0)
     return;
-  uint32_t start;
-  uint32_t count;
-  if (amount < 0) {
-    count = std::min<uint32_t>(-amount, offset);
-    start = offset - count;
-  } else {
-    start = offset;
-    count = amount;
-  }
-  auto [a, b] = split_shard(root, start);
+  Point start = *point;
+  Point end = *point;
+  if (amount < 0)
+    move_clusters(&start, amount);
+  else
+    move_clusters(&end, amount);
+  uint32_t start_offset = offset_of(start);
+  uint32_t end_offset = offset_of(end);
+  if (start_offset > end_offset)
+    std::swap(start_offset, end_offset);
+  uint32_t count = end_offset - start_offset;
+  auto [a, b] = split_shard(root, start_offset);
   auto [d, c] = split_shard(b, count);
   Shard *new_root = concat_shard(a, c);
   Shard::release(a);
@@ -102,6 +160,30 @@ void Vase::erase(Point *point, int64_t amount) {
   Shard::release(d);
   Shard::release(root);
   root = new_root;
+  if (amount < 0)
+    *point = start;
+}
+
+void Vase::erase(Range range) {
+  Point start = range.start;
+  Point end = range.end;
+  uint32_t start_offset = offset_of(start);
+  uint32_t end_offset = offset_of(end);
+  uint32_t count = end_offset - start_offset;
+  auto [a, b] = split_shard(root, start_offset);
+  auto [d, c] = split_shard(b, count);
+  Shard *new_root = concat_shard(a, c);
+  Shard::release(a);
+  Shard::release(b);
+  Shard::release(c);
+  Shard::release(d);
+  Shard::release(root);
+  root = new_root;
+}
+
+void Vase::replace(Range range, const char *data, uint32_t len) {
+  erase(range);
+  insert(&range.start, data, len);
 }
 
 void Vase::flatten(Shard *s, std::string &out) {
@@ -125,7 +207,7 @@ void Vase::flatten(Shard *s, std::string &out) {
 }
 
 uint32_t Vase::offset_of(Point point) {
-  LineIterator it(root, point.row);
+  LineIterator it(root, point.row, Direction::Forward);
   std::string line;
   uint32_t offset = 0;
   if (it.next(line)) {
@@ -142,14 +224,100 @@ uint32_t Vase::offset_of(Point point) {
   return it.byte_offset() + offset;
 }
 
-bool Vase::jump(Point *, int64_t) {
-  // todo.
-  return false;
+void Vase::move_clusters(Point *point, int64_t amount) {
+  if (amount == 0)
+    return;
+  if (amount < 0) {
+    amount = -amount;
+    LineIterator it(root, point->row, Direction::Backward);
+    while (amount > 0) {
+      std::string line;
+      if (!it.next(line))
+        return;
+      std::vector<uint32_t> clusters;
+      const char *ptr = line.data();
+      uint32_t remaining = line.size();
+      uint32_t byte = 0;
+      while (remaining) {
+        clusters.push_back(byte);
+        uint32_t len =
+          grapheme_next_character_break_utf8(ptr, remaining);
+        ptr += len;
+        remaining -= len;
+        byte += len;
+      }
+      while (amount > 0 && point->col > 0) {
+        point->col--;
+        amount--;
+      }
+      if (amount == 0)
+        return;
+      if (point->row == 0)
+        return;
+      point->row--;
+      point->col = clusters.size();
+      amount--;
+    }
+  } else {
+    LineIterator it(root, point->row, Direction::Forward);
+    while (amount > 0) {
+      std::string line;
+      if (!it.next(line))
+        return;
+      if (point->col > 0 || amount > 0) {
+        const char *ptr = line.data();
+        uint32_t remaining = line.size();
+        uint32_t col = 0;
+        while (col < point->col && remaining) {
+          uint32_t len = grapheme_next_character_break_utf8(ptr, remaining);
+          ptr += len;
+          remaining -= len;
+          col++;
+        }
+        while (amount > 0 && remaining) {
+          uint32_t len = grapheme_next_character_break_utf8(ptr, remaining);
+          ptr += len;
+          remaining -= len;
+          point->col++;
+          amount--;
+        }
+      }
+      if (amount > 0) {
+        point->row++;
+        point->col = 0;
+        amount--;
+      }
+    }
+  }
 }
 
-bool Vase::clamp(Point *) {
-  // todo.
-  return false;
+void Vase::clamp(Point *point) {
+  if (point->row > root->lines)
+    point->row = root->lines;
+  LineIterator it(root, point->row, Direction::Forward);
+  std::string line;
+  if (!it.next(line)) {
+    point->col = 0;
+    return;
+  }
+  uint32_t clusters = 0;
+  const char *ptr = line.data();
+  uint32_t remaining = line.size();
+  while (remaining) {
+    uint32_t len = grapheme_next_character_break_utf8(ptr, remaining);
+    ptr += len;
+    remaining -= len;
+    clusters++;
+  }
+  if (point->col > clusters)
+    point->col = clusters;
+}
+
+void Vase::move_lines(Point *point, int64_t amount) {
+  if (point->row + amount < 0)
+    return;
+  point->row += amount;
+  clamp(point);
 }
 
 struct ReplacePart {

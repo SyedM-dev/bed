@@ -6,14 +6,12 @@
 
 struct LineIterator {
   ChunkIterator it;
+  Direction dir;
 
-  const char *cursor = nullptr;
-  bool eof = false;
-  uint32_t remaining = 0;
-  uint32_t line_offset = 0;
+  const char *chunk;
+  uint32_t len;
 
-  LineIterator(Shard *r, uint32_t start_line);
-
+  LineIterator(Shard *r, uint32_t start_line, Direction dir);
   ~LineIterator() = default;
 
   bool next(std::string &line);

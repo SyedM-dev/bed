@@ -25,13 +25,13 @@ MRUBY_CFLAGS ?= -I./libs/mruby/build/host/include
 MRUBY_LIBS ?= -L./libs/mruby/build/host/lib -lmruby
 
 CFLAGS_DEBUG :=\
-	-std=c++20 -Wall -Wextra -fno-rtti \
+	-std=c++23 -Wall -Wextra -fno-rtti \
 	-Og -fno-inline -gsplit-dwarf \
 	-g -fno-omit-frame-pointer -ffast-math \
 	-I./include -I./libs/unicode_width
 
 CFLAGS_RELEASE :=\
-	-std=c++20 -O3 -mtune=generic -fno-rtti \
+	-std=c++23 -O3 -mtune=generic -fno-rtti \
 	-fvisibility=hidden -static -ffast-math \
 	-fomit-frame-pointer -DNDEBUG -s \
 	-I./include -I./libs/unicode_width

@@ -1,6 +1,9 @@
 #include "vase/buffer/original.h"
+#include "io/file.h"
 
-OriginalBuffer::OriginalBuffer(char *buf, uint32_t len) : buf(buf), len(len) {}
+OriginalBuffer::OriginalBuffer(std::string path) {
+  read_file(path.c_str(), &buf, &len);
+}
 
 OriginalBuffer::~OriginalBuffer() {
   free(buf);

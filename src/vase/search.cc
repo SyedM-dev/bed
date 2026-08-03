@@ -83,7 +83,7 @@ std::vector<RegexMatch> regex_search(
 
   pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
 
-  ChunkIterator it(root);
+  ChunkIterator it(root, Direction::Forward);
   it.seek_offset(start_offset);
 
   const char *data;

@@ -195,7 +195,7 @@ Shard *merge_leaves(Shard *a, Shard *b) {
 Shard *append_leaf(Shard *root, Shard *leaf) {
   if (!root)
     return leaf;
-  if (root->kind == Shard::ShardKind::Petal && root->length < 32 * 1024)
+  if (root->kind == Shard::ShardKind::Petal && root->length < PETAL_SIZE_MAX)
     return merge_leaves(root, leaf);
   Branch *b = (Branch *)root;
   auto new_right = append_leaf(b->right, leaf);
@@ -221,16 +221,15 @@ Shard *build_balanced(Shard **pieces, uint32_t lo, uint32_t hi) {
 }
 
 Shard *create_shards(Buffer *o) {
-  constexpr uint32_t PETAL_SIZE = 32 * 1024;
   std::vector<Shard *> pieces;
   uint32_t pos = 0;
   const uint32_t total = o->length();
-  pieces.reserve((total + PETAL_SIZE - 1) / PETAL_SIZE);
+  pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);
 
   while (pos < total) {
     uint32_t len = 0;
     const char *data = o->read(pos, &len);
-    uint32_t take = std::min(len, PETAL_SIZE);
+    uint32_t take = std::min(len, PETAL_SIZE_MAX);
     uint32_t lines = 0;
     const char *p = data;
     const char *end = data + take;

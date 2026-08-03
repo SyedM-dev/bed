@@ -7,8 +7,8 @@ struct OriginalBuffer : Buffer {
   char *buf;
   uint32_t len;
 
-  // TODO: replace with file io or even lazy loaded file io for large files/logs etc. later.
-  OriginalBuffer(char *buf, uint32_t len);
+  // Add 2 modes here, normal and lazy, lazy copies the file to a safe location and uses mmap.
+  OriginalBuffer(std::string path);
 
   ~OriginalBuffer();
 

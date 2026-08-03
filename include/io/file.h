@@ -29,12 +29,10 @@ inline int read_file(const char *path, char **text, uint32_t *len) {
 
   if (read != *len) {
     free(*text);
-    *text = NULL;
+    *text = nullptr;
     *len = 0;
     return 0;
   }
-
-  (*text)[*len] = '\0'; // handy if treating it as a C string
 
   return 1;
 }

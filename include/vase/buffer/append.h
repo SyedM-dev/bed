@@ -1,12 +1,11 @@
 #pragma once
 
+#include "../constants.h"
 #include "buffer.h"
 #include "pch.h"
 
 struct AppendBuffer : Buffer {
-  static constexpr uint32_t CHUNK_SIZE = 1 << 16;
-
-  using TChunk = char[CHUNK_SIZE];
+  using TChunk = char[APPEND_CHUNK_SIZE];
   std::vector<TChunk *> buf;
   TChunk *t_current;
   uint32_t current_offset{0};
@@ -21,6 +20,4 @@ struct AppendBuffer : Buffer {
 
   const char *read(uint32_t pos, uint32_t *out_len);
   inline uint32_t length();
-
-  inline void new_text_chunk();
 };
