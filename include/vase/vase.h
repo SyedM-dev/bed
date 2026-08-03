@@ -46,8 +46,7 @@ struct Vase {
   void clamp(Point *point);
 
   void regex_search_replace(
-    std::string_view pattern,
-    Point start, Point end,
+    std::string_view pattern, Range range,
     std::string_view replace, std::string_view options
   );
 

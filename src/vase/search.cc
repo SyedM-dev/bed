@@ -44,28 +44,49 @@ std::vector<RegexMatch> regex_search(
 
   std::string out;
   out.reserve(pattern_str.size() * 2);
-
   bool escaped = false;
-
-  for (char c : pattern_str) {
-    // TODO: also dont switch out in [.] style groups.
+  bool in_class = false;
+  bool in_quote = false;
+  for (size_t i = 0; i < pattern_str.size(); i++) {
+    char c = pattern_str[i];
     if (escaped) {
       out += c;
       escaped = false;
       continue;
     }
-
     if (c == '\\') {
       out += c;
+      if (i + 1 < pattern_str.size()) {
+        char next = pattern_str[i + 1];
+        if (next == 'Q')
+          in_quote = true;
+        else if (next == 'E')
+          in_quote = false;
+        out += next;
+        i++;
+        continue;
+      }
       escaped = true;
       continue;
     }
-
-    if (c == '.') {
+    if (in_quote) {
+      out += c;
+      continue;
+    }
+    if (c == '[') {
+      in_class = true;
+      out += c;
+      continue;
+    }
+    if (c == ']' && in_class) {
+      in_class = false;
+      out += c;
+      continue;
+    }
+    if (c == '.' && !in_class) {
       out += dot;
       continue;
     }
-
     out += c;
   }
 

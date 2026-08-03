@@ -385,11 +385,10 @@ std::vector<ReplacePart> parse_replace(AppendBuffer &buf, std::string_view s) {
 }
 
 void Vase::regex_search_replace(
-  std::string_view pattern,
-  Point start, Point end,
+  std::string_view pattern, Range range,
   std::string_view replace, std::string_view options
 ) {
-  std::vector<RegexMatch> matches = regex_search(root, pattern, offset_of(start), offset_of(end), options);
+  std::vector<RegexMatch> matches = regex_search(root, pattern, offset_of(range.start), offset_of(range.end), options);
   if (matches.empty())
     return;
 
