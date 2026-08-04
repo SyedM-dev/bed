@@ -9,11 +9,14 @@ struct LineIterator {
   Direction dir;
 
   const char *chunk;
-  uint32_t len;
+  uint64_t len;
+  uint64_t offset = 0;
+  uint64_t chunk_offset = 0;
+  bool at_end = false;
 
-  LineIterator(Shard *r, uint32_t start_line, Direction dir);
+  LineIterator(Shard *r, uint64_t start_line, Direction dir);
   ~LineIterator() = default;
 
   bool next(std::string &line);
-  uint32_t byte_offset();
+  uint64_t byte_offset();
 };

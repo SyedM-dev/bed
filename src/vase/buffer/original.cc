@@ -1,15 +1,36 @@
 #include "vase/buffer/original.h"
 #include "io/file.h"
 
-OriginalBuffer::OriginalBuffer(std::string path) {
-  read_file(path.c_str(), &buf, &len);
+OriginalBuffer::OriginalBuffer() {
+  char tmp_path[] = "/tmp/tbuf.XXXXXX";
+  fd = mkstemp(tmp_path);
+  if (fd == -1)
+    exit(1);
+  unlink(tmp_path);
 }
 
 OriginalBuffer::~OriginalBuffer() {
-  free(buf);
+  if (buf)
+    munmap((char *)buf, len);
+  if (fd != -1)
+    close(fd);
 }
 
-const char *OriginalBuffer::read(uint32_t pos, uint32_t *out_len) {
+void OriginalBuffer::initialize() {
+  struct stat st;
+  if (fstat(fd, &st) == -1)
+    throw std::runtime_error("fstat failed");
+  len = (uint64_t)st.st_size;
+  buf = (const char *)mmap(nullptr, len, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (buf == MAP_FAILED) {
+    buf = nullptr;
+    throw std::runtime_error("mmap failed");
+  }
+  close(fd);
+  fd = -1;
+}
+
+const char *OriginalBuffer::read(uint64_t pos, uint64_t *out_len) {
   if (pos >= len)
     return nullptr;
   if (out_len)
@@ -17,6 +38,6 @@ const char *OriginalBuffer::read(uint32_t pos, uint32_t *out_len) {
   return buf + pos;
 }
 
-uint32_t OriginalBuffer::length() {
+uint64_t OriginalBuffer::length() {
   return len;
 }

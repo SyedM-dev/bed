@@ -40,9 +40,12 @@ extern "C" {
 #include <shared_mutex>
 #include <signal.h>
 #include <stack>
+#include <stdexcept>
 #include <string.h>
 #include <string>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <termios.h>

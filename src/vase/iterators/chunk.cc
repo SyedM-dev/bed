@@ -11,15 +11,18 @@ ChunkIterator::~ChunkIterator() {
   Shard::release(root);
 }
 
-void ChunkIterator::seek_offset(uint32_t offset) {
+void ChunkIterator::seek_offset(uint64_t offset) {
   stack.clear();
   petal = nullptr;
   petal_offset = 0;
+  global_offset = 0;
+  global_line = 0;
+  at_end = false;
   if (!root)
     return;
   if (offset >= root->length)
     offset = root->length - 1;
-  uint32_t target = offset;
+  uint64_t target = offset;
   Shard *curr = root;
   while (curr) {
     if (curr->kind == Shard::ShardKind::Petal) {
@@ -29,7 +32,7 @@ void ChunkIterator::seek_offset(uint32_t offset) {
       return;
     } else {
       auto *b = (Branch *)curr;
-      uint32_t left_len = b->left->length;
+      uint64_t left_len = b->left->length;
       if (target < left_len) {
         if (dir == Direction::Forward)
           stack.push_back(b->right);
@@ -39,6 +42,7 @@ void ChunkIterator::seek_offset(uint32_t offset) {
         if (dir == Direction::Backward)
           stack.push_back(b->left);
         global_offset += left_len;
+        global_line += b->left->lines;
         curr = b->right;
       }
     }
@@ -46,31 +50,40 @@ void ChunkIterator::seek_offset(uint32_t offset) {
   std::unreachable();
 }
 
-void ChunkIterator::seek_line(uint32_t line) {
+void ChunkIterator::seek_line(uint64_t line) {
   stack.clear();
   petal = nullptr;
   petal_offset = 0;
+  global_offset = 0;
+  at_end = false;
   bool last_line = false;
   if (!root)
     return;
-  if (line > root->lines + 1)
-    line = root->lines + 1;
-  if (line == root->lines + 1)
-    last_line = true;
+  if (dir == Direction::Backward) {
+    if (line > root->lines + 1)
+      line = root->lines + 1;
+    if (line == root->lines + 1)
+      last_line = true;
+  } else {
+    if (line > root->lines)
+      line = root->lines;
+    if (line == root->lines)
+      last_line = true;
+  }
   Shard *curr = root;
   while (curr) {
     if (curr->kind == Shard::ShardKind::Petal) {
       petal = (Petal *)curr;
-      if (last_line) {
+      if (last_line && dir == Direction::Backward) {
         petal_offset = petal->length;
         global_offset += petal->length;
       } else {
         const char *text = nullptr;
-        uint32_t remaining = 0;
-        uint32_t offset = 0;
+        uint64_t remaining = 0;
+        uint64_t offset = 0;
         while (line) {
           if (!text) {
-            uint32_t got = 0;
+            uint64_t got = 0;
             text = petal->source->read(petal->pos + offset, &got);
             remaining = std::min(got, petal->length - offset);
           }
@@ -87,13 +100,15 @@ void ChunkIterator::seek_line(uint32_t line) {
         }
         if (dir == Direction::Backward)
           --offset;
+        if (last_line && dir == Direction::Forward)
+          at_end = true;
         petal_offset = offset;
         global_offset += offset;
       }
       return;
     } else {
       auto *b = (Branch *)curr;
-      uint32_t left_lines = b->left->lines;
+      uint64_t left_lines = b->left->lines;
       if (line <= left_lines) {
         if (dir == Direction::Forward)
           stack.push_back(b->right);
@@ -110,30 +125,41 @@ void ChunkIterator::seek_line(uint32_t line) {
   std::unreachable();
 }
 
-uint32_t ChunkIterator::byte_offset() {
+uint64_t ChunkIterator::byte_offset() {
   return global_offset;
 }
 
-bool ChunkIterator::next(const char **data, uint32_t *out_len) {
+uint64_t ChunkIterator::line_offset() {
+  return global_line;
+}
+
+bool ChunkIterator::next(const char **data, uint64_t *out_len) {
   if (dir == Direction::Forward) {
     while (true) {
       if (petal) {
         if (petal_offset == petal->length) {
+          if (at_end) {
+            *data = nullptr;
+            *out_len = 0;
+            at_end = false;
+            return true;
+          }
           petal = nullptr;
           continue;
         }
-        uint32_t remaining = petal->length - petal_offset;
-        uint32_t got = 0;
+        uint64_t remaining = petal->length - petal_offset;
+        uint64_t got = 0;
         const char *chunk = petal->source->read(petal->pos + petal_offset, &got);
         if (got == 0) {
           petal = nullptr;
           petal_offset = 0;
           return false;
         }
-        uint32_t take = std::min(got, remaining);
+        uint64_t take = std::min(got, remaining);
         *data = chunk;
         *out_len = take;
         petal_offset += take;
+        global_offset += take;
         return true;
       }
       if (stack.empty())
@@ -155,17 +181,19 @@ bool ChunkIterator::next(const char **data, uint32_t *out_len) {
           petal = nullptr;
           continue;
         }
-        uint32_t got = 0;
+        uint64_t got = 0;
         *data = petal->source->read(petal->pos, &got);
         if (petal_offset > got) {
-          uint32_t got2 = 0;
+          uint64_t got2 = 0;
           *data = petal->source->read(petal->pos + got, &got2);
           *out_len = std::min(got2, petal_offset - got);
           petal_offset = got;
+          global_offset -= *out_len;
           return true;
         } else {
           *out_len = std::min(got, petal_offset);
           petal_offset = 0;
+          global_offset -= *out_len;
           return true;
         }
       }

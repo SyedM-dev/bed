@@ -14,12 +14,12 @@ struct Shard {
 
   uint8_t height;
 
-  uint32_t length;
-  uint32_t lines;
+  uint64_t length;
+  uint64_t lines;
 
-  std::atomic_uint32_t refs;
+  std::atomic_uint64_t refs;
 
-  Shard(ShardKind kind, uint32_t length, uint32_t lines, uint8_t height)
+  Shard(ShardKind kind, uint64_t length, uint64_t lines, uint8_t height)
       : kind(kind), height(height), length(length), lines(lines), refs(1) {};
 
   static void retain(Shard *n);
@@ -46,18 +46,19 @@ struct Branch : Shard {
 struct Petal : Shard {
   Buffer *source;
 
-  uint32_t pos;
+  uint64_t pos;
 
-  Petal(uint32_t length, uint32_t lines, Buffer *source, uint32_t pos)
+  Petal(uint64_t length, uint64_t lines, Buffer *source, uint64_t pos)
       : Shard(ShardKind::Petal, length, lines, 1),
         source(source), pos(pos) {};
 };
 
-Shard *create_shards(Buffer *o);
+Shard *create_file_shards(std::string &path, OriginalBuffer *b);
+Shard *create_swap_shards(std::string &path, OriginalBuffer *b);
 
-std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset);
+std::pair<Shard *, Shard *> split_shard(Shard *n, uint64_t offset);
 Shard *concat_shard(Shard *left, Shard *right);
 Shard *merge(Shard *a, Shard *b);
 Shard *merge_leaves(Shard *a, Shard *b);
 Shard *append_leaf(Shard *root, Shard *leaf);
-Shard *build_balanced(Shard **pieces, uint32_t lo, uint32_t hi);
+Shard *build_balanced(Shard **pieces, uint64_t lo, uint64_t hi);

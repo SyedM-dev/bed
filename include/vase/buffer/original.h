@@ -4,14 +4,14 @@
 #include "pch.h"
 
 struct OriginalBuffer : Buffer {
-  char *buf;
-  uint32_t len;
+  const char *buf;
+  uint64_t len;
+  int fd = -1;
 
-  // Add 2 modes here, normal and lazy, lazy copies the file to a safe location and uses mmap.
-  OriginalBuffer(std::string path);
-
+  OriginalBuffer();
   ~OriginalBuffer();
 
-  const char *read(uint32_t pos, uint32_t *out_len);
-  uint32_t length();
+  void initialize();
+  const char *read(uint64_t pos, uint64_t *out_len);
+  uint64_t length();
 };

@@ -10,8 +10,8 @@
 #include "utils/utils.h"
 
 struct Point {
-  uint32_t row;
-  uint32_t col;
+  uint64_t row;
+  uint64_t col;
 };
 
 struct Range {
@@ -19,30 +19,52 @@ struct Range {
   Point end;
 };
 
+struct RegexGroup {
+  uint64_t start{UINT32_MAX};
+  uint64_t end{UINT32_MAX};
+};
+
+struct RegexMatch {
+  uint64_t start;
+  uint64_t end;
+  RegexGroup groups[9]{};
+};
+
+struct ReplacePart {
+  enum struct PartType {
+    FullMatch,
+    CaptureGroup,
+    Constant
+  } type;
+
+  std::variant<uint8_t, Shard *> value;
+};
+
 struct Vase {
-  OriginalBuffer original;
-  AppendBuffer append;
+  OriginalBuffer *original;
+  AppendBuffer *append;
   Shard *root;
 
   Vase(std::string path);
 
   ~Vase();
 
-  uint32_t length();
+  uint64_t length();
   std::string to_string();
+  std::string to_string(Range range);
 
-  Point resolve_column(uint32_t line, uint32_t column);
+  Point resolve_column(uint64_t line, uint64_t column);
 
-  LineIterator iterate(uint32_t line);
+  LineIterator iterate(uint64_t line);
 
   void insert(Point *point, char key);
-  void insert(Point *point, const char *data, uint32_t len);
-  void erase(Point *point, int64_t amount);
+  void insert(Point *point, const char *data, uint64_t len);
+  void erase(Point *point, uint64_t amount, Direction dir);
   void erase(Range range);
-  void replace(Range range, const char *data, uint32_t len);
+  void replace(Range range, const char *data, uint64_t len);
 
-  void move_clusters(Point *point, int64_t amount);
-  void move_lines(Point *point, int64_t amount);
+  void move_clusters(Point *point, uint64_t amount, Direction dir);
+  void move_lines(Point *point, uint64_t amount, Direction dir);
   void clamp(Point *point);
 
   void regex_search_replace(
@@ -50,17 +72,30 @@ struct Vase {
     std::string_view replace, std::string_view options
   );
 
+  std::vector<Range> regex_search(
+    std::string_view pattern, Range range, std::string_view options
+  );
+
   bool undo();
   bool redo();
 
   void snapshot();
-  void prune_history(uint32_t n);
+  void prune_history(uint64_t n);
+
+  bool save(std::string path);
+  bool save_swap(std::string path);
+
+  uint64_t offset_of(Point point);
+  Point point_of(uint64_t offset);
 
 private:
   std::vector<Shard *> history;
-  uint32_t history_top;
+  uint64_t history_top;
 
-  uint32_t offset_of(Point point);
-  static void flatten(Shard *s, std::string &out);
-  void _insert(Point *point, const char *data, uint32_t len);
+  void _insert(Point *point, const char *data, uint64_t len);
+
+  std::vector<ReplacePart> parse_replace(std::string_view s);
+  std::vector<RegexMatch> _regex_search(
+    std::string_view pattern, Range range, std::string_view options
+  );
 };

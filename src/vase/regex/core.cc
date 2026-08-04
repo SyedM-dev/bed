@@ -1,13 +1,10 @@
-#include "vase/search.h"
-#include "vase/iterators/chunk.h"
+#include "vase/vase.h"
 
-std::vector<RegexMatch> regex_search(
-  Shard *root, std::string_view pattern_str,
-  uint32_t start_offset, uint32_t end_offset,
-  std::string_view options
+std::vector<RegexMatch> Vase::_regex_search(
+  std::string_view pattern, Range range, std::string_view options
 ) {
   bool global = false;
-  uint32_t flags = PCRE2_MULTILINE;
+  uint64_t flags = PCRE2_MULTILINE;
 
   const char *dot = "(?:(?!\\n)\\X)";
 
@@ -43,12 +40,12 @@ std::vector<RegexMatch> regex_search(
   PCRE2_SIZE erroroffset;
 
   std::string out;
-  out.reserve(pattern_str.size() * 2);
+  out.reserve(pattern.size() * 2);
   bool escaped = false;
   bool in_class = false;
   bool in_quote = false;
-  for (size_t i = 0; i < pattern_str.size(); i++) {
-    char c = pattern_str[i];
+  for (size_t i = 0; i < pattern.size(); i++) {
+    char c = pattern[i];
     if (escaped) {
       out += c;
       escaped = false;
@@ -56,8 +53,8 @@ std::vector<RegexMatch> regex_search(
     }
     if (c == '\\') {
       out += c;
-      if (i + 1 < pattern_str.size()) {
-        char next = pattern_str[i + 1];
+      if (i + 1 < pattern.size()) {
+        char next = pattern[i + 1];
         if (next == 'Q')
           in_quote = true;
         else if (next == 'E')
@@ -104,40 +101,45 @@ std::vector<RegexMatch> regex_search(
 
   pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
 
+  uint64_t start_offset = offset_of(range.start);
+  uint64_t end_offset = offset_of(range.end);
+
+  std::cout << (int)start_offset << ":" << (int)end_offset;
+
   ChunkIterator it(root, Direction::Forward);
   it.seek_offset(start_offset);
 
   const char *data;
-  uint32_t length;
+  uint64_t length;
 
   char buf[2048];
 
-  uint32_t global_offset = start_offset;
-  int64_t offset = -1;
+  uint64_t global_offset = start_offset;
+  uint64_t offset = UINT64_MAX;
 
   auto record_match = [&](int rc, PCRE2_SIZE *ovector) {
-    if (global_offset + (uint32_t)ovector[1] > end_offset || ovector[0] == ovector[1])
+    if (global_offset + (uint64_t)ovector[1] > end_offset || ovector[0] == ovector[1])
       return;
     RegexMatch match{
-      .start = global_offset + (uint32_t)ovector[0],
-      .end = global_offset + (uint32_t)ovector[1]
+      .start = global_offset + (uint64_t)ovector[0],
+      .end = global_offset + (uint64_t)ovector[1]
     };
     for (int i = 1; i < rc && i <= 9; ++i) {
       PCRE2_SIZE s = ovector[2 * i];
       PCRE2_SIZE e = ovector[2 * i + 1];
       if (s != PCRE2_UNSET) {
-        match.groups[i].start = global_offset + (uint32_t)s;
-        match.groups[i].end = global_offset + (uint32_t)e;
+        match.groups[i].start = global_offset + (uint64_t)s;
+        match.groups[i].end = global_offset + (uint64_t)e;
       }
     }
     results.push_back(std::move(match));
   };
 
-  auto skip_to_next_line = [&](const char *&data, uint32_t &length, int64_t &offset, uint32_t &global_offset) {
+  auto skip_to_next_line = [&](const char *&data, uint64_t &length, uint64_t &offset, uint64_t &global_offset) {
     while (true) {
       const char *p = (const char *)memchr(data + offset, '\n', length - offset);
       if (p) {
-        uint32_t nl = p - data;
+        uint64_t nl = p - data;
         offset = nl + 1;
         return;
       }
@@ -150,7 +152,7 @@ std::vector<RegexMatch> regex_search(
   };
 
   while (global_offset < end_offset) {
-    if (offset == -1) {
+    if (offset == UINT64_MAX) {
       bool more = it.next(&data, &length);
       if (!more)
         break;
@@ -158,7 +160,7 @@ std::vector<RegexMatch> regex_search(
     }
 
     while (offset < length) {
-      if (offset == -1)
+      if (offset == UINT64_MAX)
         break;
 
       int rc = pcre2_match(
@@ -172,15 +174,15 @@ std::vector<RegexMatch> regex_search(
       );
 
       if (rc == PCRE2_ERROR_PARTIAL) {
-        uint32_t buflen = 0;
+        uint64_t buflen = 0;
 
         PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
-        uint32_t partial_start = ovector[0];
-        uint32_t partial_length = length - partial_start;
+        uint64_t partial_start = ovector[0];
+        uint64_t partial_length = length - partial_start;
 
         if (partial_length >= 2048) {
           global_offset += offset;
-          offset = -1;
+          offset = UINT64_MAX;
           continue;
         }
 
@@ -189,7 +191,7 @@ std::vector<RegexMatch> regex_search(
         memcpy(buf, data + partial_start, partial_length);
         buflen += partial_length;
 
-        offset = -1;
+        offset = UINT64_MAX;
         bool exhausted = false;
 
         while (true) {
@@ -201,7 +203,7 @@ std::vector<RegexMatch> regex_search(
             exhausted = true;
             break;
           }
-          uint32_t l = std::min(length, 2048 - buflen);
+          uint64_t l = std::min(length, 2048 - buflen);
           memcpy(buf + buflen, data, l);
           buflen += l;
 
@@ -235,7 +237,7 @@ std::vector<RegexMatch> regex_search(
         }
 
         if (exhausted) {
-          uint32_t search_from = 0;
+          uint64_t search_from = 0;
           while (search_from <= buflen) {
             int rc = pcre2_match(
               re,
@@ -251,7 +253,7 @@ std::vector<RegexMatch> regex_search(
             PCRE2_SIZE *ov = pcre2_get_ovector_pointer(match_data);
             record_match(rc, ov);
             if (global) {
-              search_from = (ov[1] == ov[0]) ? (uint32_t)ov[1] + 1 : (uint32_t)ov[1];
+              search_from = (ov[1] == ov[0]) ? (uint64_t)ov[1] + 1 : (uint64_t)ov[1];
             } else {
               const void *p = memchr(buf + ov[1], '\n', buflen - ov[1]);
               if (!p)
@@ -259,7 +261,7 @@ std::vector<RegexMatch> regex_search(
               search_from = (const char *)p - buf + 1;
             }
           }
-          offset = -1;
+          offset = UINT64_MAX;
         }
 
         continue;
@@ -267,7 +269,7 @@ std::vector<RegexMatch> regex_search(
         PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
         record_match(rc, ovector);
         if (global) {
-          if ((int64_t)ovector[1] == offset)
+          if (ovector[1] == offset)
             offset++;
           else
             offset = ovector[1];
@@ -285,7 +287,7 @@ std::vector<RegexMatch> regex_search(
     }
 
     global_offset += offset;
-    offset = -1;
+    offset = UINT64_MAX;
   }
 
   pcre2_match_data_free(match_data);

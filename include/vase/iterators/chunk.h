@@ -13,15 +13,18 @@ struct ChunkIterator {
   Shard *root = nullptr;
   std::vector<Shard *> stack;
   Petal *petal = nullptr;
-  uint32_t petal_offset = 0;
-  uint32_t global_offset = 0;
+  uint64_t petal_offset = 0;
+  uint64_t global_offset = 0;
+  uint64_t global_line = 0;
+  bool at_end = false;
 
   ChunkIterator(Shard *r, Direction dir);
 
   ~ChunkIterator();
 
-  void seek_offset(uint32_t offset);
-  void seek_line(uint32_t offset);
-  bool next(const char **data, uint32_t *out_len);
-  uint32_t byte_offset();
+  void seek_offset(uint64_t offset);
+  void seek_line(uint64_t offset);
+  bool next(const char **data, uint64_t *out_len);
+  uint64_t byte_offset();
+  uint64_t line_offset();
 };

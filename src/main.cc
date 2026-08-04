@@ -9,8 +9,12 @@ int main(int argc, char *argv[]) {
 
   Vase vase = Vase(std::string(argv[1]));
 
+  auto matches = vase.regex_search("hello", {{0, 0}, {vase.root->lines, UINT64_MAX}}, "g");
+
   std::cout << "\n"
-            << vase.to_string()
+            << (int)vase.length() << " bytes\n"
+            << (int)vase.root->lines << " lines\n"
+            << (int)matches.size() << " matches\n"
             << "\n";
 
   return 0;

@@ -112,7 +112,7 @@ Shard *merge(Shard *a, Shard *b) {
   return balance(new Branch(a, b));
 }
 
-std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset) {
+std::pair<Shard *, Shard *> split_shard(Shard *n, uint64_t offset) {
   if (!n)
     return {nullptr, nullptr};
   if (offset == 0) {
@@ -139,10 +139,10 @@ std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset) {
     }
   } else {
     Petal *p = (Petal *)n;
-    uint32_t count[2]{0};
-    uint32_t read_offset = 0;
+    uint64_t count[2]{0};
+    uint64_t read_offset = 0;
     while (read_offset < p->length) {
-      uint32_t got = 0;
+      uint64_t got = 0;
       const char *c = p->source->read(p->pos + read_offset, &got);
       const char *end = c + std::min(got, p->length - read_offset);
       const char *cursor = c;
@@ -152,14 +152,14 @@ std::pair<Shard *, Shard *> split_shard(Shard *n, uint32_t offset) {
           cursor = end;
           break;
         }
-        uint32_t nl_pos = read_offset + (uint32_t)(nl - c);
+        uint64_t nl_pos = read_offset + (uint64_t)(nl - c);
         if (nl_pos < offset)
           count[0]++;
         else
           count[1]++;
         cursor = nl + 1;
       }
-      read_offset += (uint32_t)(cursor - c);
+      read_offset += (uint64_t)(cursor - c);
     }
     auto left = new Petal(
       offset,
@@ -208,7 +208,7 @@ Shard *concat_shard(Shard *left, Shard *right) {
   return merge(left, right);
 }
 
-Shard *build_balanced(Shard **pieces, uint32_t lo, uint32_t hi) {
+Shard *build_balanced(Shard **pieces, uint64_t lo, uint64_t hi) {
   if (hi - lo == 1)
     return pieces[lo];
   size_t mid = lo + (hi - lo) / 2;
@@ -220,19 +220,34 @@ Shard *build_balanced(Shard **pieces, uint32_t lo, uint32_t hi) {
   return node;
 }
 
-Shard *create_shards(Buffer *o) {
+Shard *create_file_shards(std::string &path, OriginalBuffer *o) {
+  int dest_fd = o->fd;
+  if (dest_fd == -1)
+    return nullptr;
+  int src_fd = open(path.c_str(), O_RDONLY);
+  if (src_fd == -1)
+    return nullptr;
+  struct stat st;
+  if (fstat(src_fd, &st) == -1)
+    return nullptr;
+
+  uint64_t total = (uint64_t)st.st_size;
   std::vector<Shard *> pieces;
-  uint32_t pos = 0;
-  const uint32_t total = o->length();
+  uint64_t pos = 0;
   pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);
+  char buf[PETAL_SIZE_MAX];
 
   while (pos < total) {
-    uint32_t len = 0;
-    const char *data = o->read(pos, &len);
-    uint32_t take = std::min(len, PETAL_SIZE_MAX);
-    uint32_t lines = 0;
-    const char *p = data;
-    const char *end = data + take;
+    uint64_t want = std::min(PETAL_SIZE_MAX, total - pos);
+    ssize_t got = pread(src_fd, buf, want, pos);
+    if (got <= 0) {
+      close(src_fd);
+      return nullptr;
+    }
+    uint64_t take = (uint64_t)got;
+    uint64_t lines = 0;
+    const char *p = buf;
+    const char *end = p + take;
     while (p < end) {
       const void *nl = memchr(p, '\n', end - p);
       if (!nl)
@@ -240,14 +255,23 @@ Shard *create_shards(Buffer *o) {
       lines++;
       p = (const char *)nl + 1;
     }
+    ssize_t written = write(dest_fd, buf, take);
+    if (written != (ssize_t)take) {
+      close(src_fd);
+      return nullptr;
+    }
     pieces.push_back(new Petal(take, lines, o, pos));
     pos += take;
   }
 
+  close(src_fd);
+
   if (pieces.empty())
     return nullptr;
+
+  o->initialize();
+
   if (pieces.size() == 1)
     return pieces[0];
-
   return build_balanced(pieces.data(), 0, pieces.size());
 }
