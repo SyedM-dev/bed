@@ -2,10 +2,16 @@
 #include "utils/utils.h"
 #include "vase/iterators/line.h"
 
-Vase::Vase(std::string path) {
+Vase::Vase(std::filesystem::path path, std::filesystem::path swapdir)
+    : path(path), swapdir(swapdir) {
+  if (!std::filesystem::exists(swapdir) || !std::filesystem::is_directory(swapdir))
+    throw std::runtime_error("Swap directory does not exist or is not a directory.");
   append = new AppendBuffer();
-  original = new OriginalBuffer();
-  root = create_file_shards(path, original);
+  original = new OriginalBuffer(swapdir);
+  if (std::filesystem::is_regular_file(path))
+    root = Shard::from_file(path, original);
+  else
+    root = Shard::new_empty(original);
   history.push_back(root);
   Shard::retain(root);
   history_top = 0;
@@ -94,7 +100,7 @@ void Vase::prune_history(uint64_t n) {
   history_top -= n;
 }
 
-bool Vase::save(std::string path) {
+bool Vase::save() {
   std::ofstream file(path, std::ios::binary);
   if (!file)
     return false;
@@ -110,7 +116,7 @@ bool Vase::save(std::string path) {
   return true;
 }
 
-bool Vase::save_swap(std::string path) {
+bool Vase::save_swap() {
 }
 
 void Vase::insert(Point *point, char key) {
@@ -120,9 +126,9 @@ void Vase::insert(Point *point, char key) {
     point->col++;
   uint64_t pos = append->append(key);
   Shard *inserted = new Petal(1, key == '\n', append, pos);
-  auto [left, right] = split_shard(root, offset_of(*point));
-  Shard *left2 = append_leaf(left, inserted);
-  Shard *new_root = concat_shard(left2, right);
+  auto [left, right] = Shard::split(root, offset_of(*point));
+  Shard *left2 = Shard::append_leaf(left, inserted);
+  Shard *new_root = Shard::concat(left2, right);
   Shard::release(left);
   Shard::release(right);
   Shard::release(left2);
@@ -168,9 +174,9 @@ void Vase::_insert(Point *point, const char *data, uint64_t len) {
     point->col += col;
   }
   Shard *inserted = new Petal(len, lines, append, pos);
-  auto [left, right] = split_shard(root, offset);
-  Shard *left2 = append_leaf(left, inserted);
-  Shard *new_root = concat_shard(left2, right);
+  auto [left, right] = Shard::split(root, offset);
+  Shard *left2 = Shard::append_leaf(left, inserted);
+  Shard *new_root = Shard::concat(left2, right);
   Shard::release(left);
   Shard::release(right);
   Shard::release(left2);
@@ -193,9 +199,9 @@ void Vase::erase(Point *point, uint64_t amount, Direction dir) {
   if (start_offset > end_offset)
     std::swap(start_offset, end_offset);
   uint64_t count = end_offset - start_offset;
-  auto [a, b] = split_shard(root, start_offset);
-  auto [d, c] = split_shard(b, count);
-  Shard *new_root = concat_shard(a, c);
+  auto [a, b] = Shard::split(root, start_offset);
+  auto [d, c] = Shard::split(b, count);
+  Shard *new_root = Shard::concat(a, c);
   Shard::release(a);
   Shard::release(b);
   Shard::release(c);
@@ -212,9 +218,9 @@ void Vase::erase(Range range) {
   uint64_t start_offset = offset_of(start);
   uint64_t end_offset = offset_of(end);
   uint64_t count = end_offset - start_offset;
-  auto [a, b] = split_shard(root, start_offset);
-  auto [d, c] = split_shard(b, count);
-  Shard *new_root = concat_shard(a, c);
+  auto [a, b] = Shard::split(root, start_offset);
+  auto [d, c] = Shard::split(b, count);
+  Shard *new_root = Shard::concat(a, c);
   Shard::release(a);
   Shard::release(b);
   Shard::release(c);

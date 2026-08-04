@@ -44,8 +44,10 @@ struct Vase {
   OriginalBuffer *original;
   AppendBuffer *append;
   Shard *root;
+  std::filesystem::path path;
+  std::filesystem::path swapdir;
 
-  Vase(std::string path);
+  Vase(std::filesystem::path path, std::filesystem::path swapdir);
 
   ~Vase();
 
@@ -82,8 +84,8 @@ struct Vase {
   void snapshot();
   void prune_history(uint64_t n);
 
-  bool save(std::string path);
-  bool save_swap(std::string path);
+  bool save();
+  bool save_swap();
 
   uint64_t offset_of(Point point);
   Point point_of(uint64_t offset);

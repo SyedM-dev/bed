@@ -24,6 +24,17 @@ struct Shard {
 
   static void retain(Shard *n);
   static void release(Shard *n);
+
+  static Shard *from_file(std::filesystem::path path, OriginalBuffer *b);
+  static std::vector<Shard *> from_swap(std::filesystem::path path, OriginalBuffer *b);
+  static Shard *new_empty(OriginalBuffer *b);
+
+  static std::pair<Shard *, Shard *> split(Shard *n, uint64_t offset);
+  static Shard *concat(Shard *left, Shard *right);
+  static Shard *merge(Shard *a, Shard *b);
+  static Shard *merge_leaves(Shard *a, Shard *b);
+  static Shard *append_leaf(Shard *root, Shard *leaf);
+  static Shard *build_balanced(Shard **pieces, uint64_t lo, uint64_t hi);
 };
 
 struct Branch : Shard {
@@ -52,13 +63,3 @@ struct Petal : Shard {
       : Shard(ShardKind::Petal, length, lines, 1),
         source(source), pos(pos) {};
 };
-
-Shard *create_file_shards(std::string &path, OriginalBuffer *b);
-Shard *create_swap_shards(std::string &path, OriginalBuffer *b);
-
-std::pair<Shard *, Shard *> split_shard(Shard *n, uint64_t offset);
-Shard *concat_shard(Shard *left, Shard *right);
-Shard *merge(Shard *a, Shard *b);
-Shard *merge_leaves(Shard *a, Shard *b);
-Shard *append_leaf(Shard *root, Shard *leaf);
-Shard *build_balanced(Shard **pieces, uint64_t lo, uint64_t hi);

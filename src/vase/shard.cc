@@ -87,7 +87,7 @@ Shard *balance(Shard *node) {
   return node;
 }
 
-Shard *merge(Shard *a, Shard *b) {
+Shard *Shard::merge(Shard *a, Shard *b) {
   if (!a)
     return b ? (Shard::retain(b), b) : nullptr;
   if (!b)
@@ -112,7 +112,7 @@ Shard *merge(Shard *a, Shard *b) {
   return balance(new Branch(a, b));
 }
 
-std::pair<Shard *, Shard *> split_shard(Shard *n, uint64_t offset) {
+std::pair<Shard *, Shard *> Shard::split(Shard *n, uint64_t offset) {
   if (!n)
     return {nullptr, nullptr};
   if (offset == 0) {
@@ -127,12 +127,12 @@ std::pair<Shard *, Shard *> split_shard(Shard *n, uint64_t offset) {
   if (n->kind == Shard::ShardKind::Branch) {
     Branch *b = (Branch *)n;
     if (offset < b->left->length) {
-      auto [a, b2] = split_shard(b->left, offset);
+      auto [a, b2] = split(b->left, offset);
       Shard *right = merge(b2, b->right);
       Shard::release(b2);
       return {a, right};
     } else {
-      auto [a, b2] = split_shard(b->right, offset - b->left->length);
+      auto [a, b2] = split(b->right, offset - b->left->length);
       Shard *left = merge(b->left, a);
       Shard::release(a);
       return {left, b2};
@@ -177,7 +177,7 @@ std::pair<Shard *, Shard *> split_shard(Shard *n, uint64_t offset) {
   }
 }
 
-Shard *merge_leaves(Shard *a, Shard *b) {
+Shard *Shard::merge_leaves(Shard *a, Shard *b) {
   if (a->kind != Shard::ShardKind::Petal || b->kind != Shard::ShardKind::Petal)
     return merge(a, b);
   Petal *pa = (Petal *)a;
@@ -192,7 +192,7 @@ Shard *merge_leaves(Shard *a, Shard *b) {
   );
 }
 
-Shard *append_leaf(Shard *root, Shard *leaf) {
+Shard *Shard::append_leaf(Shard *root, Shard *leaf) {
   if (!root)
     return leaf;
   if (root->kind == Shard::ShardKind::Petal && root->length < PETAL_SIZE_MAX)
@@ -204,11 +204,11 @@ Shard *append_leaf(Shard *root, Shard *leaf) {
   return out;
 }
 
-Shard *concat_shard(Shard *left, Shard *right) {
+Shard *Shard::concat(Shard *left, Shard *right) {
   return merge(left, right);
 }
 
-Shard *build_balanced(Shard **pieces, uint64_t lo, uint64_t hi) {
+Shard *Shard::build_balanced(Shard **pieces, uint64_t lo, uint64_t hi) {
   if (hi - lo == 1)
     return pieces[lo];
   size_t mid = lo + (hi - lo) / 2;
@@ -220,18 +220,15 @@ Shard *build_balanced(Shard **pieces, uint64_t lo, uint64_t hi) {
   return node;
 }
 
-Shard *create_file_shards(std::string &path, OriginalBuffer *o) {
+Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o) {
   int dest_fd = o->fd;
   if (dest_fd == -1)
     return nullptr;
   int src_fd = open(path.c_str(), O_RDONLY);
   if (src_fd == -1)
     return nullptr;
-  struct stat st;
-  if (fstat(src_fd, &st) == -1)
-    return nullptr;
 
-  uint64_t total = (uint64_t)st.st_size;
+  uint64_t total = std::filesystem::file_size(path);
   std::vector<Shard *> pieces;
   uint64_t pos = 0;
   pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);

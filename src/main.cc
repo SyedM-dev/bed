@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
   if (argc < 2)
     throw std::runtime_error("Please give filename.");
 
-  Vase vase = Vase(std::string(argv[1]));
+  Vase vase = Vase(argv[1], "/tmp");
 
   Point p = {500, 1000};
   vase.insert(&p, 'x');

@@ -8,7 +8,7 @@ struct OriginalBuffer : Buffer {
   uint64_t len;
   int fd = -1;
 
-  OriginalBuffer();
+  OriginalBuffer(std::filesystem::path base_dir);
   ~OriginalBuffer();
 
   void initialize();

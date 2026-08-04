@@ -1,12 +1,17 @@
 #include "vase/buffer/original.h"
 #include "io/file.h"
 
-OriginalBuffer::OriginalBuffer() {
-  char tmp_path[] = "/tmp/tbuf.XXXXXX";
-  fd = mkstemp(tmp_path);
+OriginalBuffer::OriginalBuffer(std::filesystem::path base_dir) {
+  if (!std::filesystem::exists(base_dir) || !std::filesystem::is_directory(base_dir))
+    throw std::runtime_error("Swap directory does not exist or is not a directory.");
+  base_dir /= "tbuf.XXXXXX";
+  auto s = base_dir.string();
+  std::vector<char> mutable_path(s.begin(), s.end());
+  mutable_path.push_back('\0');
+  fd = mkstemp(mutable_path.data());
   if (fd == -1)
-    exit(1);
-  unlink(tmp_path);
+    throw std::runtime_error("mkstemp failed");
+  unlink(mutable_path.data());
 }
 
 OriginalBuffer::~OriginalBuffer() {

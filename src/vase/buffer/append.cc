@@ -13,6 +13,8 @@ AppendBuffer::~AppendBuffer() {
 uint64_t AppendBuffer::append(char c) {
   if (t_offset == APPEND_CHUNK_SIZE) {
     t_current = (TChunk *)malloc(sizeof(TChunk));
+    if (!t_current)
+      throw std::runtime_error("malloc failed");
     buf.push_back(t_current);
     t_offset = 0;
   }
