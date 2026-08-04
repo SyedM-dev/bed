@@ -9,13 +9,15 @@ int main(int argc, char *argv[]) {
 
   Vase vase = Vase(std::string(argv[1]));
 
-  auto matches = vase.regex_search("hello", {{0, 0}, {vase.root->lines, UINT64_MAX}}, "g");
+  Point p = {500, 1000};
+  vase.insert(&p, 'x');
 
-  std::cout << "\n"
-            << (int)vase.length() << " bytes\n"
-            << (int)vase.root->lines << " lines\n"
-            << (int)matches.size() << " matches\n"
-            << "\n";
+  printf("\n"
+         "%lu bytes\n"
+         "%lu lines\n"
+         "\n",
+         vase.length(),
+         vase.root->lines);
 
   return 0;
 }

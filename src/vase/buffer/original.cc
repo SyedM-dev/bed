@@ -26,6 +26,7 @@ void OriginalBuffer::initialize() {
     buf = nullptr;
     throw std::runtime_error("mmap failed");
   }
+  madvise((void *)buf, len, MADV_RANDOM);
   close(fd);
   fd = -1;
 }
