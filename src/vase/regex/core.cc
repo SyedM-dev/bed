@@ -104,8 +104,6 @@ std::vector<RegexMatch> Vase::_regex_search(
   uint64_t start_offset = offset_of(range.start);
   uint64_t end_offset = offset_of(range.end);
 
-  std::cout << (int)start_offset << ":" << (int)end_offset;
-
   ChunkIterator it(root, Direction::Forward);
   it.seek_offset(start_offset);
 
