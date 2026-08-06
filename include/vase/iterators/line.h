@@ -1,22 +1,20 @@
 #pragma once
 
 #include "../shard.h"
-#include "chunk.h"
 #include "pch.h"
+#include "petal.h"
 
 struct LineIterator {
-  ChunkIterator it;
-  Direction dir;
-
+  PetalIterator it;
   const char *chunk;
   uint64_t len;
-  uint64_t offset = 0;
-  uint64_t chunk_offset = 0;
-  bool at_end = false;
+  Direction dir;
+  uint64_t current_offset = 0;
+  uint64_t last_line_offset = 0;
 
-  LineIterator(Shard *r, uint64_t start_line, Direction dir);
+  LineIterator(Shard *root, uint64_t line_num, Direction dir);
   ~LineIterator() = default;
 
-  bool next(std::string &line);
+  bool next(std::string *line);
   uint64_t byte_offset();
 };

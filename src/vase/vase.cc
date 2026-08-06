@@ -1,17 +1,18 @@
 #include "vase/vase.h"
 #include "utils/utils.h"
 #include "vase/iterators/line.h"
+#include "vase/iterators/petal.h"
 
 Vase::Vase(std::filesystem::path path, std::filesystem::path swapdir)
     : path(path), swapdir(swapdir) {
   if (!std::filesystem::exists(swapdir) || !std::filesystem::is_directory(swapdir))
     throw std::runtime_error("Swap directory does not exist or is not a directory.");
-  append = new AppendBuffer();
+  append = new AppendBuffer(swapdir);
   original = new OriginalBuffer(swapdir);
   if (std::filesystem::is_regular_file(path))
     root = Shard::from_file(path, original);
   else
-    root = Shard::new_empty(original);
+    root = nullptr;
   history.push_back(root);
   Shard::retain(root);
   history_top = 0;
@@ -31,7 +32,7 @@ uint64_t Vase::length() {
 
 std::string Vase::to_string() {
   std::string out;
-  ChunkIterator it(root, Direction::Forward);
+  PetalIterator it(root, Direction::Forward);
   it.seek_offset(0);
   const char *data;
   uint64_t len;
@@ -42,7 +43,7 @@ std::string Vase::to_string() {
 
 std::string Vase::to_string(Range range) {
   std::string out;
-  ChunkIterator it(root, Direction::Forward);
+  PetalIterator it(root, Direction::Forward);
   uint64_t start = offset_of(range.start);
   it.seek_offset(start);
   const char *data;
@@ -104,7 +105,7 @@ bool Vase::save() {
   std::ofstream file(path, std::ios::binary);
   if (!file)
     return false;
-  ChunkIterator it(root, Direction::Forward);
+  PetalIterator it(root, Direction::Forward);
   it.seek_offset(0);
   const char *data;
   uint64_t len;
@@ -117,24 +118,25 @@ bool Vase::save() {
 }
 
 bool Vase::save_swap() {
+  return false;
 }
 
 void Vase::insert(Point *point, char key) {
+  uint64_t pos = append->append(key);
+  Shard *inserted = new Petal(1, key == '\n', append, pos);
+  auto [left, right] = Shard::split(root, offset_of(*point));
+  Shard *left2 = Shard::append(left, inserted);
+  Shard::release(left);
+  Shard::release(inserted);
+  Shard *new_root = Shard::concat(left2, right);
+  Shard::release(left2);
+  Shard::release(right);
+  Shard::release(root);
+  root = new_root;
   if (key == '\n')
     *point = {point->row + 1, 0};
   else
     point->col++;
-  uint64_t pos = append->append(key);
-  Shard *inserted = new Petal(1, key == '\n', append, pos);
-  auto [left, right] = Shard::split(root, offset_of(*point));
-  Shard *left2 = Shard::append_leaf(left, inserted);
-  Shard *new_root = Shard::concat(left2, right);
-  Shard::release(left);
-  Shard::release(right);
-  Shard::release(left2);
-  Shard::release(inserted);
-  Shard::release(root);
-  root = new_root;
 }
 
 void Vase::insert(Point *point, const char *data, uint64_t len) {
@@ -175,12 +177,12 @@ void Vase::_insert(Point *point, const char *data, uint64_t len) {
   }
   Shard *inserted = new Petal(len, lines, append, pos);
   auto [left, right] = Shard::split(root, offset);
-  Shard *left2 = Shard::append_leaf(left, inserted);
-  Shard *new_root = Shard::concat(left2, right);
+  Shard *left2 = Shard::append(left, inserted);
   Shard::release(left);
-  Shard::release(right);
-  Shard::release(left2);
   Shard::release(inserted);
+  Shard *new_root = Shard::concat(left2, right);
+  Shard::release(left2);
+  Shard::release(right);
   Shard::release(root);
   root = new_root;
 }
@@ -236,10 +238,9 @@ void Vase::replace(Range range, const char *data, uint64_t len) {
 
 uint64_t Vase::offset_of(Point point) {
   LineIterator it(root, point.row, Direction::Forward);
-
   std::string line;
   uint64_t offset = 0;
-  if (it.next(line)) {
+  if (it.next(&line)) {
     const char *ptr = line.data();
     uint64_t remaining = line.length();
     while (point.col && remaining) {
@@ -254,10 +255,10 @@ uint64_t Vase::offset_of(Point point) {
 }
 
 Point Vase::point_of(uint64_t offset) {
-  ChunkIterator it(root, Direction::Backward);
+  PetalIterator it(root, Direction::Backward);
   it.seek_offset(offset);
   Point p;
-  p.row = it.line_offset();
+  p.row = it.global_line;
   std::string line;
   const char *chunk;
   uint64_t len = 0;
@@ -268,13 +269,10 @@ Point Vase::point_of(uint64_t offset) {
     const char *nl = (const char *)memrchr(chunk, '\n', len);
 #else
     const char *nl = nullptr;
-    uint64_t i = len;
-    while (i--) {
-      if (chunk[i] == '\n') {
-        nl = chunk + i;
-        break;
-      }
-    }
+    const char *p = chunk + len;
+    while (!nl && p != chunk)
+      if (*(--p) == '\n')
+        nl = p;
 #endif
     if (!nl) {
       if (len && chunk[len - 1] == '\r')
@@ -310,7 +308,7 @@ void Vase::move_clusters(Point *point, uint64_t amount, Direction dir) {
     LineIterator it(root, point->row, Direction::Backward);
     while (amount) {
       std::string line;
-      if (!it.next(line))
+      if (!it.next(&line))
         return;
       std::vector<uint64_t> clusters;
       const char *ptr = line.data();
@@ -340,7 +338,7 @@ void Vase::move_clusters(Point *point, uint64_t amount, Direction dir) {
     LineIterator it(root, point->row, Direction::Forward);
     while (amount) {
       std::string line;
-      if (!it.next(line))
+      if (!it.next(&line))
         return;
       if (point->col || amount) {
         const char *ptr = line.data();
@@ -374,18 +372,16 @@ void Vase::clamp(Point *point) {
     point->row = root->lines;
   LineIterator it(root, point->row, Direction::Forward);
   std::string line;
-  if (!it.next(line)) {
-    point->col = 0;
-    return;
-  }
   uint64_t clusters = 0;
-  const char *ptr = line.data();
-  uint64_t remaining = line.size();
-  while (remaining) {
-    uint64_t len = grapheme_next_character_break_utf8(ptr, remaining);
-    ptr += len;
-    remaining -= len;
-    clusters++;
+  if (it.next(&line)) {
+    const char *ptr = line.data();
+    uint64_t remaining = line.length();
+    while (remaining) {
+      uint64_t next_len = grapheme_next_character_break_utf8(ptr, remaining);
+      remaining -= next_len;
+      ptr += next_len;
+      clusters++;
+    }
   }
   if (point->col > clusters)
     point->col = clusters;

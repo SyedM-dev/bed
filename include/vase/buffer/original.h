@@ -12,6 +12,6 @@ struct OriginalBuffer : Buffer {
   ~OriginalBuffer();
 
   void initialize();
-  const char *read(uint64_t pos, uint64_t *out_len);
-  uint64_t length();
+  const char *read(uint64_t pos) override;
+  uint64_t length() override;
 };

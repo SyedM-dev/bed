@@ -1,13 +1,14 @@
 #include "vase/shard.h"
 
 void Shard::retain(Shard *n) {
-  n->refs++;
+  if (n)
+    n->refs++;
 };
 
 void Shard::release(Shard *n) {
   if (!n || --n->refs > 0)
     return;
-  if (n->kind == Shard::ShardKind::Branch) {
+  if (n->kind == Shard::Kind::Branch) {
     release(((Branch *)n)->left);
     release(((Branch *)n)->right);
     delete (Branch *)n;
@@ -50,7 +51,7 @@ Shard *rotate_left(Branch *z) {
 }
 
 Shard *balance(Shard *node) {
-  if (!node || node->kind == Shard::ShardKind::Petal)
+  if (!node || node->kind == Shard::Kind::Petal)
     return node;
 
   Branch *b = (Branch *)node;
@@ -123,8 +124,7 @@ std::pair<Shard *, Shard *> Shard::split(Shard *n, uint64_t offset) {
     Shard::retain(n);
     return {n, nullptr};
   }
-
-  if (n->kind == Shard::ShardKind::Branch) {
+  if (n->kind == Shard::Kind::Branch) {
     Branch *b = (Branch *)n;
     if (offset < b->left->length) {
       auto [a, b2] = split(b->left, offset);
@@ -140,45 +140,27 @@ std::pair<Shard *, Shard *> Shard::split(Shard *n, uint64_t offset) {
   } else {
     Petal *p = (Petal *)n;
     uint64_t count[2]{0};
-    uint64_t read_offset = 0;
-    while (read_offset < p->length) {
-      uint64_t got = 0;
-      const char *c = p->source->read(p->pos + read_offset, &got);
-      const char *end = c + std::min(got, p->length - read_offset);
-      const char *cursor = c;
-      while (cursor < end) {
-        const char *nl = (const char *)memchr(cursor, '\n', end - cursor);
-        if (!nl) {
-          cursor = end;
-          break;
-        }
-        uint64_t nl_pos = read_offset + (uint64_t)(nl - c);
-        if (nl_pos < offset)
-          count[0]++;
-        else
-          count[1]++;
-        cursor = nl + 1;
-      }
-      read_offset += (uint64_t)(cursor - c);
+    const char *c = p->source->read(p->pos);
+    const char *start = c;
+    const char *end = c + p->length;
+    while (c < end) {
+      const char *nl = (const char *)memchr(c, '\n', end - c);
+      if (!nl)
+        break;
+      if ((uint64_t)(nl - start) < offset)
+        count[0]++;
+      else
+        count[1]++;
+      c = nl + 1;
     }
-    auto left = new Petal(
-      offset,
-      count[0],
-      p->source,
-      p->pos
-    );
-    auto right = new Petal(
-      p->length - offset,
-      count[1],
-      p->source,
-      p->pos + offset
-    );
+    auto left = new Petal(offset, count[0], p->source, p->pos);
+    auto right = new Petal(p->length - offset, count[1], p->source, p->pos + offset);
     return {left, right};
   }
 }
 
 Shard *Shard::merge_leaves(Shard *a, Shard *b) {
-  if (a->kind != Shard::ShardKind::Petal || b->kind != Shard::ShardKind::Petal)
+  if (a->kind != Shard::Kind::Petal || b->kind != Shard::Kind::Petal)
     return merge(a, b);
   Petal *pa = (Petal *)a;
   Petal *pb = (Petal *)b;
@@ -192,13 +174,15 @@ Shard *Shard::merge_leaves(Shard *a, Shard *b) {
   );
 }
 
-Shard *Shard::append_leaf(Shard *root, Shard *leaf) {
-  if (!root)
+Shard *Shard::append(Shard *root, Shard *leaf) {
+  if (!root) {
+    Shard::retain(leaf);
     return leaf;
-  if (root->kind == Shard::ShardKind::Petal && root->length < PETAL_SIZE_MAX)
+  }
+  if (root->kind == Shard::Kind::Petal && root->length < PETAL_SIZE_MAX)
     return merge_leaves(root, leaf);
   Branch *b = (Branch *)root;
-  auto new_right = append_leaf(b->right, leaf);
+  auto new_right = append(b->right, leaf);
   auto out = balance(new Branch(b->left, new_right));
   Shard::release(new_right);
   return out;
@@ -208,12 +192,12 @@ Shard *Shard::concat(Shard *left, Shard *right) {
   return merge(left, right);
 }
 
-Shard *Shard::build_balanced(Shard **pieces, uint64_t lo, uint64_t hi) {
+Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
   if (hi - lo == 1)
     return pieces[lo];
   size_t mid = lo + (hi - lo) / 2;
-  Shard *left = build_balanced(pieces, lo, mid);
-  Shard *right = build_balanced(pieces, mid, hi);
+  Shard *left = build(pieces, lo, mid);
+  Shard *right = build(pieces, mid, hi);
   Shard *node = new Branch(left, right);
   Shard::release(left);
   Shard::release(right);
@@ -270,5 +254,5 @@ Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o) {
 
   if (pieces.size() == 1)
     return pieces[0];
-  return build_balanced(pieces.data(), 0, pieces.size());
+  return build(pieces.data(), 0, pieces.size());
 }

@@ -74,13 +74,13 @@ void Vase::regex_search_replace(
   for (const RegexMatch &match : matches) {
     uint64_t gap = match.start - cursor;
     if (gap > 0) {
-      auto [keep, rest] = split_shard(remaining, gap);
+      auto [keep, rest] = Shard::split(remaining, gap);
       Shard::release(remaining);
       pieces.push_back(keep);
       remaining = rest;
     }
 
-    auto [dropped, rest2] = split_shard(remaining, match.end - match.start);
+    auto [dropped, rest2] = Shard::split(remaining, match.end - match.start);
     Shard::release(remaining);
     remaining = rest2;
 
@@ -102,8 +102,8 @@ void Vase::regex_search_replace(
           if (group.start != UINT32_MAX) {
             uint64_t ls = group.start - match.start;
             uint64_t le = group.end - match.start;
-            auto [a, b] = split_shard(dropped, ls);
-            auto [g, c] = split_shard(b, le - ls);
+            auto [a, b] = Shard::split(dropped, ls);
+            auto [g, c] = Shard::split(b, le - ls);
             Shard::release(a);
             Shard::release(b);
             Shard::release(c);
@@ -132,7 +132,7 @@ void Vase::regex_search_replace(
       Shard::release(p);
   }
 
-  Shard *new_root = compact.empty() ? nullptr : build_balanced(compact.data(), 0, compact.size());
+  Shard *new_root = compact.empty() ? nullptr : Shard::build(compact.data(), 0, compact.size());
   Shard::release(root);
   root = new_root;
 }

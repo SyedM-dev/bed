@@ -48,7 +48,6 @@ struct Vase {
   std::filesystem::path swapdir;
 
   Vase(std::filesystem::path path, std::filesystem::path swapdir);
-
   ~Vase();
 
   uint64_t length();
@@ -80,7 +79,6 @@ struct Vase {
 
   bool undo();
   bool redo();
-
   void snapshot();
   void prune_history(uint64_t n);
 

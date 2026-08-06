@@ -1,5 +1,4 @@
 #include "pch.h"
-#include "vase/iterators/chunk.h"
 #include "vase/iterators/line.h"
 #include "vase/vase.h"
 
@@ -9,11 +8,12 @@ int main(int argc, char *argv[]) {
 
   Vase vase = Vase(argv[1], "/tmp");
 
-  Point p = {500, 1000};
-  vase.insert(&p, 'x');
+  Point p = {UINT64_MAX, UINT64_MAX};
+  vase.insert(&p, 'c');
 
-  printf("\n"
-         "%lu bytes\n"
+  printf("%s\n\n", vase.to_string().c_str());
+
+  printf("%lu bytes\n"
          "%lu lines\n"
          "\n",
          vase.length(),

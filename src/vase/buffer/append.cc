@@ -1,57 +1,70 @@
 #include "vase/buffer/append.h"
 
-AppendBuffer::AppendBuffer() {
-  t_current = (TChunk *)malloc(sizeof(TChunk));
-  buf.push_back(t_current);
+AppendBuffer::AppendBuffer(std::filesystem::path base_dir) {
+  base_dir /= "tapp.XXXXXX";
+  char *s = strdup(base_dir.c_str());
+  fd = mkstemp(s);
+  if (fd == -1)
+    throw std::runtime_error("mkstemp failed");
+  unlink(s);
+  free(s);
+  allocated_capacity = 1ull << 30;
+  if (ftruncate(fd, allocated_capacity) == -1)
+    throw std::runtime_error("ftruncate failed");
+  buf = (char *)mmap(nullptr, allocated_capacity, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if (buf == MAP_FAILED)
+    throw std::runtime_error("mmap failed");
 }
 
 AppendBuffer::~AppendBuffer() {
-  for (auto p : buf)
-    free(p);
+  if (buf && buf != MAP_FAILED)
+    munmap(buf, allocated_capacity);
+  if (fd != -1)
+    close(fd);
 }
 
-uint64_t AppendBuffer::append(char c) {
-  if (t_offset == APPEND_CHUNK_SIZE) {
-    t_current = (TChunk *)malloc(sizeof(TChunk));
-    if (!t_current)
-      throw std::runtime_error("malloc failed");
-    buf.push_back(t_current);
-    t_offset = 0;
+void AppendBuffer::grow(uint64_t len) {
+  if (current_size + len > allocated_capacity) {
+    uint64_t new_capacity = allocated_capacity * 2;
+    if (new_capacity < current_size + len)
+      new_capacity = current_size + len + (1ull << 30);
+    if (ftruncate(fd, new_capacity) == -1)
+      throw std::runtime_error("ftruncate failed");
+#if defined(__linux__)
+    void *new_buf = mremap(buf, allocated_capacity, new_capacity, MREMAP_MAYMOVE);
+    if (new_buf == MAP_FAILED)
+      throw std::runtime_error("mremap failed");
+#else
+    munmap(buf, allocated_capacity);
+    void *new_buf = mmap(nullptr, new_capacity, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (new_buf == MAP_FAILED)
+      throw std::runtime_error("mmap failed");
+#endif
+    allocated_capacity = new_capacity;
+    buf = (char *)new_buf;
   }
-  (*t_current)[t_offset++] = c;
-  return current_offset++;
 }
 
-uint64_t AppendBuffer::append(const char *text, uint64_t length) {
-  uint64_t start = current_offset;
-  while (length > 0) {
-    if (t_offset == APPEND_CHUNK_SIZE) {
-      t_current = (TChunk *)malloc(sizeof(TChunk));
-      buf.push_back(t_current);
-      t_offset = 0;
-    }
-    uint64_t copy = std::min(length, APPEND_CHUNK_SIZE - t_offset);
-    memcpy((*t_current) + t_offset, text, copy);
-    t_offset += copy;
-    current_offset += copy;
-    text += copy;
-    length -= copy;
-  }
-  return start;
+uint64_t AppendBuffer::append(const char c) {
+  grow(1);
+  buf[current_size++] = c;
+  return current_size - 1;
 }
 
-const char *AppendBuffer::read(uint64_t pos, uint64_t *out_len) {
-  if (pos >= current_offset)
+uint64_t AppendBuffer::append(const char *text, uint64_t len) {
+  grow(len);
+  memcpy(buf + current_size, text, len);
+  uint64_t old_pos = current_size;
+  current_size += len;
+  return old_pos;
+}
+
+const char *AppendBuffer::read(uint64_t pos) {
+  if (pos >= current_size)
     return nullptr;
-  uint64_t local_offset = pos % APPEND_CHUNK_SIZE;
-  if (out_len) {
-    uint64_t remaining = current_offset - pos;
-    uint64_t until_chunk_end = APPEND_CHUNK_SIZE - local_offset;
-    *out_len = std::min(remaining, until_chunk_end);
-  }
-  return &(*buf[pos / APPEND_CHUNK_SIZE])[local_offset];
+  return buf + pos;
 }
 
-inline uint64_t AppendBuffer::length() {
-  return current_offset;
+uint64_t AppendBuffer::length() {
+  return current_size;
 }

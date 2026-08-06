@@ -1,10 +1,11 @@
+#include "vase/iterators/petal.h"
 #include "vase/vase.h"
 
 std::vector<RegexMatch> Vase::_regex_search(
   std::string_view pattern, Range range, std::string_view options
 ) {
   bool global = false;
-  uint64_t flags = PCRE2_MULTILINE;
+  uint64_t flags = PCRE2_MULTILINE | PCRE2_UTF;
 
   const char *dot = "(?:(?!\\n)\\X)";
 
@@ -104,7 +105,7 @@ std::vector<RegexMatch> Vase::_regex_search(
   uint64_t start_offset = offset_of(range.start);
   uint64_t end_offset = offset_of(range.end);
 
-  ChunkIterator it(root, Direction::Forward);
+  PetalIterator it(root, Direction::Forward);
   it.seek_offset(start_offset);
 
   const char *data;
