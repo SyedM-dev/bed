@@ -1,7 +1,7 @@
 #include "internal/vase/vase.h"
 
 namespace crib::internal::vase {
-std::vector<RegexMatch> Vase::_regex_search(
+std::vector<Vase::RegexMatch> Vase::_regex_search(
   std::string_view pattern, Range range, std::string_view options
 ) {
   bool global = false;

@@ -18,28 +18,28 @@ struct Range {
   Point end;
 };
 
-struct RegexGroup {
-  uint64_t start{UINT32_MAX};
-  uint64_t end{UINT32_MAX};
-};
-
-struct RegexMatch {
-  uint64_t start;
-  uint64_t end;
-  RegexGroup groups[9]{};
-};
-
-struct ReplacePart {
-  enum struct PartType {
-    FullMatch,
-    CaptureGroup,
-    Constant
-  } type;
-
-  std::variant<uint8_t, Shard *> value;
-};
-
 struct Vase {
+  struct RegexGroup {
+    uint64_t start{0};
+    uint64_t end{0};
+  };
+
+  struct RegexMatch {
+    uint64_t start;
+    uint64_t end;
+    RegexGroup groups[9]{};
+  };
+
+  struct ReplacePart {
+    enum struct PartType {
+      FullMatch,
+      CaptureGroup,
+      Constant
+    } type;
+
+    std::variant<uint8_t, Shard *> value;
+  };
+
   OriginalBuffer *original;
   AppendBuffer *append;
   Shard *root;

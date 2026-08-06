@@ -1,7 +1,7 @@
 #include "internal/vase/vase.h"
 
 namespace crib::internal::vase {
-std::vector<ReplacePart> Vase::parse_replace(std::string_view s) {
+std::vector<Vase::ReplacePart> Vase::parse_replace(std::string_view s) {
   std::vector<ReplacePart> parts;
   std::string constant;
   auto flush_constant = [&]() {
@@ -100,7 +100,7 @@ void Vase::regex_search_replace(
         uint8_t idx = std::get<uint8_t>(part.value);
         if (idx <= 9) {
           const RegexGroup &group = match.groups[idx - 1];
-          if (group.start != UINT32_MAX) {
+          if (group.start > group.end) {
             uint64_t ls = group.start - match.start;
             uint64_t le = group.end - match.start;
             auto [a, b] = Shard::split(dropped, ls);
