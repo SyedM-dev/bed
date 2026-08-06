@@ -5,9 +5,9 @@
 #include "constants.h"
 #include "iterators/line.h"
 #include "pch.h"
-#include "search.h"
 #include "shard.h"
 
+namespace crib::internal::vase {
 struct Point {
   uint64_t row;
   uint64_t col;
@@ -98,3 +98,4 @@ private:
     std::string_view pattern, Range range, std::string_view options
   );
 };
+} // namespace crib::internal::vase

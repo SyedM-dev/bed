@@ -1,7 +1,6 @@
 #include "internal/vase/vase.h"
-#include "internal/vase/iterators/line.h"
-#include "internal/vase/iterators/petal.h"
 
+namespace crib::internal::vase {
 Vase::Vase(std::filesystem::path path, std::filesystem::path swapdir)
     : path(path), swapdir(swapdir) {
   if (!std::filesystem::exists(swapdir) || !std::filesystem::is_directory(swapdir))
@@ -397,3 +396,4 @@ void Vase::move_lines(Point *point, uint64_t amount, Direction dir) {
   }
   clamp(point);
 }
+} // namespace crib::internal::vase

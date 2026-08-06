@@ -4,6 +4,7 @@
 #include "pch.h"
 #include "petal.h"
 
+namespace crib::internal::vase {
 struct LineIterator {
   PetalIterator it;
   const char *chunk;
@@ -18,3 +19,4 @@ struct LineIterator {
   bool next(std::string *line);
   uint64_t byte_offset();
 };
+} // namespace crib::internal::vase

@@ -5,6 +5,7 @@
 #include "constants.h"
 #include "pch.h"
 
+namespace crib::internal::vase {
 struct Shard {
   enum struct Kind : uint8_t {
     Branch,
@@ -111,3 +112,4 @@ extern inline void dump_shard(Shard *node, int depth = 0) {
   if (!depth)
     std::cout << "\n\n";
 }
+} // namespace crib::internal::vase

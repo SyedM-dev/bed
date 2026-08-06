@@ -4,6 +4,7 @@
 #include "iter.h"
 #include "pch.h"
 
+namespace crib::internal::vase {
 struct PetalIterator {
   Direction dir;
   Shard *root = nullptr;
@@ -25,3 +26,4 @@ struct PetalIterator {
 private:
   Petal *_next(uint64_t *offset);
 };
+} // namespace crib::internal::vase

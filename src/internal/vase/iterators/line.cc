@@ -1,5 +1,6 @@
-#include "internal/vase/iterators/line.h"
+#include "internal/vase/vase.h"
 
+namespace crib::internal::vase {
 LineIterator::LineIterator(Shard *root, uint64_t line_num, Direction dir)
     : it(root, dir), dir(dir) {
   it.seek_line(line_num);
@@ -71,3 +72,4 @@ bool LineIterator::next(std::string *line) {
 uint64_t LineIterator::byte_offset() {
   return last_line_offset;
 }
+} // namespace crib::internal::vase

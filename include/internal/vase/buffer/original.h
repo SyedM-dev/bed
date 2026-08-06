@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "pch.h"
 
+namespace crib::internal::vase {
 struct OriginalBuffer : Buffer {
   const char *buf;
   uint64_t len;
@@ -15,3 +16,4 @@ struct OriginalBuffer : Buffer {
   const char *read(uint64_t pos) override;
   uint64_t length() override;
 };
+} // namespace crib::internal::vase

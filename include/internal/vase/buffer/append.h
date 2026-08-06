@@ -4,6 +4,7 @@
 #include "buffer.h"
 #include "pch.h"
 
+namespace crib::internal::vase {
 struct AppendBuffer : Buffer {
   char *buf = nullptr;
   uint64_t allocated_capacity = 0;
@@ -21,3 +22,4 @@ struct AppendBuffer : Buffer {
 private:
   void grow(uint64_t len);
 };
+} // namespace crib::internal::vase

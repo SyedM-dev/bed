@@ -1,5 +1,6 @@
-#include "internal/vase/buffer/original.h"
+#include "internal/vase/vase.h"
 
+namespace crib::internal::vase {
 OriginalBuffer::OriginalBuffer(std::filesystem::path base_dir) {
   if (!std::filesystem::exists(base_dir) || !std::filesystem::is_directory(base_dir))
     throw std::runtime_error("Swap directory does not exist or is not a directory.");
@@ -43,3 +44,4 @@ const char *OriginalBuffer::read(uint64_t pos) {
 uint64_t OriginalBuffer::length() {
   return len;
 }
+} // namespace crib::internal::vase

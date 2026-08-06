@@ -1,5 +1,6 @@
-#include "internal/vase/shard.h"
+#include "internal/vase/vase.h"
 
+namespace crib::internal::vase {
 void Shard::retain(Shard *n) {
   if (n)
     n->refs++;
@@ -256,3 +257,4 @@ Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o) {
     return pieces[0];
   return build(pieces.data(), 0, pieces.size());
 }
+} // namespace crib::internal::vase
