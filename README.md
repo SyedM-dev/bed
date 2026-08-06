@@ -8,7 +8,7 @@ A set of text editing tools (still in early development).
 
 Vase is a avl piece tree like structure which handles loading, insertion, erasure, regex searching, regex replacing etc.
 <br/>
-almost done.
+done.
 
 #### Ed
 
