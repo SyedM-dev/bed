@@ -1,7 +1,6 @@
-#include "vase/vase.h"
-#include "utils/utils.h"
-#include "vase/iterators/line.h"
-#include "vase/iterators/petal.h"
+#include "internal/vase/vase.h"
+#include "internal/vase/iterators/line.h"
+#include "internal/vase/iterators/petal.h"
 
 Vase::Vase(std::filesystem::path path, std::filesystem::path swapdir)
     : path(path), swapdir(swapdir) {

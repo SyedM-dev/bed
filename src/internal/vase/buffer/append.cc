@@ -1,4 +1,4 @@
-#include "vase/buffer/append.h"
+#include "internal/vase/buffer/append.h"
 
 AppendBuffer::AppendBuffer(std::filesystem::path base_dir) {
   base_dir /= "tapp.XXXXXX";

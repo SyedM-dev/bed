@@ -1,4 +1,4 @@
-#include "vase/iterators/line.h"
+#include "internal/vase/iterators/line.h"
 
 LineIterator::LineIterator(Shard *root, uint64_t line_num, Direction dir)
     : it(root, dir), dir(dir) {

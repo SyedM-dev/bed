@@ -1,5 +1,4 @@
-#include "vase/buffer/original.h"
-#include "io/file.h"
+#include "internal/vase/buffer/original.h"
 
 OriginalBuffer::OriginalBuffer(std::filesystem::path base_dir) {
   if (!std::filesystem::exists(base_dir) || !std::filesystem::is_directory(base_dir))

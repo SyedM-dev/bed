@@ -1,4 +1,4 @@
-#include "vase/iterators/petal.h"
+#include "internal/vase/iterators/petal.h"
 
 PetalIterator::PetalIterator(Shard *r, Direction dir)
     : dir(dir), root(r) {

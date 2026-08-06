@@ -1,5 +1,5 @@
-#include "vase/iterators/petal.h"
-#include "vase/vase.h"
+#include "internal/vase/iterators/petal.h"
+#include "internal/vase/vase.h"
 
 std::vector<RegexMatch> Vase::_regex_search(
   std::string_view pattern, Range range, std::string_view options

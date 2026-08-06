@@ -1,4 +1,4 @@
-#include "vase/vase.h"
+#include "internal/vase/vase.h"
 
 std::vector<ReplacePart> Vase::parse_replace(std::string_view s) {
   std::vector<ReplacePart> parts;

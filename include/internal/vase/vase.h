@@ -7,7 +7,6 @@
 #include "pch.h"
 #include "search.h"
 #include "shard.h"
-#include "utils/utils.h"
 
 struct Point {
   uint64_t row;
