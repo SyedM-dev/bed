@@ -2,18 +2,6 @@
 #include "commands/ed/ed.h"
 
 namespace crib::cli {
-struct Command {
-  void (*run)(int, char **);
-  std::string (*summary)();
-  void (*help)();
-};
-
-struct cli_error : std::runtime_error {
-  int exit_code;
-  cli_error(std::string msg, int code)
-      : std::runtime_error(std::move(msg)), exit_code(code) {}
-};
-
 static const std::unordered_map<std::string, Command> commands = {
   {"ed",
    {crib::commands::ed::run,
@@ -45,9 +33,10 @@ void help() {
     std::cout << "  " << name << " - " << cmd.summary() << "\n";
 }
 
-int execute(const std::string &name, const Command &cmd, int argc, char **argv) {
+int execute(const std::string &name, const Command &cmd, int argc, char *argv[]) {
   try {
-    cmd.run(argc - 1, argv + 1);
+    std::vector<std::string> args(argv, argv + argc);
+    cmd.run(args);
     return 0;
   } catch (const cli_error &e) {
     std::cerr << "Error running " << name << ": " << e.what() << '\n';
@@ -69,7 +58,7 @@ int run(int argc, char *argv[]) {
 
   if (argc > 1)
     if (auto it = commands.find(argv[1]); it != commands.end())
-      return execute(it->first, it->second, argc, argv);
+      return execute(it->first, it->second, argc - 1, argv + 1);
 
   if (argc > 1 && std::string(argv[1]) == "--help") {
     help();

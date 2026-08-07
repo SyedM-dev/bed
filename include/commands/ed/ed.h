@@ -6,5 +6,5 @@
 namespace crib::commands::ed {
 std::string summary();
 void help();
-void run(int argc, char *argv[]);
+void run(std::vector<std::string>);
 } // namespace crib::commands::ed

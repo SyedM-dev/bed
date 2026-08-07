@@ -55,8 +55,8 @@ std::string Vase::to_string(Range range) {
   return out;
 }
 
-LineIterator Vase::iterate(uint64_t line) {
-  return LineIterator(root, line, Direction::Forward);
+Iterator Vase::iterate(uint64_t line) {
+  return Iterator(root, line);
 }
 
 bool Vase::undo() {

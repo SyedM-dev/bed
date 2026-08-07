@@ -53,9 +53,7 @@ struct Vase {
   std::string to_string();
   std::string to_string(Range range);
 
-  Point resolve_column(uint64_t line, uint64_t column);
-
-  LineIterator iterate(uint64_t line);
+  Iterator iterate(uint64_t line);
 
   void insert(Point *point, char key);
   void insert(Point *point, const char *data, uint64_t len);
