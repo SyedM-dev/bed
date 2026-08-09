@@ -24,8 +24,8 @@ struct Iterator {
   Shard *root;
   std::string line;
 
-  Iterator(Shard *root, uint64_t line_num)
-      : root(root), it(root, line_num, Direction::Forward) {
+  Iterator(Shard *root, uint64_t line_num, Direction dir)
+      : root(root), it(root, line_num, dir) {
     Shard::retain(root);
   }
 
@@ -63,9 +63,8 @@ struct Iterator {
     return *this;
   }
 
-  std::string &next() {
-    it.next(&line);
-    return line;
+  bool next() {
+    return it.next(&line);
   }
 
 private:

@@ -25,7 +25,7 @@ struct Shard {
   static void retain(Shard *n);
   static void release(Shard *n);
 
-  static Shard *from_file(std::filesystem::path path, OriginalBuffer *b);
+  static Shard *from_file(std::filesystem::path path, OriginalBuffer *b, bool posix_ending);
   static std::vector<Shard *> from_swap(std::filesystem::path path, OriginalBuffer *b);
 
   static std::pair<Shard *, Shard *> split(Shard *n, uint64_t offset);
@@ -34,6 +34,7 @@ struct Shard {
   static Shard *merge_leaves(Shard *a, Shard *b);
   static Shard *append(Shard *root, Shard *leaf);
   static Shard *build(Shard **pieces, uint64_t lo, uint64_t hi);
+  static void dump(Shard *node, int depth = 0);
 };
 
 struct Branch : Shard {
@@ -62,54 +63,4 @@ struct Petal : Shard {
         source(source), pos(pos) {};
 };
 
-extern inline void dump_shard(Shard *node, int depth = 0) {
-  if (!node) {
-    std::cout << std::string(depth * 2, ' ') << "<null>\n";
-    return;
-  }
-
-  std::string indent(depth * 2, ' ');
-
-  std::cout << indent
-            << "Shard@" << node
-            << " kind=";
-
-  switch (node->kind) {
-  case Shard::Kind::Branch:
-    std::cout << "Branch";
-    break;
-  case Shard::Kind::Petal:
-    std::cout << "Petal";
-    break;
-  }
-
-  std::cout
-    << " height=" << unsigned(node->height)
-    << " length=" << node->length
-    << " lines=" << node->lines
-    << " refs=" << node->refs.load()
-    << "\n";
-
-  if (node->kind == Shard::Kind::Branch) {
-    auto *branch = static_cast<Branch *>(node);
-
-    std::cout << indent << "  left:\n";
-    dump_shard(branch->left, depth + 2);
-
-    std::cout << indent << "  right:\n";
-    dump_shard(branch->right, depth + 2);
-  } else {
-    auto *petal = static_cast<Petal *>(node);
-
-    std::cout
-      << indent << "  source=" << petal->source
-      << " pos=" << petal->pos
-      << " length=" << petal->length
-      << " lines=" << petal->lines
-      << "\n";
-  }
-
-  if (!depth)
-    std::cout << "\n\n";
-}
 } // namespace crib::internal::vase

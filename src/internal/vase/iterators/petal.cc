@@ -88,16 +88,24 @@ void PetalIterator::seek_line(uint64_t line) {
     } else {
       auto *b = (Branch *)curr;
       uint64_t left_lines = b->left->lines;
-      if (line <= left_lines) {
-        if (dir == Direction::Forward)
+      if (dir == Direction::Forward) {
+        if (line < left_lines) {
           stack.push_back(b->right);
-        curr = b->left;
+          curr = b->left;
+        } else {
+          line -= left_lines;
+          global_offset += b->left->length;
+          curr = b->right;
+        }
       } else {
-        line -= left_lines;
-        if (dir == Direction::Backward)
+        if (line <= left_lines) {
+          curr = b->left;
+        } else {
+          line -= left_lines;
           stack.push_back(b->left);
-        global_offset += b->left->length;
-        curr = b->right;
+          global_offset += b->left->length;
+          curr = b->right;
+        }
       }
     }
   }

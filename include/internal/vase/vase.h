@@ -43,6 +43,15 @@ struct Vase {
   OriginalBuffer *original;
   AppendBuffer *append;
   Shard *root;
+
+#ifdef _WIN32
+  bool posix_ending = false;
+  bool using_crlf = true;
+#else
+  bool posix_ending = true;
+  bool using_crlf = false;
+#endif
+
   std::filesystem::path path;
   std::filesystem::path swapdir;
 
@@ -50,15 +59,18 @@ struct Vase {
   ~Vase();
 
   uint64_t length();
+  uint64_t lines();
   std::string to_string();
   std::string to_string(Range range);
 
-  Iterator iterate(uint64_t line);
+  Iterator iterate(uint64_t line, Direction dir);
 
   void insert(Point *point, char key);
+  void insert(Point *point, std::string_view str);
   void insert(Point *point, const char *data, uint64_t len);
   void erase(Point *point, uint64_t amount, Direction dir);
   void erase(Range range);
+  void replace(Range range, std::string_view str);
   void replace(Range range, const char *data, uint64_t len);
 
   void move_clusters(Point *point, uint64_t amount, Direction dir);

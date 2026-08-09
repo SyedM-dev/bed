@@ -91,7 +91,7 @@ Shard *balance(Shard *node) {
 
 Shard *Shard::merge(Shard *a, Shard *b) {
   if (!a)
-    return b ? (Shard::retain(b), b) : nullptr;
+    return (Shard::retain(b), b);
   if (!b)
     return (Shard::retain(a), a);
 
@@ -205,7 +205,7 @@ Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
   return node;
 }
 
-Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o) {
+Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o, bool posix_ending) {
   int dest_fd = o->fd;
   if (dest_fd == -1)
     return nullptr;
@@ -214,6 +214,19 @@ Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o) {
     return nullptr;
 
   uint64_t total = std::filesystem::file_size(path);
+  if (posix_ending && total > 0) {
+    char last;
+    char s_last;
+    if (pread(src_fd, &last, 1, (off_t)(total - 1)) != 1)
+      return nullptr;
+    if (pread(src_fd, &s_last, 1, (off_t)(total - 2)) != 1)
+      return nullptr;
+    if (last == '\n') {
+      total--;
+      if (s_last == '\r')
+        total--;
+    }
+  }
   std::vector<Shard *> pieces;
   uint64_t pos = 0;
   pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);
@@ -256,5 +269,55 @@ Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o) {
   if (pieces.size() == 1)
     return pieces[0];
   return build(pieces.data(), 0, pieces.size());
+}
+
+void Shard::dump(Shard *node, int depth) {
+  if (!node) {
+    std::cout << std::string(depth * 2, ' ') << "<null>\n";
+    return;
+  }
+  std::string indent(depth * 2, ' ');
+  std::cout << indent
+            << "Shard@" << node
+            << " kind=";
+  switch (node->kind) {
+  case Shard::Kind::Branch:
+    std::cout << "Branch";
+    break;
+  case Shard::Kind::Petal:
+    std::cout << "Petal";
+    break;
+  }
+  std::cout
+    << " height=" << unsigned(node->height)
+    << " length=" << node->length
+    << " lines=" << node->lines
+    << " refs=" << node->refs.load()
+    << "\n";
+  if (node->kind == Shard::Kind::Branch) {
+    auto *branch = (Branch *)node;
+    std::cout << indent << "  left:\n";
+    dump(branch->left, depth + 2);
+    std::cout << indent << "  right:\n";
+    dump(branch->right, depth + 2);
+  } else {
+    auto *petal = static_cast<Petal *>(node);
+    constexpr auto clean = [](const std::string &text) {
+      std::string result = text;
+      size_t pos = 0;
+      while ((pos = result.find('\n', pos)) != std::string::npos) {
+        result.replace(pos, 1, "\\n");
+        pos += 2;
+      }
+      return result;
+    };
+    std::cout
+      << indent << "  source=" << petal->source
+      << " pos=" << petal->pos
+      << " length=" << petal->length
+      << " lines=" << petal->lines
+      << " text=\"" << clean(std::string(petal->source->read(petal->pos), petal->length))
+      << "\"\n";
+  }
 }
 } // namespace crib::internal::vase

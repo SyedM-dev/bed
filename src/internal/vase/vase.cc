@@ -8,12 +8,12 @@ Vase::Vase(std::filesystem::path path, std::filesystem::path swapdir)
   append = new AppendBuffer(swapdir);
   original = new OriginalBuffer(swapdir);
   if (std::filesystem::is_regular_file(path))
-    root = Shard::from_file(path, original);
+    root = Shard::from_file(path, original, posix_ending);
   else
     root = nullptr;
+  history_top = 0;
   history.push_back(root);
   Shard::retain(root);
-  history_top = 0;
 }
 
 Vase::~Vase() {
@@ -25,22 +25,38 @@ Vase::~Vase() {
 }
 
 uint64_t Vase::length() {
+  if (!root)
+    return 0;
   return root->length;
+}
+
+uint64_t Vase::lines() {
+  if (!root)
+    return 0;
+  return root->lines + 1;
 }
 
 std::string Vase::to_string() {
   std::string out;
+  if (!root)
+    return out;
   PetalIterator it(root, Direction::Forward);
   it.seek_offset(0);
   const char *data;
   uint64_t len;
   while (it.next(&data, &len))
     out.append(data, len);
+  if (posix_ending)
+    out.append("\n");
   return out;
 }
 
 std::string Vase::to_string(Range range) {
+  clamp(&range.start);
+  clamp(&range.end);
   std::string out;
+  if (!root)
+    return out;
   PetalIterator it(root, Direction::Forward);
   uint64_t start = offset_of(range.start);
   it.seek_offset(start);
@@ -55,8 +71,8 @@ std::string Vase::to_string(Range range) {
   return out;
 }
 
-Iterator Vase::iterate(uint64_t line) {
-  return Iterator(root, line);
+Iterator Vase::iterate(uint64_t line, Direction dir) {
+  return Iterator(root, line, dir);
 }
 
 bool Vase::undo() {
@@ -100,6 +116,8 @@ void Vase::prune_history(uint64_t n) {
 }
 
 bool Vase::save() {
+  if (!root)
+    return true;
   std::ofstream file(path, std::ios::binary);
   if (!file)
     return false;
@@ -112,6 +130,10 @@ bool Vase::save() {
     if (!file)
       return false;
   }
+  if (posix_ending)
+    file.write("\n", 1);
+  if (!file)
+    return false;
   return true;
 }
 
@@ -135,6 +157,10 @@ void Vase::insert(Point *point, char key) {
     *point = {point->row + 1, 0};
   else
     point->col++;
+}
+
+void Vase::insert(Point *point, std::string_view str) {
+  insert(point, str.data(), str.size());
 }
 
 void Vase::insert(Point *point, const char *data, uint64_t len) {
@@ -229,12 +255,17 @@ void Vase::erase(Range range) {
   root = new_root;
 }
 
+void Vase::replace(Range range, std::string_view str) {
+  replace(range, str.data(), str.size());
+}
+
 void Vase::replace(Range range, const char *data, uint64_t len) {
   erase(range);
   insert(&range.start, data, len);
 }
 
 uint64_t Vase::offset_of(Point point) {
+  clamp(&point);
   LineIterator it(root, point.row, Direction::Forward);
   std::string line;
   uint64_t offset = 0;
@@ -296,6 +327,7 @@ Point Vase::point_of(uint64_t offset) {
     ptr += next_len;
     p.col++;
   }
+  clamp(&p);
   return p;
 }
 
@@ -363,11 +395,19 @@ void Vase::move_clusters(Point *point, uint64_t amount, Direction dir) {
       }
     }
   }
+  clamp(point);
 }
 
 void Vase::clamp(Point *point) {
-  if (point->row > root->lines)
+  if (!root) {
+    point->row = 0;
+    point->col = 0;
+    return;
+  }
+  if (point->row > root->lines) {
     point->row = root->lines;
+    point->col = UINT64_MAX;
+  }
   LineIterator it(root, point->row, Direction::Forward);
   std::string line;
   uint64_t clusters = 0;
