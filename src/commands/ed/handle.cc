@@ -9,6 +9,8 @@ bool Ed::handle(std::string cmd, bool eof) {
     Command command = parse(cmd, eof);
     bool was_quitting = quitting;
     quitting = false;
+    bool was_editing = editing;
+    editing = false;
     switch (command.type) {
     case Command::Type::Quit:
       if (modified && !was_quitting) {
@@ -97,8 +99,6 @@ bool Ed::handle(std::string cmd, bool eof) {
         text.append(cline);
         text.push_back('\n');
       }
-      if (std::cin.eof())
-        throw ed_error("EOF reached before '.' during text input.");
       if (command.start.type != Command::Address::Type::None) {
         if (command.address_flags & Command::RANGE)
           resolve_address(command.end, &line);
@@ -114,6 +114,32 @@ bool Ed::handle(std::string cmd, bool eof) {
       append(text, line);
       modified = true;
       line += line_count;
+    } break;
+    case Command::Type::Insert: {
+      std::string text;
+      std::string cline;
+      uint64_t line_count = 0;
+      while (std::getline(std::cin, cline)) {
+        if (cline == ".")
+          break;
+        line_count++;
+        text.append(cline);
+        text.push_back('\n');
+      }
+      if (command.start.type != Command::Address::Type::None) {
+        if (command.address_flags & Command::RANGE)
+          resolve_address(command.end, &line);
+        else
+          resolve_address(command.start, &line);
+      }
+      if (line == 0)
+        line = 1;
+      if (text.empty())
+        break;
+      vase.snapshot();
+      append(text, line - 1);
+      modified = true;
+      line += line_count - 1;
     } break;
     case Command::Type::Change: {
       uint64_t line_start = line;
@@ -138,8 +164,6 @@ bool Ed::handle(std::string cmd, bool eof) {
         text.append(cline);
         text.push_back('\n');
       }
-      if (std::cin.eof())
-        throw ed_error("EOF reached before '.' during text input.");
       vase.snapshot();
       remove(line_start, line_end);
       line = line_start;
@@ -172,9 +196,9 @@ bool Ed::handle(std::string cmd, bool eof) {
     case Command::Type::Write: {
       std::string path = command.argument;
       if (path.empty()) {
-        path = vase.path;
+        path = save_path;
         if (path.empty())
-          throw ed_error("Need filename to write to.");
+          throw ed_error("Need file to write to.");
       }
       uint64_t line_start = 1;
       uint64_t line_end = vase.lines();
@@ -207,7 +231,6 @@ bool Ed::handle(std::string cmd, bool eof) {
         if (pclose(pipe) == -1)
           throw ed_error("Error closing command.");
       } else {
-        vase.path = path;
         std::ofstream file(path, std::ios::out | std::ios::trunc);
         if (!file)
           throw ed_error("Error writing to file.");
@@ -218,10 +241,67 @@ bool Ed::handle(std::string cmd, bool eof) {
         }
         if (!file)
           throw ed_error("Error writing to file.");
+        save_path = path;
         modified = false;
       }
       if (!suppress_mode)
         std::cout << bytes << std::endl;
+    } break;
+    case Command::Type::Edit: {
+      if (modified && !was_editing) {
+        editing = true;
+        throw ed_error("Buffer modified.");
+      }
+      std::string path = command.argument;
+      if (path.empty()) {
+        path = save_path;
+        if (path.empty())
+          throw ed_error("Need file to read from.");
+      }
+      if (path[0] == '!') {
+        path.erase(1);
+        Vase new_vase(std::string(path), "/tmp");
+        vase = std::move(new_vase);
+        modified = true;
+      } else {
+        Vase new_vase(std::filesystem::path(path), "/tmp");
+        vase = std::move(new_vase);
+        save_path = path;
+        modified = false;
+      }
+      line = vase.lines();
+      if (!suppress_mode)
+        std::cout << vase.length() << std::endl;
+    } break;
+    case Command::Type::ForceEdit: {
+      std::string path = command.argument;
+      if (path.empty()) {
+        path = save_path;
+        if (path.empty())
+          throw ed_error("Need file to read from.");
+      }
+      if (path[0] == '!') {
+        path.erase(0, 1);
+        Vase new_vase(std::string(path), "/tmp");
+        vase = std::move(new_vase);
+        modified = true;
+      } else {
+        Vase new_vase(std::filesystem::path(path), "/tmp");
+        vase = std::move(new_vase);
+        save_path = path;
+        modified = false;
+      }
+      line = vase.lines();
+      std::fill(std::begin(marks), std::end(marks), '\0');
+      if (!suppress_mode)
+        std::cout << vase.length() << std::endl;
+    } break;
+    case Command::Type::Filename: {
+      std::string path = command.argument;
+      if (path.empty())
+        throw ed_error("No filename given.");
+      save_path = path;
+      std::cout << save_path.string() << std::endl;
     } break;
     case Command::Type::Dump:
       Shard::dump(vase.root);

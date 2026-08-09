@@ -79,6 +79,10 @@ Command Ed::parse(std::string cmd, bool eof) {
     command.type = Command::Type::Append;
     i++;
     break;
+  case 'i':
+    command.type = Command::Type::Insert;
+    i++;
+    break;
   case 'c':
     command.type = Command::Type::Change;
     i++;
@@ -89,6 +93,39 @@ Command Ed::parse(std::string cmd, bool eof) {
     break;
   case 'w':
     command.type = Command::Type::Write;
+    i++;
+    if (i >= cmd.size())
+      return command;
+    if (cmd[i] == ' ' || cmd[i] == '\t')
+      skip_space();
+    else
+      throw ed_error("Invalid command.");
+    command.argument = cmd.substr(i);
+    return command;
+  case 'e':
+    command.type = Command::Type::Edit;
+    i++;
+    if (i >= cmd.size())
+      return command;
+    if (cmd[i] == ' ' || cmd[i] == '\t')
+      skip_space();
+    else
+      throw ed_error("Invalid command.");
+    command.argument = cmd.substr(i);
+    return command;
+  case 'E':
+    command.type = Command::Type::ForceEdit;
+    i++;
+    if (i >= cmd.size())
+      return command;
+    if (cmd[i] == ' ' || cmd[i] == '\t')
+      skip_space();
+    else
+      throw ed_error("Invalid command.");
+    command.argument = cmd.substr(i);
+    return command;
+  case 'f':
+    command.type = Command::Type::Filename;
     i++;
     if (i >= cmd.size())
       return command;

@@ -56,7 +56,13 @@ struct Vase {
   std::filesystem::path swapdir;
 
   Vase(std::filesystem::path path, std::filesystem::path swapdir);
+  Vase(std::string cmd, std::filesystem::path swapdir);
+  Vase(std::filesystem::path swapdir);
   ~Vase();
+  Vase(Vase &&other) noexcept;
+  Vase &operator=(Vase &&other) noexcept;
+  Vase(const Vase &) = delete;
+  Vase &operator=(const Vase &) = delete;
 
   uint64_t length();
   uint64_t lines();

@@ -10,7 +10,7 @@ void help() {}
 
 void run(std::vector<std::string> args) {
   std::string prompt = "";
-  std::filesystem::path filepath;
+  std::string file;
   bool suppress = false;
   for (size_t i = 1; i < args.size(); i++) {
     if (args[i] == "-p") {
@@ -21,12 +21,12 @@ void run(std::vector<std::string> args) {
     } else if (args[i] == "-s") {
       suppress = true;
     } else {
-      if (filepath.string().size())
+      if (file.size())
         throw crib::cli::cli_error("Invalid arguments given.", 1);
-      filepath = args[i];
+      file = args[i];
     }
   }
-  Ed ed(filepath, suppress, prompt);
+  Ed ed(file, suppress, prompt);
   std::string command;
   while (true) {
     std::string cmd;

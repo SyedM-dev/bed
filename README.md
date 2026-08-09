@@ -14,7 +14,7 @@ done.
 
 Ed is an ed (the posix line editor) implementation using `Vase`.
 <br/>
-Not done yet.
+Mostly done.
 
 #### `hl`
 

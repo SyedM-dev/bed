@@ -25,8 +25,9 @@ struct Shard {
   static void retain(Shard *n);
   static void release(Shard *n);
 
-  static Shard *from_file(std::filesystem::path path, OriginalBuffer *b, bool posix_ending);
-  static std::vector<Shard *> from_swap(std::filesystem::path path, OriginalBuffer *b);
+  static Shard *from_file(std::filesystem::path &path, OriginalBuffer *b, bool posix_ending);
+  static Shard *from_command(const char *cmd, OriginalBuffer *o, bool posix_ending);
+  static std::vector<Shard *> from_swap(std::filesystem::path &path, OriginalBuffer *b);
 
   static std::pair<Shard *, Shard *> split(Shard *n, uint64_t offset);
   static Shard *concat(Shard *left, Shard *right);

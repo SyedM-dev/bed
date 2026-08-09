@@ -205,7 +205,112 @@ Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
   return node;
 }
 
-Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o, bool posix_ending) {
+static bool write_all(int fd, const void *data, size_t len) {
+  const char *p = static_cast<const char *>(data);
+  while (len > 0) {
+    ssize_t n = write(fd, p, len);
+    if (n > 0) {
+      p += n;
+      len -= (size_t)n;
+      continue;
+    }
+    if (n == -1 && errno == EINTR)
+      continue;
+    return false;
+  }
+  return true;
+}
+
+Shard *Shard::from_command(const char *cmd, OriginalBuffer *o, bool posix_ending) {
+  int dest_fd = o->fd;
+  if (dest_fd == -1)
+    return nullptr;
+
+  FILE *pipe = popen(cmd, "r");
+  if (!pipe)
+    return nullptr;
+
+  std::vector<Shard *> pieces;
+  pieces.reserve(16);
+
+  uint64_t pos = 0;
+  char buf[PETAL_SIZE_MAX];
+  uint64_t buf_cursor = 0;
+
+  char ending[2] = {'\0', '\0'};
+
+  while (true) {
+    size_t got = fread(buf + buf_cursor, 1, sizeof(buf) - buf_cursor, pipe);
+    buf_cursor += got;
+
+    if (buf_cursor == PETAL_SIZE_MAX || feof(pipe)) {
+      if (buf_cursor == 0)
+        break;
+      uint64_t lines = 0;
+      const char *p = buf;
+      const char *end = p + buf_cursor;
+      while (p < end) {
+        const void *nl = memchr(p, '\n', end - p);
+        if (!nl)
+          break;
+        lines++;
+        p = (const char *)nl + 1;
+      }
+      if (buf_cursor >= 2) {
+        ending[0] = buf[buf_cursor - 2];
+        ending[1] = buf[buf_cursor - 1];
+      } else if (buf_cursor == 1) {
+        ending[0] = ending[1];
+        ending[1] = buf[0];
+      }
+      if (!write_all(dest_fd, buf, buf_cursor)) {
+        pclose(pipe);
+        return nullptr;
+      }
+      pieces.push_back(new Petal(buf_cursor, lines, o, pos));
+      pos += buf_cursor;
+    }
+    if (feof(pipe))
+      break;
+    if (ferror(pipe))
+      return nullptr;
+  }
+
+  int status = pclose(pipe);
+  if (status == -1)
+    return nullptr;
+  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+    return nullptr;
+
+  if (pieces.empty())
+    return nullptr;
+
+  if (posix_ending) {
+    if (ending[1] == '\n') {
+      Petal *last = (Petal *)pieces.back();
+      last->lines--;
+      last->length--;
+      if (last->length == 0) {
+        Shard::release(last);
+        pieces.pop_back();
+        last = nullptr;
+        if (!pieces.empty())
+          last = (Petal *)pieces.back();
+      }
+      if (last && ending[0] == '\r')
+        last->length--;
+    }
+  }
+
+  o->initialize();
+
+  if (pieces.size() == 1)
+    return pieces[0];
+
+  return build(pieces.data(), 0, pieces.size());
+}
+
+Shard *Shard::from_file(std::filesystem::path &path, OriginalBuffer *o, bool posix_ending) {
   int dest_fd = o->fd;
   if (dest_fd == -1)
     return nullptr;
@@ -216,17 +321,22 @@ Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o, bool posi
   uint64_t total = std::filesystem::file_size(path);
   if (posix_ending && total > 0) {
     char last;
-    char s_last;
     if (pread(src_fd, &last, 1, (off_t)(total - 1)) != 1)
-      return nullptr;
-    if (pread(src_fd, &s_last, 1, (off_t)(total - 2)) != 1)
       return nullptr;
     if (last == '\n') {
       total--;
-      if (s_last == '\r')
-        total--;
+      if (total > 0) {
+        char s_last;
+        if (pread(src_fd, &s_last, 1, (off_t)(total - 1)) != 1)
+          return nullptr;
+        if (s_last == '\r')
+          total--;
+      }
     }
   }
+  if (total == 0)
+    return nullptr;
+
   std::vector<Shard *> pieces;
   uint64_t pos = 0;
   pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);
@@ -250,8 +360,7 @@ Shard *Shard::from_file(std::filesystem::path path, OriginalBuffer *o, bool posi
       lines++;
       p = (const char *)nl + 1;
     }
-    ssize_t written = write(dest_fd, buf, take);
-    if (written != (ssize_t)take) {
+    if (!write_all(dest_fd, buf, take)) {
       close(src_fd);
       return nullptr;
     }

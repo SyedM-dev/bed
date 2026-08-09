@@ -16,12 +16,78 @@ Vase::Vase(std::filesystem::path path, std::filesystem::path swapdir)
   Shard::retain(root);
 }
 
+Vase::Vase(std::string cmd, std::filesystem::path swapdir)
+    : path(""), swapdir(swapdir) {
+  if (!std::filesystem::exists(swapdir) || !std::filesystem::is_directory(swapdir))
+    throw std::runtime_error("Swap directory does not exist or is not a directory.");
+  append = new AppendBuffer(swapdir);
+  original = new OriginalBuffer(swapdir);
+  root = Shard::from_command(cmd.c_str(), original, posix_ending);
+  history_top = 0;
+  history.push_back(root);
+  Shard::retain(root);
+}
+
+Vase::Vase(std::filesystem::path swapdir)
+    : path(""), swapdir(swapdir) {
+  if (!std::filesystem::exists(swapdir) || !std::filesystem::is_directory(swapdir))
+    throw std::runtime_error("Swap directory does not exist or is not a directory.");
+  append = new AppendBuffer(swapdir);
+  original = new OriginalBuffer(swapdir);
+  root = nullptr;
+  history_top = 0;
+  history.push_back(root);
+  Shard::retain(root);
+}
+
 Vase::~Vase() {
+  Shard::release(root);
+  for (auto s : history)
+    Shard::release(s);
+  if (original)
+    delete original;
+  if (append)
+    delete append;
+}
+
+Vase::Vase(Vase &&other) noexcept
+    : original(other.original),
+      append(other.append),
+      root(other.root),
+      posix_ending(other.posix_ending),
+      using_crlf(other.using_crlf),
+      path(std::move(other.path)),
+      swapdir(std::move(other.swapdir)),
+      history(std::move(other.history)),
+      history_top(other.history_top) {
+  other.original = nullptr;
+  other.append = nullptr;
+  other.root = nullptr;
+  other.history_top = 0;
+}
+
+Vase &Vase::operator=(Vase &&other) noexcept {
+  if (this == &other)
+    return *this;
   Shard::release(root);
   for (auto s : history)
     Shard::release(s);
   delete original;
   delete append;
+  original = other.original;
+  append = other.append;
+  root = other.root;
+  posix_ending = other.posix_ending;
+  using_crlf = other.using_crlf;
+  path = std::move(other.path);
+  swapdir = std::move(other.swapdir);
+  history = std::move(other.history);
+  history_top = other.history_top;
+  other.original = nullptr;
+  other.append = nullptr;
+  other.root = nullptr;
+  other.history_top = 0;
+  return *this;
 }
 
 uint64_t Vase::length() {
@@ -108,16 +174,21 @@ void Vase::snapshot() {
 }
 
 void Vase::prune_history(uint64_t n) {
-  n = std::min(n, history_top);
-  for (uint64_t i = 0; i < n; ++i)
+  uint64_t keep = std::min(history.size(), n + 1);
+  if (keep == history.size())
+    return;
+  uint64_t remove = history.size() - keep;
+  for (uint64_t i = 0; i < remove; ++i)
     Shard::release(history[i]);
-  history.erase(history.begin(), history.begin() + n);
-  history_top -= n;
+  history.erase(history.begin(), history.begin() + remove);
+  history_top -= remove;
 }
 
 bool Vase::save() {
   if (!root)
     return true;
+  if (path == "")
+    return false;
   std::ofstream file(path, std::ios::binary);
   if (!file)
     return false;

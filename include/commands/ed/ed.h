@@ -19,9 +19,13 @@ struct Command {
     Print,
     Number,
     Append,
+    Insert,
     Change,
     Delete,
     Write,
+    Edit,
+    ForceEdit,
+    Filename,
     Dump,
     None
   } type;
@@ -56,22 +60,24 @@ struct Ed {
   uint64_t line = 0;
   bool modified = false;
   bool quitting = false;
+  bool editing = false;
   uint64_t marks[26]{0};
   std::string last_regex = "";
   bool help_mode = false;
   bool suppress_mode = false;
   bool prompt_mode = false;
   std::string prompt = "*";
+  std::filesystem::path save_path = "";
   std::string last_message = "";
 
-  Ed(std::filesystem::path file, bool suppress_mode, std::string prompt_)
-      : vase(file, "/tmp"), suppress_mode(suppress_mode), prompt(prompt_) {
+  Ed(std::string file_path, bool suppress_mode, std::string prompt_)
+      : vase("/tmp"), suppress_mode(suppress_mode), prompt(prompt_) {
     if (prompt == "")
       prompt = "*";
     else
       prompt_mode = true;
-    line = vase.lines();
-    std::cout << vase.length() << std::endl;
+    if (file_path != "")
+      handle("E " + file_path, false);
   }
 
   void parse_address(std::string_view cmd, uint64_t &i, Command::Address &addr);
