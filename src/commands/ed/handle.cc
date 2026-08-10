@@ -70,6 +70,24 @@ bool Ed::handle(std::string cmd, bool eof) {
         std::cout << it.line << std::endl;
       line = line_end;
     } break;
+    case Command::Type::List: {
+      uint64_t line_start = line;
+      uint64_t line_end = line;
+      if (command.start.type != Command::Address::Type::None) {
+        resolve_address(command.start, &line_start);
+        line_end = line_start;
+        if (command.address_flags & Command::RANGE)
+          resolve_address(command.end, &line_end);
+      }
+      if (line_start == 0)
+        throw ed_error("Line 0 is invalid.");
+      if (line_end < line_start)
+        throw ed_error("Invalid address range.");
+      Iterator it = vase.iterate(line_start - 1, Direction::Forward);
+      while (it.next() && line_start++ <= line_end)
+        std::cout << list_string(it.line) << std::endl;
+      line = line_end;
+    } break;
     case Command::Type::Number: {
       uint64_t line_start = line;
       uint64_t line_end = line;
@@ -89,6 +107,12 @@ bool Ed::handle(std::string cmd, bool eof) {
       line = line_end;
     } break;
     case Command::Type::Append: {
+      if (command.start.type != Command::Address::Type::None) {
+        if (command.address_flags & Command::RANGE)
+          resolve_address(command.end, &line);
+        else
+          resolve_address(command.start, &line);
+      }
       std::string text;
       std::string cline;
       uint64_t line_count = 0;
@@ -98,12 +122,6 @@ bool Ed::handle(std::string cmd, bool eof) {
         line_count++;
         text.append(cline);
         text.push_back('\n');
-      }
-      if (command.start.type != Command::Address::Type::None) {
-        if (command.address_flags & Command::RANGE)
-          resolve_address(command.end, &line);
-        else
-          resolve_address(command.start, &line);
       }
       if (text.empty()) {
         if (line == 0)
@@ -116,6 +134,14 @@ bool Ed::handle(std::string cmd, bool eof) {
       line += line_count;
     } break;
     case Command::Type::Insert: {
+      if (command.start.type != Command::Address::Type::None) {
+        if (command.address_flags & Command::RANGE)
+          resolve_address(command.end, &line);
+        else
+          resolve_address(command.start, &line);
+      }
+      if (line == 0)
+        line = 1;
       std::string text;
       std::string cline;
       uint64_t line_count = 0;
@@ -126,14 +152,6 @@ bool Ed::handle(std::string cmd, bool eof) {
         text.append(cline);
         text.push_back('\n');
       }
-      if (command.start.type != Command::Address::Type::None) {
-        if (command.address_flags & Command::RANGE)
-          resolve_address(command.end, &line);
-        else
-          resolve_address(command.start, &line);
-      }
-      if (line == 0)
-        line = 1;
       if (text.empty())
         break;
       vase.snapshot();
@@ -247,6 +265,39 @@ bool Ed::handle(std::string cmd, bool eof) {
       if (!suppress_mode)
         std::cout << bytes << std::endl;
     } break;
+    case Command::Type::Join: {
+      uint64_t line_start = line;
+      uint64_t line_end = line + 1;
+      if (command.start.type != Command::Address::Type::None) {
+        resolve_address(command.start, &line_start);
+        line_end = line_start;
+        if (command.address_flags & Command::RANGE)
+          resolve_address(command.end, &line_end);
+      }
+      if (line_end < line_start)
+        throw ed_error("Invalid address range.");
+      if (line_start == 0)
+        throw ed_error("Invalid line number given.");
+      if (line_end == line_start)
+        break;
+      vase.snapshot();
+      join(line_start, line_end);
+      line = line_start;
+      modified = true;
+    } break;
+    case Command::Type::Mark: {
+      uint64_t mark_line = line;
+      if (command.start.type != Command::Address::Type::None) {
+        if (command.address_flags & Command::RANGE)
+          resolve_address(command.end, &mark_line);
+        else
+          resolve_address(command.start, &mark_line);
+      }
+      if (mark_line == 0)
+        throw ed_error("Invalid line number given.");
+      char mark = command.argument[0];
+      marks[mark - 'a'] = mark_line;
+    } break;
     case Command::Type::Edit: {
       if (modified && !was_editing) {
         editing = true;
@@ -318,8 +369,7 @@ bool Ed::handle(std::string cmd, bool eof) {
         std::cout << line << "\t" << it.line << std::endl;
         break;
       case 'l':
-        // TODO: escaping.
-        std::cout << it.line << std::endl;
+        std::cout << list_string(it.line) << std::endl;
         break;
       }
     }

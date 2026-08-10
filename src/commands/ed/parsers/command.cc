@@ -59,6 +59,10 @@ Command Ed::parse(std::string cmd, bool eof) {
     command.type = Command::Type::Print;
     i++;
     break;
+  case 'l':
+    command.type = Command::Type::List;
+    i++;
+    break;
   case 'n':
     command.type = Command::Type::Number;
     i++;
@@ -89,6 +93,10 @@ Command Ed::parse(std::string cmd, bool eof) {
     break;
   case 'd':
     command.type = Command::Type::Delete;
+    i++;
+    break;
+  case 'j':
+    command.type = Command::Type::Join;
     i++;
     break;
   case 'w':
@@ -135,6 +143,16 @@ Command Ed::parse(std::string cmd, bool eof) {
       throw ed_error("Invalid command.");
     command.argument = cmd.substr(i);
     return command;
+  case 'k':
+    command.type = Command::Type::Mark;
+    i++;
+    if (i >= cmd.size())
+      throw ed_error("Invalid command.");
+    if ('a' <= cmd[i] && cmd[i] <= 'z')
+      command.argument = cmd[i];
+    else
+      throw ed_error("Invalid mark used.");
+    break;
   case '#':
     command.type = Command::Type::Dump;
     i++;

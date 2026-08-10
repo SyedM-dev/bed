@@ -17,12 +17,15 @@ struct Command {
     HelpToggle,
     Help,
     Print,
+    List,
     Number,
     Append,
     Insert,
     Change,
     Delete,
     Write,
+    Join,
+    Mark,
     Edit,
     ForceEdit,
     Filename,
@@ -85,6 +88,8 @@ struct Ed {
   Command parse(std::string cmd, bool eof);
   void append(std::string text, uint64_t line);
   void remove(uint64_t start_line, uint64_t end_line);
+  std::string list_string(std::string_view s);
+  void join(uint64_t start_line, uint64_t end_line);
   bool handle(std::string cmd, bool eof);
 };
 

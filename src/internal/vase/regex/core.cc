@@ -7,8 +7,6 @@ std::vector<Vase::RegexMatch> Vase::_regex_search(
   bool global = false;
   uint64_t flags = PCRE2_MULTILINE | PCRE2_UTF;
 
-  const char *dot = "(?:(?!\\n)\\X)";
-
   for (char c : options) {
     switch (c) {
     case 'g':
@@ -18,7 +16,7 @@ std::vector<Vase::RegexMatch> Vase::_regex_search(
       flags |= PCRE2_CASELESS;
       break;
     case 's':
-      dot = "(?:\\X)";
+      flags |= PCRE2_DOTALL;
       break;
     case 'x':
       flags |= PCRE2_EXTENDED;
@@ -40,57 +38,9 @@ std::vector<Vase::RegexMatch> Vase::_regex_search(
   int errornumber;
   PCRE2_SIZE erroroffset;
 
-  std::string out;
-  out.reserve(pattern.size() * 2);
-  bool escaped = false;
-  bool in_class = false;
-  bool in_quote = false;
-  for (size_t i = 0; i < pattern.size(); i++) {
-    char c = pattern[i];
-    if (escaped) {
-      out += c;
-      escaped = false;
-      continue;
-    }
-    if (c == '\\') {
-      out += c;
-      if (i + 1 < pattern.size()) {
-        char next = pattern[i + 1];
-        if (next == 'Q')
-          in_quote = true;
-        else if (next == 'E')
-          in_quote = false;
-        out += next;
-        i++;
-        continue;
-      }
-      escaped = true;
-      continue;
-    }
-    if (in_quote) {
-      out += c;
-      continue;
-    }
-    if (c == '[') {
-      in_class = true;
-      out += c;
-      continue;
-    }
-    if (c == ']' && in_class) {
-      in_class = false;
-      out += c;
-      continue;
-    }
-    if (c == '.' && !in_class) {
-      out += dot;
-      continue;
-    }
-    out += c;
-  }
-
   pcre2_code *re = pcre2_compile(
-    (PCRE2_SPTR)out.data(),
-    out.size(),
+    (PCRE2_SPTR)pattern.data(),
+    pattern.size(),
     flags,
     &errornumber,
     &erroroffset,

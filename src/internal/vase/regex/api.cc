@@ -7,6 +7,12 @@ std::vector<Vase::ReplacePart> Vase::parse_replace(std::string_view s) {
   auto flush_constant = [&]() {
     if (!constant.empty()) {
       uint64_t lines = 0;
+      const char *p = constant.data();
+      const char *end = p + constant.size();
+      while ((p = (const char *)memchr(p, '\n', end - p))) {
+        ++lines;
+        ++p;
+      }
       uint64_t pos = append->append(constant.data(), (uint64_t)constant.size());
       parts.push_back(
         ReplacePart{
