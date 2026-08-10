@@ -51,10 +51,16 @@ Command BEd::parse(std::string cmd, bool eof) {
   switch (cmd[i]) {
   case 'q':
     command.type = Command::Type::Quit;
-    return command;
+    skip_space();
+    if (i >= cmd.size())
+      return command;
+    throw bed_error("Invalid command.");
   case 'Q':
     command.type = Command::Type::ForceQuit;
-    return command;
+    skip_space();
+    if (i >= cmd.size())
+      return command;
+    throw bed_error("Invalid command.");
   case 'p':
     command.type = Command::Type::Print;
     i++;
