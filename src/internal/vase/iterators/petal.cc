@@ -88,24 +88,16 @@ void PetalIterator::seek_line(uint64_t line) {
     } else {
       auto *b = (Branch *)curr;
       uint64_t left_lines = b->left->lines;
-      if (dir == Direction::Forward) {
-        if (line < left_lines) {
+      if (line <= left_lines) {
+        if (dir == Direction::Forward)
           stack.push_back(b->right);
-          curr = b->left;
-        } else {
-          line -= left_lines;
-          global_offset += b->left->length;
-          curr = b->right;
-        }
+        curr = b->left;
       } else {
-        if (line <= left_lines) {
-          curr = b->left;
-        } else {
-          line -= left_lines;
+        line -= left_lines;
+        if (dir == Direction::Backward)
           stack.push_back(b->left);
-          global_offset += b->left->length;
-          curr = b->right;
-        }
+        global_offset += b->left->length;
+        curr = b->right;
       }
     }
   }
@@ -115,6 +107,17 @@ void PetalIterator::seek_line(uint64_t line) {
 Petal *PetalIterator::_next(uint64_t *offset) {
   while (true) {
     if (petal) {
+      if (dir == Direction::Forward) {
+        if (petal_offset == petal->length) {
+          petal = nullptr;
+          continue;
+        }
+      } else {
+        if (petal_offset == 0) {
+          petal = nullptr;
+          continue;
+        }
+      }
       auto ret = petal;
       last_offset = global_offset;
       if (dir == Direction::Forward)

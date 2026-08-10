@@ -30,8 +30,7 @@ struct Shard {
   static std::vector<Shard *> from_swap(std::filesystem::path &path, OriginalBuffer *b);
 
   static std::pair<Shard *, Shard *> split(Shard *n, uint64_t offset);
-  static Shard *concat(Shard *left, Shard *right);
-  static Shard *merge(Shard *a, Shard *b);
+  static Shard *concat(Shard *a, Shard *b);
   static Shard *merge_leaves(Shard *a, Shard *b);
   static Shard *append(Shard *root, Shard *leaf);
   static Shard *build(Shard **pieces, uint64_t lo, uint64_t hi);

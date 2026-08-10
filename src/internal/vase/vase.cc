@@ -93,7 +93,7 @@ Vase &Vase::operator=(Vase &&other) noexcept {
 uint64_t Vase::length() {
   if (!root)
     return 0;
-  return root->length;
+  return root->length + posix_ending;
 }
 
 uint64_t Vase::lines() {

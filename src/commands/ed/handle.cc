@@ -34,7 +34,7 @@ bool Ed::handle(std::string cmd, bool eof) {
         throw ed_error("Line 0 is invalid.");
       if (line > vase.lines())
         throw ed_error("Line position too high.");
-      Iterator it = vase.iterate(line - 1, Direction::Backward);
+      Iterator it = vase.iterate(line - 1, Direction::Forward);
       it.next();
       std::cout << it.line << std::endl;
     } break;

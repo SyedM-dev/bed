@@ -89,28 +89,25 @@ Shard *balance(Shard *node) {
   return node;
 }
 
-Shard *Shard::merge(Shard *a, Shard *b) {
+Shard *Shard::concat(Shard *a, Shard *b) {
   if (!a)
     return (Shard::retain(b), b);
   if (!b)
     return (Shard::retain(a), a);
-
   if (a->height > b->height + 1) {
     Branch *ba = (Branch *)a;
-    Shard *r = merge(ba->right, b);
+    Shard *r = concat(ba->right, b);
     Shard *out = balance(new Branch(ba->left, r));
     Shard::release(r);
     return out;
   }
-
   if (b->height > a->height + 1) {
     Branch *bb = (Branch *)b;
-    Shard *l = merge(a, bb->left);
+    Shard *l = concat(a, bb->left);
     Shard *out = balance(new Branch(l, bb->right));
     Shard::release(l);
     return out;
   }
-
   return balance(new Branch(a, b));
 }
 
@@ -129,12 +126,12 @@ std::pair<Shard *, Shard *> Shard::split(Shard *n, uint64_t offset) {
     Branch *b = (Branch *)n;
     if (offset < b->left->length) {
       auto [a, b2] = split(b->left, offset);
-      Shard *right = merge(b2, b->right);
+      Shard *right = concat(b2, b->right);
       Shard::release(b2);
       return {a, right};
     } else {
       auto [a, b2] = split(b->right, offset - b->left->length);
-      Shard *left = merge(b->left, a);
+      Shard *left = concat(b->left, a);
       Shard::release(a);
       return {left, b2};
     }
@@ -162,11 +159,13 @@ std::pair<Shard *, Shard *> Shard::split(Shard *n, uint64_t offset) {
 
 Shard *Shard::merge_leaves(Shard *a, Shard *b) {
   if (a->kind != Shard::Kind::Petal || b->kind != Shard::Kind::Petal)
-    return merge(a, b);
+    return concat(a, b);
+  if (a->length + b->length > PETAL_SIZE_MAX)
+    return concat(a, b);
   Petal *pa = (Petal *)a;
   Petal *pb = (Petal *)b;
   if (!(pa->source == pb->source && pa->pos + pa->length == pb->pos))
-    return merge(a, b);
+    return concat(a, b);
   return new Petal(
     pa->length + pb->length,
     pa->lines + pb->lines,
@@ -180,17 +179,13 @@ Shard *Shard::append(Shard *root, Shard *leaf) {
     Shard::retain(leaf);
     return leaf;
   }
-  if (root->kind == Shard::Kind::Petal && root->length < PETAL_SIZE_MAX)
+  if (root->kind == Shard::Kind::Petal)
     return merge_leaves(root, leaf);
   Branch *b = (Branch *)root;
   auto new_right = append(b->right, leaf);
   auto out = balance(new Branch(b->left, new_right));
   Shard::release(new_right);
   return out;
-}
-
-Shard *Shard::concat(Shard *left, Shard *right) {
-  return merge(left, right);
 }
 
 Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
@@ -206,7 +201,7 @@ Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
 }
 
 static bool write_all(int fd, const void *data, size_t len) {
-  const char *p = static_cast<const char *>(data);
+  const char *p = (const char *)data;
   while (len > 0) {
     ssize_t n = write(fd, p, len);
     if (n > 0) {
