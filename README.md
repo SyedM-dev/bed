@@ -28,8 +28,7 @@ It should support:
 - Loading lsp features etc. automatically.
 - Error handling.
 - And more.
-<br/>
-<br/>
+
 Not done yet.
 
 ### BEd
