@@ -53,8 +53,10 @@ An ed implementation but with:
 - Debuggers etc. and better shell commands.
 - Ruby based configs.
 - Better history & session saves.
-- Multiple buffer opening.
+- Multiple buffers per session support.
 - Indentation engine.
 - More complete regex.
 - Better current line semantics.
+- Full unicode + graphemes support.
+- SSH support for loading files/lsp etc.
 - & A lot more cool stuff.
