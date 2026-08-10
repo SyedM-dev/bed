@@ -56,15 +56,20 @@ An ed implementation but with:
 - Code formatters (lsp and others).
 - Ruby based extentions.
 - Custom functions, live ruby code running.
-- Debuggers etc. and better shell commands/integration.
-- Ruby based configs.
+- Debuggers (dap).
+- Better shell commands/integration.
+- Ruby based configs. (embedded Mruby)
 - Remappable commands/macros.
 - Better history & session saves.
 - Multiple buffers per session support.
-- Indentation engine.
-- More complete regex.
+- Indentation engine (with editorconfig loading.).
+- Build systems, npm, nix, make etc integration.
+- More complete & fast regex.
 - Better current line semantics.
 - Full unicode + graphemes support.
 - SSH support for loading files/lsp etc (and fully remote sessions.).
 - Git commands / file diffs show in editor.
+- File operations, directory & files listing.
+- Nerdfonts & themable colorized outputs.
+- Better address marking with ranges.
 - & A lot more cool stuff.
