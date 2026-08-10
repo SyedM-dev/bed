@@ -1,7 +1,7 @@
-#include "commands/ed/ed.h"
+#include "commands/bed/bed.h"
 
-namespace crib::commands::ed {
-Command Ed::parse(std::string cmd, bool eof) {
+namespace crib::commands::bed {
+Command BEd::parse(std::string cmd, bool eof) {
   Command command = {};
   if (eof)
     return (command.type = Command::Type::Quit, command);
@@ -107,7 +107,7 @@ Command Ed::parse(std::string cmd, bool eof) {
     if (cmd[i] == ' ' || cmd[i] == '\t')
       skip_space();
     else
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
     command.argument = cmd.substr(i);
     return command;
   case 'e':
@@ -118,7 +118,7 @@ Command Ed::parse(std::string cmd, bool eof) {
     if (cmd[i] == ' ' || cmd[i] == '\t')
       skip_space();
     else
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
     command.argument = cmd.substr(i);
     return command;
   case 'E':
@@ -129,7 +129,7 @@ Command Ed::parse(std::string cmd, bool eof) {
     if (cmd[i] == ' ' || cmd[i] == '\t')
       skip_space();
     else
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
     command.argument = cmd.substr(i);
     return command;
   case 'f':
@@ -140,18 +140,18 @@ Command Ed::parse(std::string cmd, bool eof) {
     if (cmd[i] == ' ' || cmd[i] == '\t')
       skip_space();
     else
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
     command.argument = cmd.substr(i);
     return command;
   case 'k':
     command.type = Command::Type::Mark;
     i++;
     if (i >= cmd.size())
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
     if ('a' <= cmd[i] && cmd[i] <= 'z')
       command.argument = cmd[i];
     else
-      throw ed_error("Invalid mark used.");
+      throw bed_error("Invalid mark used.");
     break;
   case '#':
     command.type = Command::Type::Dump;
@@ -163,8 +163,8 @@ Command Ed::parse(std::string cmd, bool eof) {
       command.suffix = cmd[i++];
     skip_space();
     if (i != cmd.size())
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
   }
   return command;
 }
-} // namespace crib::commands::ed
+} // namespace crib::commands::bed

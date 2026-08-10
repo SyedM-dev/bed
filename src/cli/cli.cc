@@ -1,12 +1,12 @@
 #include "cli.h"
-#include "commands/ed/ed.h"
+#include "commands/bed/bed.h"
 
 namespace crib::cli {
 static const std::unordered_map<std::string, Command> commands = {
-  {"ed",
-   {crib::commands::ed::run,
-    crib::commands::ed::summary,
-    crib::commands::ed::help}},
+  {"bed",
+   {crib::commands::bed::run,
+    crib::commands::bed::summary,
+    crib::commands::bed::help}},
 };
 
 bool use_color() {

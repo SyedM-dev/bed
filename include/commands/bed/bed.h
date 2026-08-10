@@ -3,9 +3,9 @@
 #include "internal/vase/vase.h"
 #include "pch.h"
 
-namespace crib::commands::ed {
-struct ed_error : std::runtime_error {
-  ed_error(const char *msg) : std::runtime_error(msg) {}
+namespace crib::commands::bed {
+struct bed_error : std::runtime_error {
+  bed_error(const char *msg) : std::runtime_error(msg) {}
 };
 
 struct Command {
@@ -58,7 +58,7 @@ struct Command {
   std::string argument;
 };
 
-struct Ed {
+struct BEd {
   crib::internal::vase::Vase vase;
   uint64_t line = 0;
   bool modified = false;
@@ -73,7 +73,7 @@ struct Ed {
   std::filesystem::path save_path = "";
   std::string last_message = "";
 
-  Ed(std::string file_path, bool suppress_mode, std::string prompt_)
+  BEd(std::string file_path, bool suppress_mode, std::string prompt_)
       : vase("/tmp"), suppress_mode(suppress_mode), prompt(prompt_) {
     if (prompt == "")
       prompt = "*";
@@ -96,4 +96,4 @@ struct Ed {
 std::string summary();
 void help();
 void run(std::vector<std::string>);
-} // namespace crib::commands::ed
+} // namespace crib::commands::bed

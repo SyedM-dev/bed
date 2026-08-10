@@ -1,7 +1,7 @@
-#include "commands/ed/ed.h"
+#include "commands/bed/bed.h"
 
-namespace crib::commands::ed {
-bool Ed::handle(std::string cmd, bool eof) {
+namespace crib::commands::bed {
+bool BEd::handle(std::string cmd, bool eof) {
   using namespace crib::internal::vase;
   try {
     if (line > vase.lines())
@@ -15,7 +15,7 @@ bool Ed::handle(std::string cmd, bool eof) {
     case Command::Type::Quit:
       if (modified && !was_quitting) {
         quitting = true;
-        throw ed_error("Buffer modified.");
+        throw bed_error("Buffer modified.");
       } else {
         return false;
       }
@@ -31,15 +31,15 @@ bool Ed::handle(std::string cmd, bool eof) {
         line++;
       }
       if (line == 0)
-        throw ed_error("Line 0 is invalid.");
+        throw bed_error("Line 0 is invalid.");
       if (line > vase.lines())
-        throw ed_error("Line position too high.");
+        throw bed_error("Line position too high.");
       Iterator it = vase.iterate(line - 1, Direction::Forward);
       it.next();
       std::cout << it.line << std::endl;
     } break;
     case Command::Type::Invalid:
-      throw ed_error("Invalid command.");
+      throw bed_error("Invalid command.");
     case Command::Type::HelpToggle:
       help_mode = !help_mode;
       if (help_mode && last_message != "")
@@ -62,9 +62,9 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (line_start == 0)
-        throw ed_error("Line 0 is invalid.");
+        throw bed_error("Line 0 is invalid.");
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       Iterator it = vase.iterate(line_start - 1, Direction::Forward);
       while (it.next() && line_start++ <= line_end)
         std::cout << it.line << std::endl;
@@ -80,9 +80,9 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (line_start == 0)
-        throw ed_error("Line 0 is invalid.");
+        throw bed_error("Line 0 is invalid.");
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       Iterator it = vase.iterate(line_start - 1, Direction::Forward);
       while (it.next() && line_start++ <= line_end)
         std::cout << list_string(it.line) << std::endl;
@@ -98,9 +98,9 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (line_start == 0)
-        throw ed_error("Line 0 is invalid.");
+        throw bed_error("Line 0 is invalid.");
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       Iterator it = vase.iterate(line_start - 1, Direction::Forward);
       while (it.next() && line_start <= line_end)
         std::cout << line_start++ << "\t" << it.line << std::endl;
@@ -171,7 +171,7 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       std::string text;
       std::string cline;
       uint64_t line_count = 0;
@@ -203,7 +203,7 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       vase.snapshot();
       vase.erase({{line_start - 1, 0}, {line_end, 0}});
       modified = true;
@@ -216,7 +216,7 @@ bool Ed::handle(std::string cmd, bool eof) {
       if (path.empty()) {
         path = save_path;
         if (path.empty())
-          throw ed_error("Need file to write to.");
+          throw bed_error("Need file to write to.");
       }
       uint64_t line_start = 1;
       uint64_t line_end = vase.lines();
@@ -229,36 +229,36 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (vase.lines() && line_start == 0)
-        throw ed_error("Line 0 is invalid.");
+        throw bed_error("Line 0 is invalid.");
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       uint64_t bytes = 0;
       if (path[0] == '!') {
         FILE *pipe = popen(path.c_str() + 1, "w");
         if (!pipe)
-          throw ed_error("Error starting command.");
+          throw bed_error("Error starting command.");
         Iterator it = vase.iterate(line_start - 1, Direction::Forward);
         while (it.next() && line_start++ <= line_end) {
           it.line += '\n';
           bytes += it.line.size();
           if (fputs(it.line.c_str(), pipe) == EOF) {
             pclose(pipe);
-            throw ed_error("Error writing to command.");
+            throw bed_error("Error writing to command.");
           }
         }
         if (pclose(pipe) == -1)
-          throw ed_error("Error closing command.");
+          throw bed_error("Error closing command.");
       } else {
         std::ofstream file(path, std::ios::out | std::ios::trunc);
         if (!file)
-          throw ed_error("Error writing to file.");
+          throw bed_error("Error writing to file.");
         Iterator it = vase.iterate(line_start - 1, Direction::Forward);
         while (it.next() && line_start++ <= line_end) {
           file << it.line << '\n';
           bytes += it.line.size() + 1;
         }
         if (!file)
-          throw ed_error("Error writing to file.");
+          throw bed_error("Error writing to file.");
         save_path = path;
         modified = false;
       }
@@ -275,9 +275,9 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.end, &line_end);
       }
       if (line_end < line_start)
-        throw ed_error("Invalid address range.");
+        throw bed_error("Invalid address range.");
       if (line_start == 0)
-        throw ed_error("Invalid line number given.");
+        throw bed_error("Invalid line number given.");
       if (line_end == line_start)
         break;
       vase.snapshot();
@@ -294,20 +294,20 @@ bool Ed::handle(std::string cmd, bool eof) {
           resolve_address(command.start, &mark_line);
       }
       if (mark_line == 0)
-        throw ed_error("Invalid line number given.");
+        throw bed_error("Invalid line number given.");
       char mark = command.argument[0];
       marks[mark - 'a'] = mark_line;
     } break;
     case Command::Type::Edit: {
       if (modified && !was_editing) {
         editing = true;
-        throw ed_error("Buffer modified.");
+        throw bed_error("Buffer modified.");
       }
       std::string path = command.argument;
       if (path.empty()) {
         path = save_path;
         if (path.empty())
-          throw ed_error("Need file to read from.");
+          throw bed_error("Need file to read from.");
       }
       if (path[0] == '!') {
         path.erase(1);
@@ -329,7 +329,7 @@ bool Ed::handle(std::string cmd, bool eof) {
       if (path.empty()) {
         path = save_path;
         if (path.empty())
-          throw ed_error("Need file to read from.");
+          throw bed_error("Need file to read from.");
       }
       if (path[0] == '!') {
         path.erase(0, 1);
@@ -350,7 +350,7 @@ bool Ed::handle(std::string cmd, bool eof) {
     case Command::Type::Filename: {
       std::string path = command.argument;
       if (path.empty())
-        throw ed_error("No filename given.");
+        throw bed_error("No filename given.");
       save_path = path;
       std::cout << save_path.string() << std::endl;
     } break;
@@ -373,7 +373,7 @@ bool Ed::handle(std::string cmd, bool eof) {
         break;
       }
     }
-  } catch (ed_error &e) {
+  } catch (bed_error &e) {
     last_message = e.what();
     std::cout << "?" << std::endl;
     if (help_mode)
@@ -381,4 +381,4 @@ bool Ed::handle(std::string cmd, bool eof) {
   }
   return true;
 }
-} // namespace crib::commands::ed
+} // namespace crib::commands::bed

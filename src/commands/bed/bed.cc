@@ -1,9 +1,9 @@
-#include "commands/ed/ed.h"
+#include "commands/bed/bed.h"
 #include "cli.h"
 
-namespace crib::commands::ed {
+namespace crib::commands::bed {
 std::string summary() {
-  return "A POSIX-compliant line editor.";
+  return "Better Ed, a modern take on a posix compliant line editor.";
 }
 
 void help() {}
@@ -26,15 +26,15 @@ void run(std::vector<std::string> args) {
       file = args[i];
     }
   }
-  Ed ed(file, suppress, prompt);
+  BEd bed(file, suppress, prompt);
   std::string command;
   while (true) {
     std::string cmd;
-    if (ed.prompt_mode)
-      std::cout << ed.prompt;
+    if (bed.prompt_mode)
+      std::cout << bed.prompt;
     bool eof = !std::getline(std::cin, cmd);
-    if (!ed.handle(cmd, eof))
+    if (!bed.handle(cmd, eof))
       return;
   }
 }
-} // namespace crib::commands::ed
+} // namespace crib::commands::bed

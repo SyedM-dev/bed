@@ -1,7 +1,7 @@
-#include "commands/ed/ed.h"
+#include "commands/bed/bed.h"
 
-namespace crib::commands::ed {
-void Ed::parse_address(std::string_view cmd, uint64_t &i, Command::Address &addr) {
+namespace crib::commands::bed {
+void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &addr) {
   auto skip_space = [&] {
     while (i < cmd.size() && (cmd[i] == ' ' || cmd[i] == '\t'))
       ++i;
@@ -26,7 +26,7 @@ void Ed::parse_address(std::string_view cmd, uint64_t &i, Command::Address &addr
     if (i < cmd.size() && 'a' <= cmd[i] && cmd[i] <= 'z')
       i++;
     else
-      throw ed_error("Invalid mark.");
+      throw bed_error("Invalid mark.");
     addr.mark = cmd[i];
     break;
   case '/': {
@@ -135,7 +135,7 @@ void Ed::parse_address(std::string_view cmd, uint64_t &i, Command::Address &addr
   }
 }
 
-void Ed::resolve_address(Command::Address addr, uint64_t *out_line) {
+void BEd::resolve_address(Command::Address addr, uint64_t *out_line) {
   switch (addr.type) {
   case Command::Address::Type::None:
     break;
@@ -153,7 +153,7 @@ void Ed::resolve_address(Command::Address addr, uint64_t *out_line) {
   case Command::Address::Type::Mark:
     *out_line = marks[addr.mark - 'a'];
     if (!*out_line)
-      throw ed_error("Unset mark used.");
+      throw bed_error("Unset mark used.");
     break;
   case Command::Address::Type::SearchForward:
     if (addr.regex == "")
@@ -169,10 +169,10 @@ void Ed::resolve_address(Command::Address addr, uint64_t *out_line) {
     break;
   }
   if ((int64_t)*out_line + addr.offset < 0)
-    throw ed_error("Line position can't be negative.");
+    throw bed_error("Line position can't be negative.");
   else
     *out_line += addr.offset;
   if (*out_line > vase.lines())
-    throw ed_error("Line position too high.");
+    throw bed_error("Line position too high.");
 }
-} // namespace crib::commands::ed
+} // namespace crib::commands::bed

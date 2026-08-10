@@ -1,7 +1,7 @@
-#include "commands/ed/ed.h"
+#include "commands/bed/bed.h"
 
-namespace crib::commands::ed {
-void Ed::append(std::string text, uint64_t line) {
+namespace crib::commands::bed {
+void BEd::append(std::string text, uint64_t line) {
   using namespace crib::internal::vase;
   Point p = {line, 0};
   if (!vase.lines()) {
@@ -15,15 +15,15 @@ void Ed::append(std::string text, uint64_t line) {
   vase.insert(&p, text);
 }
 
-void Ed::remove(uint64_t start_line, uint64_t end_line) {
+void BEd::remove(uint64_t start_line, uint64_t end_line) {
   vase.erase({{start_line - 1, 0}, {end_line, 0}});
 }
 
-void Ed::join(uint64_t start_line, uint64_t end_line) {
+void BEd::join(uint64_t start_line, uint64_t end_line) {
   vase.regex_search_replace("\\n", {{start_line - 1, 0}, {end_line, 0}}, "", "");
 }
 
-std::string Ed::list_string(std::string_view s) {
+std::string BEd::list_string(std::string_view s) {
   uint32_t width = 80;
   winsize ws{};
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col != 0)
@@ -80,4 +80,4 @@ std::string Ed::list_string(std::string_view s) {
   out += '$';
   return out;
 }
-} // namespace crib::commands::ed
+} // namespace crib::commands::bed

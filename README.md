@@ -10,12 +10,6 @@ Vase is a avl piece tree like structure which handles loading, insertion, erasur
 <br/>
 done.
 
-#### Ed
-
-Ed is an ed (the posix line editor) implementation using `Vase`.
-<br/>
-Mostly done.
-
 #### `hl`
 
 `hl` is a stateful super fast syntax highlighter.
@@ -38,10 +32,10 @@ It should support:
 <br/>
 Not done yet.
 
-#### BEd
+### BEd
 
 Better ed.<br/>
-An ed implementation but with:
+An ed implementation (mostly posix compliant) but with:
 - Lsp support for autocomplete suggetions when in ed text mode.
 - Autocomplete for language snippets + other words found near the cursor etc.
 - text mode where arrow keys etc. work as expected.
@@ -73,3 +67,10 @@ An ed implementation but with:
 - Nerdfonts & themable colorized outputs.
 - Better address marking with ranges.
 - & A lot more cool stuff.
+
+#### Implementation status:
+
+- Internal buffer:
+    - Super fast and memory efficient buffer implementation done.
+    - Loading from files/subshell commands done.
+- Most of the posix ed commands except regex ones done.
