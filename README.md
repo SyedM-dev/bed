@@ -37,3 +37,24 @@ It should support:
 <br/>
 <br/>
 Not done yet.
+
+#### BEd
+
+Better ed.<br/>
+An ed implementation but with:
+- Lsp support for autocomplete suggetions when in ed text mode.
+- text mode where arrow keys etc. work as expected.
+- All code printing done with syntax highlighting.
+- Lsp diagnostics to list global errors/warnings, to print thir lines, jump to their lines, edint them etc.
+- A read write command to open a set of lines similar to c command but with the text from before already filled.
+- Code formatters (lsp and others).
+- Ruby based extentions.
+- Custom functions, live ruby code running.
+- Debuggers etc. and better shell commands.
+- Ruby based configs.
+- Better history & session saves.
+- Multiple buffer opening.
+- Indentation engine.
+- More complete regex.
+- Better current line semantics.
+- & A lot more cool stuff.
