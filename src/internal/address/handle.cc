@@ -13,6 +13,7 @@ Address::Result Address::handle(BEd &ctx, std::string &cmd, uint64_t &i) {
       prev.offset = 0;
       curr.base = Number(ctx.active->prev_range.end);
       curr.offset = 0;
+      i++;
     } else {
       curr = Address(cmd, i);
     }
@@ -29,11 +30,12 @@ Address::Result Address::handle(BEd &ctx, std::string &cmd, uint64_t &i) {
           ctx.active->jump(curr.resolve(ctx));
         prev_given = true;
       }
+      i++;
       prev = std::move(curr);
     } else {
       if (std::holds_alternative<None>(curr.base)) {
         if (std::holds_alternative<std::monostate>(prev.base))
-          return {};
+          return {{}, 0};
         if (prev_given) {
           curr = prev;
         } else {
@@ -42,6 +44,8 @@ Address::Result Address::handle(BEd &ctx, std::string &cmd, uint64_t &i) {
         }
         return {{prev.resolve(ctx), curr.resolve(ctx)}, 2};
       }
+      if (prev_given)
+        return {{prev.resolve(ctx), curr.resolve(ctx)}, 2};
       return {{curr.resolve(ctx)}, 1};
     }
   }

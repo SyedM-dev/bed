@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
     bed::BEd ed(args);
     ed.run();
   } catch (bed::fatal_error &e) {
-    if (std::string_view(e.what()) != "")
+    if (e.code)
       std::cout << "Fatal error: " << e.what() << std::endl;
     return e.code;
   } catch (...) {

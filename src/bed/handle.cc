@@ -15,6 +15,7 @@ void BEd::handle(std::string_view cmd_, bool eof) {
     while (i < cmd.size() && (cmd[i] == ' ' || cmd[i] == '\t'))
       ++i;
   };
+  skip_space();
   auto addresses = internal::address::Address::handle(*this, cmd, i);
   if (i >= cmd.size()) {
     if (!no_op.accept_zero)
@@ -51,6 +52,7 @@ void BEd::handle(std::string_view cmd_, bool eof) {
       throw ed_error("Command error.");
     break;
   case Command::SuffixKind::Suffix:
+    skip_space();
     if (i < cmd.size()) {
       if (suffixes[cmd[i] - 'a'].has_value())
         suffix = &(suffixes[cmd[i++] - 'a'].value());

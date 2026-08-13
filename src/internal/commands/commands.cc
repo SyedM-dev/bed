@@ -40,7 +40,7 @@ void Command::register_posix(BEd &ctx) {
       for (auto &[name, buffer] : ctx.buffers)
         if (buffer->modified)
           throw ed_error("Buffer " + name + " modified.");
-      throw fatal_error("", 0);
+      throw fatal_error("Quitting", 0);
     }
   };
   ctx.commands.insert(
@@ -66,7 +66,38 @@ void Command::register_posix(BEd &ctx) {
         for (auto &[name, buffer] : ctx.buffers)
           if (buffer->modified)
             throw ed_error("Buffer " + name + " modified.");
-        throw fatal_error("", 0);
+        throw fatal_error("Quitting", 0);
+      }
+    }
+  );
+  ctx.commands.insert(
+    "Q",
+    Command{
+      .address_mode = Command::AddressMode::None,
+      .suffix = Command::SuffixKind::None,
+      .desc = "Force quitting.",
+      .accept_zero = false,
+      .handle = [](BEd &, std::span<const uint64_t>, std::string_view) {
+        throw fatal_error("Force Quitting", 0);
+      }
+    }
+  );
+  ctx.commands.insert(
+    "p",
+    Command{
+      .address_mode = Command::AddressMode::Range,
+      .suffix = Command::SuffixKind::Suffix,
+      .desc = "Print range (default .,.)",
+      .accept_zero = false,
+      .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
+        uint64_t start_line = ctx.active->line;
+        uint64_t end_line = ctx.active->line;
+        if (!addresses.size())
+          ctx.active->print(start_line, end_line);
+        else if (addresses.size() == 1)
+          ctx.active->print(addresses[0], addresses[0]);
+        else
+          ctx.active->print(addresses[0], addresses[1]);
       }
     }
   );
