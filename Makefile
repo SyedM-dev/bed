@@ -6,8 +6,8 @@ INCLUDE_DIR := include
 CXX ?= g++
 CC ?= gcc
 
-TARGET_DEBUG := $(BIN_DIR)/crib-dbg
-TARGET_RELEASE := $(BIN_DIR)/crib
+TARGET_DEBUG := $(BIN_DIR)/bed-dbg
+TARGET_RELEASE := $(BIN_DIR)/bed
 
 PCH_DIR_DEBUG := $(OBJ_DIR)/debug/pch
 PCH_DIR_RELEASE := $(OBJ_DIR)/release/pch

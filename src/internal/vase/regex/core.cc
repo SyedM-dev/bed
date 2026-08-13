@@ -1,6 +1,6 @@
 #include "internal/vase/vase.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 std::vector<Vase::RegexMatch> Vase::_regex_search(
   std::string_view pattern, Range range, std::string_view options
 ) {
@@ -244,4 +244,4 @@ std::vector<Vase::RegexMatch> Vase::_regex_search(
 
   return results;
 }
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

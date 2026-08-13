@@ -1,5 +1,5 @@
 {
-  description = "Crib - An IDE.";
+  description = "BEd - Better Ed.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -47,17 +47,16 @@
         '';
       };
 
-      crib = pkgs.stdenv.mkDerivation {
-        pname = "crib";
+      bed = pkgs.stdenv.mkDerivation {
+        pname = "bed";
         version = "0.1.0";
 
         src = ./.;
 
         nativeBuildInputs = with hostPkgs; [
+          bash
           pkg-config
           gnumake
-          xxd
-          bash
           findutils
           binutils
         ];
@@ -78,19 +77,19 @@
 
         installPhase = ''
           mkdir -p $out/bin
-          cp bin/crib $out/bin/crib
+          cp bin/bed $out/bin/bed
         '';
       };
     in
     {
       packages.${system} = {
-        default = crib;
-        crib = crib;
+        default = bed;
+        bed = bed;
         mruby = mruby;
       };
 
       devShells.${system}.default = hostPkgs.mkShell {
-        inputsFrom = [ crib ];
+        inputsFrom = [ bed ];
 
         packages = [
           hostPkgs.clang-tools
@@ -99,7 +98,6 @@
           hostPkgs.gnumake
           hostPkgs.bear
           hostPkgs.ruby
-          hostPkgs.xxd
           hostPkgs.gdb
           hostPkgs.binutils
           hostPkgs.findutils

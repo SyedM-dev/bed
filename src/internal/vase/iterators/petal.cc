@@ -1,6 +1,6 @@
 #include "internal/vase/vase.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 PetalIterator::PetalIterator(Shard *r, Direction dir)
     : dir(dir), root(r) {
   if (!root)
@@ -168,4 +168,4 @@ bool PetalIterator::next(const char **data, uint64_t *out_len) {
 uint64_t PetalIterator::byte_offset() {
   return last_offset;
 }
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

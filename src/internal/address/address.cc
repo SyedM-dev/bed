@@ -1,36 +1,33 @@
-#include "commands/bed/bed.h"
+#include "internal/address/address.h"
 
-namespace crib::commands::bed {
-void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &addr) {
+namespace bed::internal::address {
+Address::Address(std::string &cmd, uint64_t &i) {
+  base = None{};
   auto skip_space = [&] {
     while (i < cmd.size() && (cmd[i] == ' ' || cmd[i] == '\t'))
       ++i;
   };
   skip_space();
-  if (i >= cmd.size()) {
-    addr.type = Command::Address::Type::None;
+  if (i >= cmd.size())
     return;
-  }
   switch (cmd[i]) {
   case '.':
-    addr.type = Command::Address::Type::Current;
+    base = Current();
     i++;
     break;
   case '$':
-    addr.type = Command::Address::Type::Last;
+    base = Last();
     i++;
     break;
-  case '\'':
-    addr.type = Command::Address::Type::Mark;
+  case '\'': {
     i++;
     if (i < cmd.size() && 'a' <= cmd[i] && cmd[i] <= 'z')
       i++;
     else
-      throw bed_error("Invalid mark.");
-    addr.mark = cmd[i];
-    break;
+      throw address_error("Invalid mark.");
+    base = Mark(cmd[i]);
+  } break;
   case '/': {
-    addr.type = Command::Address::Type::SearchForward;
     i++;
     uint64_t start = i;
     while (true) {
@@ -49,10 +46,9 @@ void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &add
       else
         i++;
     }
-    addr.regex = cmd.substr(start, i - start);
+    base = RegexLine(Direction::Forward, cmd.substr(start, i - start));
   } break;
   case '?': {
-    addr.type = Command::Address::Type::SearchBackward;
     i++;
     uint64_t start = i;
     while (true) {
@@ -71,9 +67,10 @@ void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &add
       else
         i++;
     }
-    addr.regex = cmd.substr(start, i - start);
+    base = RegexLine(Direction::Backward, cmd.substr(start, i - start));
   } break;
   case '+': {
+    base = Current();
     i++;
     skip_space();
     uint64_t start = i;
@@ -84,9 +81,10 @@ void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &add
     }
     if (start == i)
       num = 1;
-    addr.offset += num;
+    offset += num;
   } break;
   case '-': {
+    base = Current();
     i++;
     skip_space();
     uint64_t start = i;
@@ -97,19 +95,17 @@ void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &add
     }
     if (start == i)
       num = 1;
-    addr.offset -= num;
+    offset -= num;
   } break;
   default: {
     if ('0' <= cmd[i] && cmd[i] <= '9') {
-      int64_t num = 0;
-      addr.type = Command::Address::Type::Number;
+      uint64_t num = 0;
       while (i < cmd.size() && '0' <= cmd[i] && cmd[i] <= '9') {
         num = num * 10 + (cmd[i] - '0');
         i++;
       }
-      addr.number = num;
+      base = Number(num);
     } else {
-      addr.type = Command::Address::Type::None;
       return;
     }
     break;
@@ -130,49 +126,8 @@ void BEd::parse_address(std::string_view cmd, uint64_t &i, Command::Address &add
     }
     if (start == i)
       num = 1;
-    addr.offset += positive ? num : -num;
+    offset += positive ? num : -num;
     skip_space();
   }
 }
-
-void BEd::resolve_address(Command::Address addr, uint64_t *out_line) {
-  switch (addr.type) {
-  case Command::Address::Type::None:
-    break;
-  case Command::Address::Type::Current:
-    *out_line = line;
-    if (*out_line > vase.lines())
-      *out_line = vase.lines();
-    break;
-  case Command::Address::Type::Number:
-    *out_line = addr.number;
-    break;
-  case Command::Address::Type::Last:
-    *out_line = vase.lines();
-    break;
-  case Command::Address::Type::Mark:
-    *out_line = marks[addr.mark - 'a'];
-    if (!*out_line)
-      throw bed_error("Unset mark used.");
-    break;
-  case Command::Address::Type::SearchForward:
-    if (addr.regex == "")
-      addr.regex = last_regex;
-    last_regex = addr.regex;
-    // TODO: use vase.regex_search(regex, range, options);
-    break;
-  case Command::Address::Type::SearchBackward:
-    if (addr.regex == "")
-      addr.regex = last_regex;
-    last_regex = addr.regex;
-    // TODO
-    break;
-  }
-  if ((int64_t)*out_line + addr.offset < 0)
-    throw bed_error("Line position can't be negative.");
-  else
-    *out_line += addr.offset;
-  if (*out_line > vase.lines())
-    throw bed_error("Line position too high.");
-}
-} // namespace crib::commands::bed
+} // namespace bed::internal::address

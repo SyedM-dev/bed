@@ -4,7 +4,7 @@
 #include "pch.h"
 #include "petal.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 struct LineIterator {
   PetalIterator it;
   const char *chunk;
@@ -70,4 +70,4 @@ struct Iterator {
 private:
   LineIterator it;
 };
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

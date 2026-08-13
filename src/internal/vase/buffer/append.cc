@@ -1,6 +1,6 @@
 #include "internal/vase/vase.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 AppendBuffer::AppendBuffer(std::filesystem::path base_dir) {
   base_dir /= "tapp.XXXXXX";
   char *s = strdup(base_dir.c_str());
@@ -69,4 +69,4 @@ const char *AppendBuffer::read(uint64_t pos) {
 uint64_t AppendBuffer::length() {
   return current_size;
 }
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

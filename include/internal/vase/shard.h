@@ -5,7 +5,7 @@
 #include "constants.h"
 #include "pch.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 struct Shard {
   enum struct Kind : uint8_t {
     Branch,
@@ -63,4 +63,4 @@ struct Petal : Shard {
         source(source), pos(pos) {};
 };
 
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

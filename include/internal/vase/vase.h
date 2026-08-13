@@ -7,7 +7,7 @@
 #include "pch.h"
 #include "shard.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 struct Point {
   uint64_t row;
   uint64_t col;
@@ -114,4 +114,4 @@ private:
     std::string_view pattern, Range range, std::string_view options
   );
 };
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

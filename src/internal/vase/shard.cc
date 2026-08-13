@@ -1,6 +1,6 @@
 #include "internal/vase/vase.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 void Shard::retain(Shard *n) {
   if (n)
     n->refs++;
@@ -424,4 +424,4 @@ void Shard::dump(Shard *node, int depth) {
       << "\"\n";
   }
 }
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

@@ -1,6 +1,18 @@
-#include "cli.h"
+#include "bed.h"
 #include "pch.h"
 
 int main(int argc, char *argv[]) {
-  return crib::cli::run(argc, argv);
+  std::vector<std::string> args(argv, argv + argc);
+  try {
+    bed::BEd ed(args);
+    ed.run();
+  } catch (bed::fatal_error &e) {
+    if (std::string_view(e.what()) != "")
+      std::cout << "Fatal error: " << e.what() << std::endl;
+    return e.code;
+  } catch (...) {
+    std::cout << "Unexpected error." << std::endl;
+    return 1;
+  }
+  return 0;
 }

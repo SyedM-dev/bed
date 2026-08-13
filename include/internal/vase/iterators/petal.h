@@ -1,10 +1,10 @@
 #pragma once
 
 #include "../shard.h"
-#include "iter.h"
+#include "internal/generic.h"
 #include "pch.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 struct PetalIterator {
   Direction dir;
   Shard *root = nullptr;
@@ -26,4 +26,4 @@ struct PetalIterator {
 private:
   Petal *_next(uint64_t *offset);
 };
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase

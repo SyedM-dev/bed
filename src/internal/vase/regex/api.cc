@@ -1,6 +1,6 @@
 #include "internal/vase/vase.h"
 
-namespace crib::internal::vase {
+namespace bed::internal::vase {
 std::vector<Vase::ReplacePart> Vase::parse_replace(std::string_view s) {
   std::vector<ReplacePart> parts;
   std::string constant;
@@ -156,4 +156,4 @@ std::vector<Range> Vase::regex_search(
     result.push_back({point_of(match.start), point_of(match.end)});
   return result;
 }
-} // namespace crib::internal::vase
+} // namespace bed::internal::vase
