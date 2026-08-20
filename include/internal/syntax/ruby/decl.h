@@ -5,6 +5,15 @@
 #include "tries.h"
 
 namespace bed::internal::syntax::ruby {
+enum struct ScopeTypes : uint8_t {
+  None,
+  Comment,
+  Method,
+  Class,
+  Module,
+  Block
+};
+
 struct alignas(2) RubyState {
   struct RubyInternalState {
     uint16_t brace_level;
@@ -17,9 +26,16 @@ struct alignas(2) RubyState {
       COMMENT,
       END
     } state;
-    static constexpr const uint8_t EXPECTING_EXPRESSION = 0b00010000;
-    static constexpr const uint8_t ALLOW_INTERPOLATION = 0b00000001;
-    uint8_t flags;
+    static constexpr uint8_t NAME_MASK = 0b00000011;
+    enum : uint8_t {
+      NONE_NAME = 0b00,
+      CLASS_NAME = 0b01,
+      DEF_NAME = 0b10,
+      MODULE_NAME = 0b11
+    };
+    static constexpr uint8_t ALLOW_INTERPOLATION = 1 << 6;
+    static constexpr uint8_t EXPECTING_EXPRESSION = 1 << 7;
+    uint8_t flags = 0;
     char delim_start;
     char delim_end;
   };

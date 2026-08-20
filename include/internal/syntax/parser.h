@@ -6,7 +6,7 @@
 
 namespace bed::internal::syntax {
 struct Parser {
-  static constexpr const uint64_t MAX_CHUNK = 256;
+  static constexpr uint64_t MAX_CHUNK = 256;
 
   ParseState *root;
   Language lang;
@@ -25,7 +25,7 @@ struct Parser {
   ParseState *join_tree(ParseState *a, ParseState *b);
 
   Scope scope_root;
-  Scope &get_scope(uint64_t);
+  Scope *get_scope(uint64_t);
 
   struct Iterator {
     Parser *p;
@@ -33,6 +33,7 @@ struct Parser {
     void *state;
     uint64_t at;
     std::vector<Token> tokens;
+    std::vector<ParseEvent> events;
     Iterator(uint64_t, Parser *, vase::Vase &);
     ~Iterator();
     Iterator(const Iterator &) = delete;

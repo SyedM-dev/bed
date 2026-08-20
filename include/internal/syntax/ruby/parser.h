@@ -99,5 +99,8 @@ struct RubyParser {
   }
 };
 
-void ruby_parse(void **v_state, std::string_view line, bool first_line, std::vector<Token> *);
+void ruby_parse(
+  void **v_state, std::string_view line, bool first_line,
+  std::vector<Token> *tokens, std::vector<ParseEvent> *events
+);
 } // namespace bed::internal::syntax::ruby

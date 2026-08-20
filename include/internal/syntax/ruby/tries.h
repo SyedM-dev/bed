@@ -209,25 +209,31 @@ const static std::vector<std::string> errors = {
 };
 
 const static std::vector<std::string> base_keywords = {
-  "class",
-  "module",
-  "begin",
-  "end",
   "else",
   "rescue",
   "ensure",
-  "do",
   "when",
 };
 
 const static std::vector<std::string> expecting_keywords = {
-  "if",
   "elsif",
+};
+
+const static std::vector<std::string> expecting_end_keywords = {
   "case",
   "for",
+};
+
+const static std::vector<std::string> conditional_keywords = {
+  "if",
+  "unless",
   "while",
   "until",
-  "unless",
+};
+
+const static std::vector<std::string> end_keywords = {
+  "begin",
+  "do",
 };
 
 const static std::vector<std::string> operator_keywords = {
@@ -312,6 +318,9 @@ struct RubyTries {
   trie::Trie<void> builtins_trie;
   trie::Trie<void> methods_trie;
   trie::Trie<void> errors_trie;
+  trie::Trie<void> expecting_end_keywords_trie;
+  trie::Trie<void> conditional_keywords_trie;
+  trie::Trie<void> end_keywords_trie;
   RubyTries() {
     for (auto &keyword : base_keywords)
       base_keywords_trie.insert(keyword);
@@ -331,6 +340,12 @@ struct RubyTries {
       methods_trie.insert(keyword);
     for (auto &keyword : errors)
       errors_trie.insert(keyword);
+    for (auto &keyword : expecting_end_keywords)
+      expecting_end_keywords_trie.insert(keyword);
+    for (auto &keyword : conditional_keywords)
+      conditional_keywords_trie.insert(keyword);
+    for (auto &keyword : end_keywords)
+      end_keywords_trie.insert(keyword);
   }
 };
 } // namespace bed::internal::syntax::ruby

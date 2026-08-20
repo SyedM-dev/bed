@@ -61,6 +61,7 @@ void Parser::reset(vase::Vase &vase, uint64_t lines, Language lang_) {
   it.next();
   std::vector<ParseStateLeaf *> leaves;
   std::vector<Token> tokens;
+  std::vector<ParseEvent> events;
   leaves.reserve((lines + MAX_CHUNK - 1) / MAX_CHUNK);
   void *state = lang.none_state();
   uint32_t consumed = 0;
@@ -71,7 +72,7 @@ void Parser::reset(vase::Vase &vase, uint64_t lines, Language lang_) {
     uint32_t chunk_lines = 0;
     while (chunk_lines < MAX_CHUNK && consumed < lines) {
       tokens.clear();
-      lang.parse(&state, it.line, consumed == 0, &tokens);
+      lang.parse(&state, it.line, consumed == 0, &tokens, &events);
       ++chunk_lines;
       ++consumed;
       if (!it.next() && consumed < lines)
@@ -163,6 +164,7 @@ void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
   if (count == 0 || !root)
     return;
   std::vector<Token> tokens;
+  std::vector<ParseEvent> events;
   uint64_t offset;
   TreeCursor c = TreeCursor(root, target, &offset);
   uint64_t at = target - offset;
@@ -203,7 +205,7 @@ void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
       c.leaf->state = lang.copy(state);
     }
     tokens.clear();
-    lang.parse(&state, it.line, at == 0, &tokens);
+    lang.parse(&state, it.line, at == 0, &tokens, &events);
     at++;
   }
   lang.destroy(state);
@@ -241,7 +243,7 @@ Parser::Iterator::Iterator(uint64_t target, Parser *p, vase::Vase &vase) : p(p) 
   while (at < target) {
     it->next();
     tokens.clear();
-    p->lang.parse(&state, it->line, at == 0, &tokens);
+    p->lang.parse(&state, it->line, at == 0, &tokens, &events);
     at++;
   }
 }
@@ -275,6 +277,6 @@ Parser::Iterator &Parser::Iterator::operator=(Iterator &&other) {
 void Parser::Iterator::next() {
   it->next();
   tokens.clear();
-  p->lang.parse(&state, it->line, at++ == 0, &tokens);
+  p->lang.parse(&state, it->line, at++ == 0, &tokens, &events);
 }
 } // namespace bed::internal::syntax
