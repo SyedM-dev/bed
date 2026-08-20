@@ -13,14 +13,13 @@ struct Shard {
   } kind;
 
   uint8_t height;
+  std::atomic_uint32_t refs;
 
   uint64_t length;
   uint64_t lines;
 
-  std::atomic_uint64_t refs;
-
   Shard(Kind kind, uint64_t length, uint64_t lines, uint8_t height)
-      : kind(kind), height(height), length(length), lines(lines), refs(1) {};
+      : kind(kind), height(height), refs(1), length(length), lines(lines) {};
 
   static void retain(Shard *n);
   static void release(Shard *n);

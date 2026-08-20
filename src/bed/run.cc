@@ -1,7 +1,8 @@
 #include "bed.h"
 
 namespace bed {
-BEd::BEd(std::vector<std::string> args) {
+BEd::BEd(std::vector<std::string> args)
+    : theme(internal::theme::Theme::default_theme()) {
   internal::commands::Command::register_posix(*this);
   internal::commands::Suffix::register_suffixes(*this);
   std::string prompt_ = "";

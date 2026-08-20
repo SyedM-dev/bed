@@ -1,0 +1,40 @@
+#pragma once
+
+#include "decl.h"
+#include "internal/vase/vase.h"
+#include "pch.h"
+
+namespace bed::internal::syntax {
+struct Parser {
+  ParseState *root;
+  Language &lang;
+
+  Parser(vase::Vase &, uint64_t, Language &);
+  ~Parser();
+  void reset(vase::Vase &, uint64_t, Language &);
+  void erase(vase::Vase &, uint64_t, uint64_t);
+  void insert(vase::Vase &, uint64_t, uint64_t);
+  void modify(vase::Vase &, uint64_t, uint64_t);
+
+  std::pair<ParseState *, ParseState *> split_tree(ParseState *node, uint64_t line);
+  ParseState *join_tree(ParseState *a, ParseState *b);
+
+  // Scope root;
+  // Scope &get_scope(uint64_t);
+  struct Iterator {
+    Parser *p;
+    std::optional<vase::Iterator> it;
+    void *state;
+    uint64_t at;
+    std::vector<Token> tokens;
+    Iterator(uint64_t, Parser *, vase::Vase &);
+    ~Iterator();
+    Iterator(const Iterator &) = delete;
+    Iterator &operator=(const Iterator &) = delete;
+    Iterator(Iterator &&other);
+    Iterator &operator=(Iterator &&other);
+    void next();
+  };
+  std::optional<Iterator> get_hl(vase::Vase &, uint64_t);
+};
+} // namespace bed::internal::syntax

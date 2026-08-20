@@ -8,7 +8,7 @@ void Suffix::register_suffixes(BEd &ctx) {
     .desc = "Prints current line.",
     .handle = [](BEd &ctx) {
       auto line = ctx.active->line;
-      ctx.active->print(line, line);
+      ctx.active->print(ctx, line, line);
     }
   };
 }
@@ -28,7 +28,7 @@ void Command::register_posix(BEd &ctx) {
       if (line == 0)
         throw ed_error("Line 0 is invalid.");
       ctx.active->jump(line);
-      ctx.active->print(line, line);
+      ctx.active->print(ctx, line, line);
     }
   };
   ctx.eof_op = Command{
@@ -93,11 +93,11 @@ void Command::register_posix(BEd &ctx) {
         uint64_t start_line = ctx.active->line;
         uint64_t end_line = ctx.active->line;
         if (!addresses.size())
-          ctx.active->print(start_line, end_line);
+          ctx.active->print(ctx, start_line, end_line);
         else if (addresses.size() == 1)
-          ctx.active->print(addresses[0], addresses[0]);
+          ctx.active->print(ctx, addresses[0], addresses[0]);
         else
-          ctx.active->print(addresses[0], addresses[1]);
+          ctx.active->print(ctx, addresses[0], addresses[1]);
       }
     }
   );

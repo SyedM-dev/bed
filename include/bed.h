@@ -5,6 +5,7 @@
 #include "internal/commands/commands.h"
 #include "internal/commands/suffixes.h"
 #include "internal/marks/marks.h"
+#include "internal/theme/theme.h"
 #include "pch.h"
 
 namespace bed {
@@ -13,6 +14,7 @@ struct BEd {
   internal::commands::Command no_op;
   internal::commands::Command eof_op;
   std::array<std::optional<internal::commands::Suffix>, 26> suffixes;
+  internal::theme::Theme theme;
 
   bool help_mode = false;
   std::string last_help = "";

@@ -157,14 +157,14 @@ struct Trie {
     }
   }
 
-  uint64_t longest_match(std::string_view input) {
-    Node *current = &root;
+  uint64_t longest_match(std::string_view input) const {
+    const Node *current = &root;
     uint64_t pos = 0;
     uint64_t longest = 0;
     if (current->value)
       longest = 0;
     while (pos < input.size()) {
-      Node *child = find_child(*current, input[pos]);
+      const Node *child = find_child(*current, input[pos]);
       if (!child)
         break;
       const auto remaining = input.substr(pos);
@@ -179,7 +179,7 @@ struct Trie {
     return longest;
   }
 
-  bool matches(std::string_view key)
+  bool matches(std::string_view key) const
     requires(std::is_void_v<T>)
   {
     Node *current = &root;
@@ -198,13 +198,13 @@ struct Trie {
     return current->value.has_value();
   }
 
-  std::optional<V> get(std::string_view key)
+  std::optional<V> get(std::string_view key) const
     requires(!std::is_void_v<T>)
   {
-    Node *current = &root;
+    const Node *current = &root;
     uint64_t pos = 0;
     while (pos < key.size()) {
-      Node *child = find_child(*current, key[pos]);
+      const Node *child = find_child(*current, key[pos]);
       if (!child)
         return std::nullopt;
       const auto remaining = key.substr(pos);
@@ -228,7 +228,7 @@ struct Trie {
   uint64_t common_prefix(
     std::string_view a,
     std::string_view b
-  ) {
+  ) const {
     const auto n = std::min(a.size(), b.size());
     uint64_t i = 0;
     while (i < n && equal_char(a[i], b[i]))
@@ -236,7 +236,7 @@ struct Trie {
     return i;
   }
 
-  Node *find_child(Node &node, char first) {
+  Node *find_child(const Node &node, char first) const {
     for (auto *child : node.children)
       if (equal_char(child->edge.front(), first))
         return child;

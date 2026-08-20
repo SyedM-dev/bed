@@ -2,12 +2,17 @@
 
 #include "definitions.h"
 #include "internal/marks/marks.h"
+#include "internal/syntax/parser.h"
+#include "internal/syntax/ruby/parser.h"
+#include "internal/theme/theme.h"
 #include "pch.h"
 
 namespace bed::internal::buffer {
 struct Buffer {
-  internal::vase::Vase vase;
-  internal::marks::MarksEngine marks;
+  vase::Vase vase;
+  marks::MarksEngine marks;
+  syntax::Language lang;
+  syntax::Parser parser;
   uint64_t line = 0;
   bool modified;
   std::filesystem::path save_path = "";
@@ -28,7 +33,7 @@ struct Buffer {
   void join(uint64_t start_line, uint64_t end_line);
   void remove(uint64_t start_line, uint64_t end_line);
   void append(std::string text, uint64_t line);
-  void print(uint64_t start_line, uint64_t end_line);
+  void print(BEd &ctx, uint64_t start_line, uint64_t end_line);
   std::string list_string(std::string_view s);
 };
 } // namespace bed::internal::buffer
