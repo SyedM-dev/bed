@@ -42,7 +42,7 @@ static ParseState *build_tree(std::vector<ParseStateLeaf *> &leaves, size_t begi
   return make_branch(left, right);
 }
 
-Parser::Parser(vase::Vase &vase, uint64_t lines, Language &lang)
+Parser::Parser(vase::Vase &vase, uint64_t lines, Language lang)
     : root(nullptr), lang(lang) {
   reset(vase, lines, lang);
 }
@@ -51,17 +51,17 @@ Parser::~Parser() {
   destroy_tree(root, lang);
 }
 
-void Parser::reset(vase::Vase &vase, uint64_t lines, Language &lang_) {
+void Parser::reset(vase::Vase &vase, uint64_t lines, Language lang_) {
   destroy_tree(root, lang);
   root = nullptr;
   if (lines == 0)
     return;
-  lang = lang_;
+  lang = std::move(lang_);
   vase::Iterator it = vase.iterate(0, Direction::Forward);
   it.next();
   std::vector<ParseStateLeaf *> leaves;
   std::vector<Token> tokens;
-  leaves.reserve((lines + 63) / 64);
+  leaves.reserve((lines + MAX_CHUNK - 1) / MAX_CHUNK);
   void *state = lang.none_state();
   uint32_t consumed = 0;
   while (consumed < lines) {
@@ -69,7 +69,7 @@ void Parser::reset(vase::Vase &vase, uint64_t lines, Language &lang_) {
     leaf->header = 0;
     leaf->state = lang.copy(state);
     uint32_t chunk_lines = 0;
-    while (chunk_lines < 64 && consumed < lines) {
+    while (chunk_lines < MAX_CHUNK && consumed < lines) {
       tokens.clear();
       lang.parse(&state, it.line, consumed == 0, &tokens);
       ++chunk_lines;
@@ -140,17 +140,15 @@ void Parser::insert(vase::Vase &vase, uint64_t start, uint64_t count) {
   if (count == 0)
     return;
   std::vector<ParseStateLeaf *> leaves;
-  leaves.reserve((count + 63) / 64);
+  leaves.reserve((count + MAX_CHUNK - 1) / MAX_CHUNK);
   uint64_t consumed = 0;
   while (consumed < count) {
     auto *leaf = new ParseStateLeaf;
     leaf->state = nullptr;
     uint64_t chunk = 0;
-    while (chunk < 64 && consumed < count) {
+    while (chunk < MAX_CHUNK && consumed < count) {
       ++chunk;
       ++consumed;
-      if (consumed < count)
-        break;
     }
     leaf->header = chunk;
     leaves.push_back(leaf);
@@ -277,6 +275,6 @@ Parser::Iterator &Parser::Iterator::operator=(Iterator &&other) {
 void Parser::Iterator::next() {
   it->next();
   tokens.clear();
-  p->lang.parse(&state, it->line, at == 0, &tokens);
+  p->lang.parse(&state, it->line, at++ == 0, &tokens);
 }
 } // namespace bed::internal::syntax

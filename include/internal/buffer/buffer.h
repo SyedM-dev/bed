@@ -11,8 +11,8 @@ namespace bed::internal::buffer {
 struct Buffer {
   vase::Vase vase;
   marks::MarksEngine marks;
-  syntax::Language lang;
-  syntax::Parser parser;
+  std::string language;
+  std::optional<syntax::Parser> parser;
   uint64_t line = 0;
   bool modified;
   std::filesystem::path save_path = "";

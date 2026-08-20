@@ -2,17 +2,14 @@
 #include "bed.h"
 
 namespace bed::internal::buffer {
-Buffer::Buffer()
-    : vase("/tmp"), lang(syntax::ruby::lang_ruby()),
-      parser(vase, vase.lines(), lang) {
+Buffer::Buffer() : vase("/tmp") {
+  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
   line = vase.lines();
   modified = false;
 }
 
-Buffer::Buffer(std::string command)
-    : vase(command, "/tmp"),
-      lang(syntax::ruby::lang_ruby()),
-      parser(vase, vase.lines(), lang) {
+Buffer::Buffer(std::string command) : vase(command, "/tmp") {
+  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
   line = vase.lines();
   if (!line)
     return;
@@ -21,10 +18,8 @@ Buffer::Buffer(std::string command)
   modified = false;
 }
 
-Buffer::Buffer(std::filesystem::path path)
-    : vase(path, "/tmp"),
-      lang(syntax::ruby::lang_ruby()),
-      parser(vase, vase.lines(), lang) {
+Buffer::Buffer(std::filesystem::path path) : vase(path, "/tmp") {
+  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
   line = vase.lines();
   if (!line)
     return;
@@ -37,7 +32,7 @@ Buffer::Buffer(std::filesystem::path path)
 void Buffer::load(std::string command) {
   vase::Vase new_vase = vase::Vase(command, "/tmp");
   vase = std::move(new_vase);
-  parser.reset(vase, vase.lines(), lang);
+  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
   line = vase.lines();
   if (!line) {
     prev_range.start = 0;
@@ -52,7 +47,7 @@ void Buffer::load(std::string command) {
 void Buffer::load(std::filesystem::path path) {
   vase::Vase new_vase = vase::Vase(path, "/tmp");
   vase = std::move(new_vase);
-  parser.reset(vase, vase.lines(), lang);
+  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
   line = vase.lines();
   if (!line) {
     prev_range.start = 0;
@@ -110,17 +105,17 @@ inline void apply(std::ostream &out, const theme::Highlight &hl) {
   const uint8_t g = (hl.fg >> 8) & 0xff;
   const uint8_t b = hl.fg & 0xff;
   out << "\x1b[38;2;"
-      << static_cast<unsigned>(r) << ';'
-      << static_cast<unsigned>(g) << ';'
-      << static_cast<unsigned>(b) << 'm';
+      << (unsigned)r << ';'
+      << (unsigned)g << ';'
+      << (unsigned)b << 'm';
   if (hl.bg != 0) {
     const uint8_t br = (hl.bg >> 16) & 0xff;
     const uint8_t bg = (hl.bg >> 8) & 0xff;
     const uint8_t bb = hl.bg & 0xff;
     out << "\x1b[48;2;"
-        << static_cast<unsigned>(br) << ';'
-        << static_cast<unsigned>(bg) << ';'
-        << static_cast<unsigned>(bb) << 'm';
+        << (unsigned)br << ';'
+        << (unsigned)bg << ';'
+        << (unsigned)bb << 'm';
   }
   if (hl.flags & theme::Highlight::Bold)
     out << "\x1b[1m";
@@ -137,38 +132,42 @@ inline void reset(std::ostream &out) {
 }
 
 void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
-  std::optional<syntax::Parser::Iterator> it_o = parser.get_hl(vase, start_line - 1);
-  if (!it_o)
-    throw ed_error("shouldn't be possible if line existed, which is checked by print's callers.");
-  auto &it = *it_o;
-  while (start_line <= end_line) {
-    it.next();
-    const std::string &line = it.it->line;
-    const auto &tokens = it.tokens;
-    uint32_t cursor = 0;
-    for (const auto &token : tokens) {
-      const uint32_t start = token.start;
-      const uint32_t end = token.end;
-      if (start > line.size())
-        break;
-      if (end > line.size())
-        break;
-      if (cursor < start) {
-        std::cout.write(
-          line.data() + cursor,
-          start - cursor
-        );
+  if (parser) {
+    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(vase, start_line - 1);
+    auto &it = *it_o;
+    while (start_line <= end_line) {
+      it.next();
+      const std::string &line = it.it->line;
+      const auto &tokens = it.tokens;
+      uint32_t cursor = 0;
+      for (const auto &token : tokens) {
+        const uint32_t start = token.start;
+        const uint32_t end = token.end;
+        if (start > line.size())
+          break;
+        if (end > line.size())
+          break;
+        if (cursor < start) {
+          std::cout.write(
+            line.data() + cursor,
+            start - cursor
+          );
+        }
+        const auto highlight = ctx.theme.get(token);
+        apply(std::cout, highlight);
+        std::cout.write(line.data() + start, end - start);
+        reset(std::cout);
+        cursor = end;
       }
-      const auto highlight = ctx.theme.get(token);
-      apply(std::cout, highlight);
-      std::cout.write(line.data() + start, end - start);
-      reset(std::cout);
-      cursor = end;
+      if (cursor < line.size())
+        std::cout.write(line.data() + cursor, line.size() - cursor);
+      std::cout << std::endl;
+      ++start_line;
     }
-    if (cursor < line.size())
-      std::cout.write(line.data() + cursor, line.size() - cursor);
-    std::cout << '\n';
-    ++start_line;
+  } else {
+    vase::Iterator it = vase.iterate(start_line - 1, Direction::Forward);
+    while (it.next() && start_line++ <= end_line)
+      std::cout << it.line << std::endl;
   }
   prev_range.start = start_line;
   prev_range.end = end_line;

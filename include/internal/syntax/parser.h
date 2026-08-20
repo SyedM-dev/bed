@@ -6,12 +6,17 @@
 
 namespace bed::internal::syntax {
 struct Parser {
-  ParseState *root;
-  Language &lang;
+  static constexpr const uint64_t MAX_CHUNK = 256;
 
-  Parser(vase::Vase &, uint64_t, Language &);
+  ParseState *root;
+  Language lang;
+
+  Parser(vase::Vase &, uint64_t, Language);
   ~Parser();
-  void reset(vase::Vase &, uint64_t, Language &);
+  Parser(const Parser &) = delete;
+  Parser &operator=(const Parser &) = delete;
+
+  void reset(vase::Vase &, uint64_t, Language);
   void erase(vase::Vase &, uint64_t, uint64_t);
   void insert(vase::Vase &, uint64_t, uint64_t);
   void modify(vase::Vase &, uint64_t, uint64_t);
@@ -19,8 +24,9 @@ struct Parser {
   std::pair<ParseState *, ParseState *> split_tree(ParseState *node, uint64_t line);
   ParseState *join_tree(ParseState *a, ParseState *b);
 
-  // Scope root;
-  // Scope &get_scope(uint64_t);
+  Scope scope_root;
+  Scope &get_scope(uint64_t);
+
   struct Iterator {
     Parser *p;
     std::optional<vase::Iterator> it;

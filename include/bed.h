@@ -15,6 +15,7 @@ struct BEd {
   internal::commands::Command eof_op;
   std::array<std::optional<internal::commands::Suffix>, 26> suffixes;
   internal::theme::Theme theme;
+  std::unordered_map<std::string, internal::syntax::Language> languages;
 
   bool help_mode = false;
   std::string last_help = "";

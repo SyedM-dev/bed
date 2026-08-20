@@ -164,7 +164,7 @@ struct TreeCursor {
   }
 };
 
-/*struct Symbol {
+struct Symbol {
   uint64_t definition;
   std::vector<uint64_t> references;
 };
@@ -178,5 +178,5 @@ struct Scope {
   uint32_t type;
   trie::Trie<Symbol> symbols;
   std::vector<std::variant<Space, Scope>> children;
-};*/
+};
 } // namespace bed::internal::syntax
