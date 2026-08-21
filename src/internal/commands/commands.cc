@@ -102,6 +102,21 @@ void Command::register_posix(BEd &ctx) {
     }
   );
   ctx.commands.insert(
+    "=",
+    Command{
+      .address_mode = Command::AddressMode::Single,
+      .suffix = Command::SuffixKind::Suffix,
+      .desc = "Print line number",
+      .accept_zero = false,
+      .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
+        if (!addresses.size())
+          std::cout << ctx.active->vase.lines() << std::endl;
+        else
+          std::cout << addresses[0] << std::endl;
+      }
+    }
+  );
+  ctx.commands.insert(
     "debug",
     Command{
       .address_mode = Command::AddressMode::None,

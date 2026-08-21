@@ -26,8 +26,12 @@ Address::Result Address::handle(BEd &ctx, std::string &cmd, uint64_t &i) {
         curr.offset = 0;
         prev_given = false;
       } else {
-        if (cmd[i] == ';')
-          ctx.active->jump(curr.resolve(ctx));
+        if (cmd[i] == ';') {
+          uint64_t resolved = curr.resolve(ctx);
+          ctx.active->jump(resolved);
+          curr.base = Number(resolved);
+          curr.offset = 0;
+        }
         prev_given = true;
       }
       i++;

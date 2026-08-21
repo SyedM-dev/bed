@@ -1003,13 +1003,13 @@ bool handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
             j++;
           if (p.i + j >= p.len())
             return false;
-          if (
-            p.peek(j) == '-'
-            || p.peek(j) == '&'
-            || p.peek(j) == '%'
-            || p.peek(j) == ':'
-          ) {
+          if (p.peek(j) == '&'
+              || p.peek(j) == '%'
+              || p.peek(j) == ':') {
             if (p.peek(j + 1) == ' ' || p.peek(j + 1) == '>')
+              return false;
+          } else if (p.peek(j) == '-') {
+            if (p.peek(j + 1) != '>')
               return false;
           } else if (
             p.peek(j) == ']'

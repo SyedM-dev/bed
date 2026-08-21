@@ -260,66 +260,65 @@ void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
 
 uint64_t Parser::next_closing(uint64_t line) {
   if (!root)
-    return line + 10;
-  uint64_t relative;
+    return UINT64_MAX;
+  uint64_t relative = 0;
   TreeCursor c(root, line, &relative);
-  uint64_t at = line - relative;
-  uint32_t from = (uint32_t)relative;
-  bool first = true;
-  int depth = 0;
+  uint64_t line_offset = line - relative;
+  int level = 0;
+  bool first_leaf = true;
   while (c.leaf) {
     auto *leaf = c.leaf;
     for (uint32_t i = 0; i < leaf->n; ++i) {
       uint32_t block = leaf->blocks[i];
       uint32_t pos = block & ParseStateLeaf::LINE_MASK;
-      if (first && pos <= from)
+      if (first_leaf && pos <= relative)
         continue;
-      if (block & ParseStateLeaf::IS_CLOSING) {
-        if (depth == 0)
-          return at + pos;
-        --depth;
+      bool closing = block & ParseStateLeaf::IS_CLOSING;
+      if (closing) {
+        if (level == 0)
+          return line_offset + pos;
+        --level;
       } else {
-        ++depth;
+        ++level;
       }
     }
-    at += leaf->lines();
-    first = false;
+    line_offset += leaf->lines();
     c.next();
+    first_leaf = false;
   }
-  return line + 10;
+  return UINT64_MAX;
 }
 
 uint64_t Parser::prev_opening(uint64_t line) {
   if (!root)
-    return line >= 10 ? line - 10 : 0;
-  uint64_t relative;
+    return 0;
+  uint64_t relative = 0;
   TreeCursor c(root, line, &relative);
-  uint64_t at = line - relative;
-  uint32_t from = (uint32_t)relative;
-  bool first = true;
-  int depth = 0;
+  uint64_t line_offset = line - relative;
+  int level = 0;
+  bool first_leaf = true;
   while (c.leaf) {
     auto *leaf = c.leaf;
-    for (uint32_t i = leaf->n; i-- > 0;) {
+    for (int32_t i = (int32_t)leaf->n - 1; i >= 0; --i) {
       uint32_t block = leaf->blocks[i];
       uint32_t pos = block & ParseStateLeaf::LINE_MASK;
-      if (first && pos >= from)
+      if (first_leaf && pos >= relative)
         continue;
-      if (!(block & ParseStateLeaf::IS_CLOSING)) {
-        if (depth == 0)
-          return at + pos;
-        --depth;
+      bool closing = block & ParseStateLeaf::IS_CLOSING;
+      if (!closing) {
+        if (level == 0)
+          return line_offset + pos;
+        --level;
       } else {
-        ++depth;
+        ++level;
       }
     }
     c.prev();
-    if (!c.leaf)
-      break;
-    at -= c.leaf->lines();
-    first = false;
+    first_leaf = false;
+    if (c.leaf)
+      line_offset -= c.leaf->lines();
   }
-  return line >= 10 ? line - 10 : 0;
+  return 0;
 }
 
 std::optional<Parser::Iterator> Parser::get_hl(vase::Vase &vase, uint64_t target) {
