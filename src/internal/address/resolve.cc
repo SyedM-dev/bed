@@ -18,23 +18,29 @@ uint64_t Address::resolve(BEd &ctx) {
       } else if constexpr (std::is_same_v<T, Number>) {
         line = addr.i;
       } else if constexpr (std::is_same_v<T, Block>) {
+        uint64_t current_line = ctx.active->line;
+        if (ctx.active->vase.lines() > 0 && current_line == 0)
+          current_line = 1;
         if (addr.dir == Direction::Forward) {
           if (ctx.active->parser) {
-            if (ctx.active->line == 0)
-              ctx.active->line = 1;
-            line = ctx.active->parser->next_closing(ctx.active->line - 1) + 1;
+            uint64_t closing = ctx.active->parser->next_closing(current_line - 1);
+            if (closing == UINT64_MAX)
+              line = ctx.active->vase.lines();
+            else
+              line = closing + 1;
+          } else {
+            line = current_line + 10;
             if (line > ctx.active->vase.lines())
               line = ctx.active->vase.lines();
-          } else {
-            line = ctx.active->line + 10;
           }
         } else {
           if (ctx.active->parser) {
-            if (ctx.active->line == 0)
-              ctx.active->line = 1;
-            line = ctx.active->parser->prev_opening(ctx.active->line - 1) + 1;
+            line = ctx.active->parser->prev_opening(current_line - 1) + 1;
           } else {
-            line = ctx.active->line - 10;
+            if (current_line > 10)
+              line = current_line - 10;
+            else
+              line = 0;
           }
         }
       } else {

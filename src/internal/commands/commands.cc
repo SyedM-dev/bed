@@ -107,7 +107,7 @@ void Command::register_posix(BEd &ctx) {
       .address_mode = Command::AddressMode::Single,
       .suffix = Command::SuffixKind::Suffix,
       .desc = "Print line number",
-      .accept_zero = false,
+      .accept_zero = true,
       .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
         if (!addresses.size())
           std::cout << ctx.active->vase.lines() << std::endl;
