@@ -250,15 +250,18 @@ bool handle_comment(RubyParser &p, std::vector<Token> *tokens, bool first_line) 
   return false;
 }
 
-void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseEvent> *events) {
+bool handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseEvent> *events) {
   static const RubyTries tries = RubyTries();
-  while (p.peek() == ' ' || p.peek() == '\t')
-    p.advance();
+  if (p.peek() == ' ' || p.peek() == '\t') {
+    while (p.peek() == ' ' || p.peek() == '\t')
+      p.advance();
+    return true;
+  }
   if (p.current().flags & RubyState::RubyInternalState::NAME_MASK) {
     if (p.peek() == '\0')
-      return;
+      return false;
     if (p.peek() == '\\' && p.peek(1) == '\0')
-      return;
+      return false;
     switch (p.current().flags & RubyState::RubyInternalState::NAME_MASK) {
     case RubyState::RubyInternalState::CLASS_NAME: {
       if (p.peek() == '<' && p.peek(1) == '<') {
@@ -266,7 +269,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         events->push_back(ParseEvent::Opening);
         p.current().flags = (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK);
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
-        return;
+        return false;
       }
       uint32_t j = 0;
       if (identifier_start_char(p.peek(j))) {
@@ -279,12 +282,12 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
           p.advance();
         if (p.peek() == ':' && p.peek(1) == ':') {
           p.advance(2);
-          return;
+          return false;
         }
       }
       events->push_back(ParseEvent::Opening);
       p.current().flags = (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK);
-      return;
+      return false;
     }
     case RubyState::RubyInternalState::DEF_NAME: {
       uint32_t j = 0;
@@ -305,12 +308,12 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
           p.advance();
         if (p.peek() == '.') {
           p.advance();
-          return;
+          return false;
         }
       }
       events->push_back(ParseEvent::Opening);
       p.current().flags = (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK);
-      return;
+      return false;
     }
     case RubyState::RubyInternalState::MODULE_NAME: {
       uint32_t j = 0;
@@ -324,12 +327,12 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
           p.advance();
         if (p.peek() == ':' && p.peek(1) == ':') {
           p.advance(2);
-          return;
+          return false;
         }
       }
       events->push_back(ParseEvent::Opening);
       p.current().flags = (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK);
-      return;
+      return false;
     }
     }
   }
@@ -342,7 +345,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       j++;
     tokens->push_back({p.i, p.i + j, Token::Operator});
     if (p.i + j >= p.len())
-      return;
+      return false;
     std::string delim;
     bool interpolation = true;
     uint32_t s = p.i + j;
@@ -360,7 +363,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       }
     }
     if (p.peek() == '\0')
-      return;
+      return false;
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
     if (!delim.empty()) {
       tokens->push_back({s, p.i + j, Token::Annotation});
@@ -374,7 +377,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       p.heredoc_start_line = true;
     }
     p.advance(j);
-    return;
+    return false;
   }
   if (p.peek() == '/' && p.current().flags & RubyState::RubyInternalState::EXPECTING_EXPRESSION) {
     tokens->push_back({p.i, p.i + 1, Token::Regexp});
@@ -384,7 +387,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     p.current().delim_start = '/';
     p.current().delim_end = '/';
     p.advance();
-    return;
+    return false;
   }
   switch (p.peek()) {
   case '.': {
@@ -397,7 +400,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         p.advance();
     }
     tokens->push_back({start, p.i, Token::Operator});
-    return;
+    return false;
   }
   case ':': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -406,17 +409,17 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     if (p.i >= p.len()) {
       tokens->push_back({start, p.i, Token::Operator});
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
-      return;
+      return false;
     }
     if (p.peek() == ':') {
       p.advance();
       tokens->push_back({start, p.i, Token::Operator});
-      return;
+      return false;
     }
     if (p.peek() == '\'' || p.peek() == '"') {
       tokens->push_back({start, p.i, Token::Label});
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
-      return;
+      return false;
     }
     if (p.peek() == '$' || p.peek() == '@') {
       if (p.peek_str(2) == "@@")
@@ -426,13 +429,13 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       while (identifier_char(p.peek()))
         p.advance();
       tokens->push_back({start, p.i, Token::Label});
-      return;
+      return false;
     }
     uint32_t op_len = tries.operator_trie.longest_match(p.peek_str(p.len() - p.i));
     if (op_len > 0) {
       tokens->push_back({start, p.i + op_len, Token::Label});
       p.advance(op_len);
-      return;
+      return false;
     }
     if (identifier_start_char(p.peek())) {
       p.advance();
@@ -441,34 +444,34 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       if (p.peek() == '!' || p.peek() == '?')
         p.advance();
       tokens->push_back({start, p.i, Token::Label});
-      return;
+      return false;
     }
     tokens->push_back({start, p.i, Token::Operator});
-    return;
+    return false;
   }
   case '@': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
     uint32_t start = p.i;
     p.advance();
     if (p.i >= p.len())
-      return;
+      return false;
     if (p.peek() == '@')
       p.advance();
     if (identifier_start_char(p.peek()))
       p.advance();
     else
-      return;
+      return false;
     while (identifier_char(p.peek()))
       p.advance();
     tokens->push_back({start, p.i, Token::VariableInstance});
-    return;
+    return false;
   }
   case '$': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
     uint32_t start = p.i;
     p.advance();
     if (p.i >= p.len())
-      return;
+      return false;
     if (identifier_start_char(p.peek())) {
       p.advance();
       while (identifier_char(p.peek()))
@@ -504,11 +507,11 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         p.advance();
         break;
       default:
-        return;
+        return false;
       }
     }
     tokens->push_back({start, p.i, Token::VariableGlobal});
-    return;
+    return false;
   }
   case '?': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -524,7 +527,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         if (is_hex(p.peek()))
           p.advance();
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       } else if (p.peek() == 'u') {
         p.advance();
         if (p.peek() == '{') {
@@ -544,7 +547,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
             p.advance();
         }
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       } else if ('0' <= p.peek() && p.peek() <= '7') {
         p.advance();
         if ('0' <= p.peek() && p.peek() <= '7')
@@ -552,7 +555,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         if ('0' <= p.peek() && p.peek() <= '7')
           p.advance();
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       } else if (p.peek() == 'c') {
         p.advance();
         if (p.peek() != '\\')
@@ -560,7 +563,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         else
           goto combination;
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       } else if (p.peek() == 'M' || p.peek() == 'C') {
         p.advance();
         if (p.peek() == '-') {
@@ -571,7 +574,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
             goto combination;
         }
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       } else if (p.peek() == 'N') {
         p.advance();
         if (p.peek() == '{') {
@@ -582,20 +585,20 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
             p.advance();
         }
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       } else {
         p.advance();
         tokens->push_back({start, p.i, Token::Char});
-        return;
+        return false;
       }
     } else if (p.peek() != '\0' && p.peek() != ' ' && p.peek() != '\t') {
       p.advance();
       tokens->push_back({start, p.i, Token::Char});
-      return;
+      return false;
     } else {
       p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
       tokens->push_back({start, p.i, Token::Operator});
-      return;
+      return false;
     }
   }
   case '{': {
@@ -605,7 +608,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     tokens->push_back({p.i, p.i + 1, (Token::Kind)brace_color});
     p.current().brace_level++;
     p.advance();
-    return;
+    return false;
   }
   case '}': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -618,7 +621,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       tokens->push_back({p.i, p.i + 1, (Token::Kind)brace_color});
     }
     p.advance();
-    return;
+    return false;
   }
   case '(': {
     p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -627,7 +630,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     tokens->push_back({p.i, p.i + 1, (Token::Kind)brace_color});
     p.current().brace_level++;
     p.advance();
-    return;
+    return false;
   }
   case ')': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -636,7 +639,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       (uint8_t)Token::Brace1 + (p.current().brace_level % 5);
     tokens->push_back({p.i, p.i + 1, (Token::Kind)brace_color});
     p.advance();
-    return;
+    return false;
   }
   case '[': {
     p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -645,7 +648,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     tokens->push_back({p.i, p.i + 1, (Token::Kind)brace_color});
     p.current().brace_level++;
     p.advance();
-    return;
+    return false;
   }
   case ']': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -654,7 +657,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       (uint8_t)Token::Brace1 + (p.current().brace_level % 5);
     tokens->push_back({p.i, p.i + 1, (Token::Kind)brace_color});
     p.advance();
-    return;
+    return false;
   }
   case '\'': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -664,7 +667,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     p.current().delim_end = '\'';
     p.current().flags &= ~RubyState::RubyInternalState::ALLOW_INTERPOLATION;
     p.advance();
-    return;
+    return false;
   }
   case '"': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -674,7 +677,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     p.current().delim_end = '"';
     p.current().flags |= RubyState::RubyInternalState::ALLOW_INTERPOLATION;
     p.advance();
-    return;
+    return false;
   }
   case '`': {
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -684,14 +687,14 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
     p.current().delim_end = '`';
     p.current().flags |= RubyState::RubyInternalState::ALLOW_INTERPOLATION;
     p.advance();
-    return;
+    return false;
   }
   case '%': {
     if (p.i + 1 >= p.len()) {
       tokens->push_back({p.i, p.i + 1, Token::Operator});
       p.advance();
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
-      return;
+      return false;
     }
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
     char type = p.peek(1);
@@ -729,14 +732,14 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       tokens->push_back({p.i, p.i + 1, Token::Operator});
       p.advance(prefix_len);
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
-      return;
+      return false;
     }
     delim_start = p.peek(prefix_len);
     if (identifier_char(delim_start) || delim_start == ' ') {
       tokens->push_back({p.i, p.i + 1, Token::Operator});
       p.advance(prefix_len);
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
-      return;
+      return false;
     }
     switch (delim_start) {
     case '(':
@@ -765,22 +768,23 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       p.current().flags |= RubyState::RubyInternalState::ALLOW_INTERPOLATION;
     p.current().lit_brace_level = 1;
     p.advance(prefix_len + 1);
-    return;
+    return false;
   }
   case ';':
     p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
+    p.current().flags |= RubyState::RubyInternalState::NEWLINE;
     p.advance();
-    return;
+    return true;
   case '\\':
     if (p.peek(1) == '\0')
       p.ending = false;
     p.advance();
-    return;
+    return false;
   case '\0':
     if (p.ending)
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
     p.advance();
-    return;
+    return false;
   default:
     if ('0' <= p.peek() && p.peek() <= '9') {
       p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
@@ -857,7 +861,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         }
       }
       tokens->push_back({start, p.i, Token::Number});
-      return;
+      return false;
     } else if (identifier_start_char(p.peek())) {
       uint32_t j = 1;
       while (identifier_char(p.peek(j)))
@@ -868,88 +872,88 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Keyword});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.expecting_keywords_trie.longest_match(p.peek_str(j))) {
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Keyword});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.operator_keywords_trie.longest_match(p.peek_str(j))) {
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::KeywordOperator});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.expecting_operators_trie.longest_match(p.peek_str(j))) {
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::KeywordOperator});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.types_trie.longest_match(p.peek_str(j))) {
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Type});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.methods_trie.longest_match(p.peek_str(j))) {
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Function});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.expecting_end_keywords_trie.longest_match(p.peek_str(j))) {
         events->push_back(ParseEvent::Opening);
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Keyword});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.conditional_keywords_trie.longest_match(p.peek_str(j))) {
-        if (p.current().flags & RubyState::RubyInternalState::EXPECTING_EXPRESSION)
+        if (p.current().flags & RubyState::RubyInternalState::NEWLINE || p.op_last)
           events->push_back(ParseEvent::Opening);
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Keyword});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.end_keywords_trie.longest_match(p.peek_str(j))) {
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         events->push_back(ParseEvent::Opening);
         tokens->push_back({p.i, p.i + j, Token::Keyword});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.builtins_trie.longest_match(p.peek_str(j))) {
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Constant});
         p.advance(j);
-        return;
+        return false;
       } else if (j == tries.errors_trie.longest_match(p.peek_str(j))) {
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         tokens->push_back({p.i, p.i + j, Token::Error});
         p.advance(j);
-        return;
+        return false;
       } else if ('A' <= p.peek() && p.peek() <= 'Z' && !(p.peek(j) == '!' || p.peek(j) == '?')) {
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         if (j >= 5 && p.peek_str(j).substr(j - 5) == "Error") {
           tokens->push_back({p.i, p.i + j, Token::Error});
           p.advance(j);
-          return;
+          return false;
         }
         tokens->push_back({p.i, p.i + j, Token::Constant});
         p.advance(j);
-        return;
+        return false;
       } else {
         p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
         if (j == 4 && p.peek_str(4) == "true") {
           tokens->push_back({p.i, p.i + j, Token::True});
           p.advance(4);
-          return;
+          return false;
         }
         if (j == 5 && p.peek_str(5) == "false") {
           tokens->push_back({p.i, p.i + j, Token::False});
           p.advance(5);
-          return;
+          return false;
         }
         if (j == 3 && p.peek_str(3) == "end") {
           events->push_back(ParseEvent::Closing);
           tokens->push_back({p.i, p.i + j, Token::Keyword});
           p.advance(3);
-          return;
+          return false;
         }
         if (j == 5 && p.peek_str(5) == "class") {
           tokens->push_back({p.i, p.i + j, Token::Keyword});
@@ -957,7 +961,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
           p.current().flags =
             (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK)
             | RubyState::RubyInternalState::CLASS_NAME;
-          return;
+          return false;
         }
         if (j == 6 && p.peek_str(6) == "module") {
           tokens->push_back({p.i, p.i + j, Token::Keyword});
@@ -965,7 +969,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
           p.current().flags =
             (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK)
             | RubyState::RubyInternalState::MODULE_NAME;
-          return;
+          return false;
         }
         if (j == 3 && p.peek_str(3) == "def") {
           tokens->push_back({p.i, p.i + j, Token::Keyword});
@@ -973,32 +977,32 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
           p.current().flags =
             (p.current().flags & ~RubyState::RubyInternalState::NAME_MASK)
             | RubyState::RubyInternalState::DEF_NAME;
-          return;
+          return false;
         }
         uint32_t start = p.i;
         p.advance(j);
         if (p.peek() == ':') {
           p.advance();
           tokens->push_back({start, p.i, Token::Label});
-          return;
+          return false;
         } else if (p.peek(-1) == '!' || p.peek(-1) == '?') {
           p.advance();
           tokens->push_back({start, p.i, Token::Function});
-          return;
+          return false;
         } else {
           uint32_t j = 0;
           if (p.peek(j) == '(' || p.peek(j) == '{') {
             tokens->push_back({start, p.i, Token::Function});
-            return;
+            return false;
           } else if (p.peek(j) == ' ' || p.peek(j) == '\t') {
             j++;
           } else {
-            return;
+            return false;
           }
           while (p.peek(j) == ' ' || p.peek(j) == '\t')
             j++;
           if (p.i + j >= p.len())
-            return;
+            return false;
           if (
             p.peek(j) == '-'
             || p.peek(j) == '&'
@@ -1006,7 +1010,7 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
             || p.peek(j) == ':'
           ) {
             if (p.peek(j + 1) == ' ' || p.peek(j + 1) == '>')
-              return;
+              return false;
           } else if (
             p.peek(j) == ']'
             || p.peek(j) == '}'
@@ -1024,10 +1028,10 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
             || p.peek(j) == '<'
             || p.peek(j) == '>'
           ) {
-            return;
+            return false;
           }
           tokens->push_back({start, p.i, Token::Function});
-          return;
+          return false;
         }
       }
     } else {
@@ -1036,11 +1040,13 @@ void handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
         tokens->push_back({p.i, p.i + op_len, Token::Operator});
         p.advance(op_len);
         p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
+        p.set_op_last = true;
       } else {
         p.advance(utf8_codepoint_width(p.peek()));
       }
     }
   }
+  return false;
 }
 
 void ruby_parse(
@@ -1052,6 +1058,8 @@ void ruby_parse(
 ) {
   RubyParser p(v_state, line);
   while (p.i <= p.len()) {
+    p.op_last = p.set_op_last;
+    p.set_op_last = false;
     if (p.current().state == RubyState::RubyInternalState::END)
       return;
     if (p.current().state == RubyState::RubyInternalState::COMMENT) {
@@ -1085,8 +1093,11 @@ void ruby_parse(
       return;
     if (handle_comment(p, tokens, fl))
       return;
-    handle_syntax(p, tokens, events);
+    if (!handle_syntax(p, tokens, events))
+      p.current().flags &= ~RubyState::RubyInternalState::NEWLINE;
     continue;
   }
+  if (p.ending)
+    p.current().flags |= RubyState::RubyInternalState::NEWLINE;
 }
 } // namespace bed::internal::syntax::ruby

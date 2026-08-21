@@ -189,7 +189,6 @@ const static std::vector<std::string> methods = {
   "respond_to?",
   "equal?",
   "object_id",
-  "class",
   "singleton_class",
   "clone",
   "freeze",

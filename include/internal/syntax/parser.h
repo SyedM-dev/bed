@@ -5,8 +5,10 @@
 #include "pch.h"
 
 namespace bed::internal::syntax {
+void dump_events(ParseState *node);
+
 struct Parser {
-  static constexpr uint64_t MAX_CHUNK = 256;
+  static constexpr uint64_t MAX_CHUNK = 512;
 
   ParseState *root;
   Language lang;
@@ -20,6 +22,9 @@ struct Parser {
   void erase(vase::Vase &, uint64_t, uint64_t);
   void insert(vase::Vase &, uint64_t, uint64_t);
   void modify(vase::Vase &, uint64_t, uint64_t);
+
+  uint64_t next_closing(uint64_t line);
+  uint64_t prev_opening(uint64_t line);
 
   std::pair<ParseState *, ParseState *> split_tree(ParseState *node, uint64_t line);
   ParseState *join_tree(ParseState *a, ParseState *b);

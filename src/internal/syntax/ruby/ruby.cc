@@ -14,7 +14,7 @@ Language lang_ruby() {
         .brace_level = 1,
         .lit_brace_level = 0,
         .state = RubyState::RubyInternalState::NONE,
-        .flags = RubyState::RubyInternalState::EXPECTING_EXPRESSION,
+        .flags = RubyState::RubyInternalState::EXPECTING_EXPRESSION | RubyState::RubyInternalState::NEWLINE,
         .delim_start = '\0',
         .delim_end = '\0'
       };

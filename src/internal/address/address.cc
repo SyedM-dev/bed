@@ -19,6 +19,14 @@ Address::Address(std::string &cmd, uint64_t &i) {
     base = Last();
     i++;
     break;
+  case ']':
+    base = Block(Direction::Forward);
+    i++;
+    break;
+  case '[':
+    base = Block(Direction::Backward);
+    i++;
+    break;
   case '\'': {
     i++;
     if (i < cmd.size() && 'a' <= cmd[i] && cmd[i] <= 'z')

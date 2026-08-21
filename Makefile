@@ -26,7 +26,7 @@ MRUBY_LIBS ?= -L./libs/mruby/build/host/lib -lmruby
 
 CFLAGS_DEBUG :=\
 	-std=c++23 -Wall -Wextra -fno-rtti \
-	-Og -fno-inline -gsplit-dwarf \
+	-Og -fno-inline -gsplit-dwarf -DDEBUG \
 	-g -fno-omit-frame-pointer -ffast-math \
 	-I./include -I./libs/unicode_width
 

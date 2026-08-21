@@ -11,6 +11,8 @@ struct RubyParser {
   uint32_t i = 0;
   bool heredoc_start_line = false;
   bool ending = true;
+  bool op_last = false;
+  bool set_op_last = false;
 
   RubyParser(void **v_state, std::string_view line)
       : v_state(v_state), state((RubyState *)*v_state), line(line) {}
@@ -58,7 +60,7 @@ struct RubyParser {
       .brace_level = 1,
       .lit_brace_level = 0,
       .state = RubyState::RubyInternalState::NONE,
-      .flags = RubyState::RubyInternalState::EXPECTING_EXPRESSION,
+      .flags = RubyState::RubyInternalState::EXPECTING_EXPRESSION | RubyState::RubyInternalState::NEWLINE,
       .delim_start = '\0',
       .delim_end = '\0'
     };

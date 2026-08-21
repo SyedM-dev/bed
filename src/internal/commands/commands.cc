@@ -102,6 +102,18 @@ void Command::register_posix(BEd &ctx) {
     }
   );
   ctx.commands.insert(
+    "debug",
+    Command{
+      .address_mode = Command::AddressMode::None,
+      .suffix = Command::SuffixKind::None,
+      .desc = "",
+      .accept_zero = false,
+      .handle = [](BEd &ctx, std::span<const uint64_t>, std::string_view) {
+        syntax::dump_events(ctx.active->parser->root);
+      }
+    }
+  );
+  ctx.commands.insert(
     "E",
     Command{
       .address_mode = Command::AddressMode::None,

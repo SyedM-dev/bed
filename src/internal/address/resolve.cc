@@ -19,6 +19,18 @@ uint64_t Address::resolve(BEd &ctx) {
         line = ctx.active->vase.lines();
       } else if constexpr (std::is_same_v<T, Number>) {
         line = addr.i;
+      } else if constexpr (std::is_same_v<T, Block>) {
+        if (addr.dir == Direction::Forward) {
+          if (ctx.active->parser)
+            line = ctx.active->parser->next_closing(ctx.active->line);
+          else
+            line = ctx.active->line + 10;
+        } else {
+          if (ctx.active->parser)
+            line = ctx.active->parser->prev_opening(ctx.active->line);
+          else
+            line = ctx.active->line - 10;
+        }
       } else {
         throw ed_error("Unhandled address given.");
       }

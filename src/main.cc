@@ -10,9 +10,12 @@ int main(int argc, char *argv[]) {
     if (e.code)
       std::cout << "Fatal error: " << e.what() << std::endl;
     return e.code;
-  } catch (...) {
+  }
+#ifndef DEBUG
+  catch (...) {
     std::cout << "Unexpected error." << std::endl;
     return 1;
   }
+#endif
   return 0;
 }

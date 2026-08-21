@@ -33,6 +33,7 @@ struct alignas(2) RubyState {
       DEF_NAME = 0b10,
       MODULE_NAME = 0b11
     };
+    static constexpr uint8_t NEWLINE = 1 << 5;
     static constexpr uint8_t ALLOW_INTERPOLATION = 1 << 6;
     static constexpr uint8_t EXPECTING_EXPRESSION = 1 << 7;
     uint8_t flags = 0;

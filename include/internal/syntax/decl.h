@@ -79,7 +79,7 @@ struct ParseEvent {
   uint8_t type; // type.
 
   ParseEvent(T t) : ev_type(t) {}
-  ParseEvent(std::string_view s, T e_t, uint8_t type) : name(s), ev_type(e_t), type(type) {}
+  ParseEvent(T e_t, std::string_view s, uint8_t type) : name(s), ev_type(e_t), type(type) {}
 };
 
 struct Language {
@@ -119,12 +119,11 @@ struct ParseStateBranch : ParseState {
 
 struct ParseStateLeaf : ParseState {
   void *state;
-  uint64_t n;
-  static constexpr uint32_t IS_OPENING = 1ull << 31;
-  static constexpr uint32_t LINE_MASK = ~IS_OPENING;
-  // followed by n number of relative offsets
-  // stored as uint32_t with 1 bit for if it is start or end
-  // and rest as number.
+  uint32_t n;
+  uint32_t cap;
+  uint32_t *blocks;
+  static constexpr uint32_t IS_CLOSING = 1ull << 31;
+  static constexpr uint32_t LINE_MASK = ~IS_CLOSING;
 };
 
 struct TreeCursor {
