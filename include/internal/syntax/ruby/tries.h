@@ -212,10 +212,10 @@ const static std::vector<std::string> base_keywords = {
   "else",
   "rescue",
   "ensure",
-  "when",
 };
 
 const static std::vector<std::string> expecting_keywords = {
+  "when",
   "elsif",
 };
 
@@ -247,13 +247,13 @@ const static std::vector<std::string> operator_keywords = {
   "redo",
   "rescue",
   "retry",
-  "super",
   "self",
   "nil",
   "undef",
 };
 
 const static std::vector<std::string> expecting_operators = {
+  "super",
   "and",
   "return",
   "not",

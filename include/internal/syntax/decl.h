@@ -70,13 +70,16 @@ struct Token {
 
 struct ParseEvent {
   std::string_view name;
-  enum : uint8_t {
+  enum T : uint8_t {
     Opening,
     Closing,
     SymbolDef,
     Symbol
   } ev_type;
   uint8_t type; // type.
+
+  ParseEvent(T t) : ev_type(t) {}
+  ParseEvent(std::string_view s, T e_t, uint8_t type) : name(s), ev_type(e_t), type(type) {}
 };
 
 struct Language {
@@ -85,6 +88,16 @@ struct Language {
   std::function<void *(void *)> copy;
   std::function<bool(void *, void *)> equal;
   std::function<void(void *)> destroy;
+};
+
+struct Symbol {
+  uint32_t definition;
+  uint16_t reference_count;
+  uint8_t type;
+  uint8_t len;
+  // first chars of count len, padded to 4 bytes.
+  // then a set of references. 32bit
+  // references later as modifying at end is faster than shifting the name.
 };
 
 struct ParseState {
@@ -106,6 +119,12 @@ struct ParseStateBranch : ParseState {
 
 struct ParseStateLeaf : ParseState {
   void *state;
+  uint64_t n;
+  static constexpr uint32_t IS_OPENING = 1ull << 31;
+  static constexpr uint32_t LINE_MASK = ~IS_OPENING;
+  // followed by n number of relative offsets
+  // stored as uint32_t with 1 bit for if it is start or end
+  // and rest as number.
 };
 
 struct TreeCursor {
@@ -116,37 +135,5 @@ struct TreeCursor {
   TreeCursor(ParseState *root, uint64_t target_line, uint64_t *relative);
   void next();
   void prev();
-};
-
-struct ScopeNode {
-  static constexpr uint64_t SCOPE_BIT = 1ull << 63;
-  static constexpr uint64_t LINES_MASK = ~SCOPE_BIT;
-  uint64_t header;
-  bool is_scope() const {
-    return header & SCOPE_BIT;
-  }
-  uint64_t lines() const {
-    return header & LINES_MASK;
-  }
-};
-
-struct Symbol {
-  uint32_t definition;
-  uint16_t reference_count;
-  uint8_t type;
-  uint8_t len;
-  // first chars of count len, padded to 4 bytes.
-  // then a set of references. 32bit
-  // references later as modifying at end is faster than shifting the name.
-};
-
-struct alignas(8) Scope : ScopeNode {
-  uint16_t children_count;
-  uint16_t symbol_count;
-  uint8_t type;
-  uint8_t len;
-  uint32_t : 32; // if more stuff is needed use the padding first.
-  // first chars of count len, padded to 8 bytes.
-  // followed by that many number of pointers.
 };
 } // namespace bed::internal::syntax

@@ -10,6 +10,7 @@ struct RubyParser {
   std::string_view line;
   uint32_t i = 0;
   bool heredoc_start_line = false;
+  bool ending = true;
 
   RubyParser(void **v_state, std::string_view line)
       : v_state(v_state), state((RubyState *)*v_state), line(line) {}
@@ -22,7 +23,7 @@ struct RubyParser {
     return state->stack()[state->top - 1];
   }
 
-  char peek(uint32_t offset = 0) {
+  char peek(int32_t offset = 0) {
     uint32_t pos = i + offset;
     return pos < line.size() ? line[pos] : '\0';
   }
@@ -57,7 +58,7 @@ struct RubyParser {
       .brace_level = 1,
       .lit_brace_level = 0,
       .state = RubyState::RubyInternalState::NONE,
-      .flags = 0,
+      .flags = RubyState::RubyInternalState::EXPECTING_EXPRESSION,
       .delim_start = '\0',
       .delim_end = '\0'
     };

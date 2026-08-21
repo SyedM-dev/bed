@@ -24,9 +24,6 @@ struct Parser {
   std::pair<ParseState *, ParseState *> split_tree(ParseState *node, uint64_t line);
   ParseState *join_tree(ParseState *a, ParseState *b);
 
-  Scope scope_root;
-  Scope *get_scope(uint64_t);
-
   struct Iterator {
     Parser *p;
     std::optional<vase::Iterator> it;
