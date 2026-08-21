@@ -248,10 +248,10 @@ void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
         continue;
       if (c.leaf->n == c.leaf->cap) {
         uint32_t cap = c.leaf->cap ? c.leaf->cap * 2 : 8;
-        c.leaf->blocks = (uint32_t *)realloc(c.leaf->blocks, cap * sizeof(uint32_t));
+        c.leaf->blocks = (uint16_t *)realloc(c.leaf->blocks, cap * sizeof(uint16_t));
         c.leaf->cap = cap;
       }
-      c.leaf->blocks[c.leaf->n++] = t << 31 | (at - chunk_start);
+      c.leaf->blocks[c.leaf->n++] = t << 15 | (at - chunk_start);
     }
     at++;
   }
@@ -269,7 +269,7 @@ uint64_t Parser::next_closing(uint64_t line) {
   while (c.leaf) {
     auto *leaf = c.leaf;
     for (uint32_t i = 0; i < leaf->n; ++i) {
-      uint32_t block = leaf->blocks[i];
+      uint16_t block = leaf->blocks[i];
       uint32_t pos = block & ParseStateLeaf::LINE_MASK;
       if (first_leaf && pos <= relative)
         continue;
@@ -300,7 +300,7 @@ uint64_t Parser::prev_opening(uint64_t line) {
   while (c.leaf) {
     auto *leaf = c.leaf;
     for (int32_t i = (int32_t)leaf->n - 1; i >= 0; --i) {
-      uint32_t block = leaf->blocks[i];
+      uint16_t block = leaf->blocks[i];
       uint32_t pos = block & ParseStateLeaf::LINE_MASK;
       if (first_leaf && pos >= relative)
         continue;

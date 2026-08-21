@@ -121,9 +121,9 @@ struct ParseStateLeaf : ParseState {
   void *state;
   uint32_t n;
   uint32_t cap;
-  uint32_t *blocks;
-  static constexpr uint32_t IS_CLOSING = 1ull << 31;
-  static constexpr uint32_t LINE_MASK = ~IS_CLOSING;
+  uint16_t *blocks;
+  static constexpr uint16_t IS_CLOSING = 0x8000;
+  static constexpr uint16_t LINE_MASK = 0x7fff;
 };
 
 struct TreeCursor {
