@@ -4,7 +4,7 @@
 
 namespace bed::internal::marks {
 struct MarksEngine {
-  uint64_t marks[1 << UINT8_WIDTH]{UINT64_MAX};
+  uint64_t marks[256];
 
   MarksEngine() {
     for (auto &m : marks)
