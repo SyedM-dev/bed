@@ -66,7 +66,7 @@ std::pair<uint16_t, uint16_t> IO::cursor_position() {
 void IO::cleanup() {
   if (cleaned)
     return;
-  std::string os = "\x1b[?2004l";
+  std::string os = "\x1b[?1000l\x1b[?2004l";
   write_all(STDOUT_FILENO, os.c_str(), os.size());
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
     perror("Can't clean up terminal.");
