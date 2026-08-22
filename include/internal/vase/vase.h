@@ -3,6 +3,7 @@
 #include "buffer/append.h"
 #include "buffer/original.h"
 #include "constants.h"
+#include "definitions.h"
 #include "iterators/line.h"
 #include "pch.h"
 #include "shard.h"
@@ -91,6 +92,9 @@ struct Vase {
   std::vector<Range> regex_search(
     std::string_view pattern, Range range, std::string_view options
   );
+
+  uint64_t find_next(std::string_view pattern, uint64_t start);
+  uint64_t find_prev(std::string_view pattern, uint64_t start);
 
   bool undo();
   bool redo();

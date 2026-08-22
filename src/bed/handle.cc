@@ -94,4 +94,9 @@ void BEd::handle(std::string_view cmd_, bool eof) {
     suffix->handle(*this);
   return;
 }
+
+void BEd::suffix_handle(char s) {
+  if (suffixes[s - 'a'].has_value())
+    suffixes[s - 'a'].value().handle(*this);
+}
 } // namespace bed

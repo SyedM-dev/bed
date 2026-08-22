@@ -34,6 +34,7 @@ struct Buffer {
   void remove(uint64_t start_line, uint64_t end_line);
   void append(std::string text, uint64_t line);
   void print(BEd &ctx, uint64_t start_line, uint64_t end_line);
+  void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line);
   std::string list_string(std::string_view s);
 };
 } // namespace bed::internal::buffer

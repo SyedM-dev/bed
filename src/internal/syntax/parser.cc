@@ -243,15 +243,12 @@ void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
     events.clear();
     lang.parse(&state, it.line, at == 0, &tokens, &events);
     for (const auto &ev : events) {
-      const auto t = uint8_t(ev.ev_type);
-      if (t > ParseEvent::Closing)
-        continue;
       if (c.leaf->n == c.leaf->cap) {
         uint32_t cap = c.leaf->cap ? c.leaf->cap * 2 : 8;
         c.leaf->blocks = (uint16_t *)realloc(c.leaf->blocks, cap * sizeof(uint16_t));
         c.leaf->cap = cap;
       }
-      c.leaf->blocks[c.leaf->n++] = t << 15 | (at - chunk_start);
+      c.leaf->blocks[c.leaf->n++] = ev.closing << 15 | (at - chunk_start);
     }
     at++;
   }

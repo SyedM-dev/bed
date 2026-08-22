@@ -17,6 +17,21 @@ uint64_t Address::resolve(BEd &ctx) {
         line = ctx.active->vase.lines();
       } else if constexpr (std::is_same_v<T, Number>) {
         line = addr.i;
+      } else if constexpr (std::is_same_v<T, Mark>) {
+        line = ctx.active->marks.get(addr.m);
+        if (line == UINT64_MAX)
+          throw address_error("Mark not set.");
+      } else if constexpr (std::is_same_v<T, Regex>) {
+        std::string_view re = addr.re;
+        if (re.size() == 0)
+          re = ctx.last_regex;
+        if (re.size() == 0)
+          throw address_error("No regex given.");
+        if (addr.dir == Direction::Forward)
+          line = ctx.active->vase.find_next(re, ctx.active->line - 1) + 1;
+        else
+          line = ctx.active->vase.find_prev(re, ctx.active->line - 1) + 1;
+        ctx.last_regex = re;
       } else if constexpr (std::is_same_v<T, Block>) {
         uint64_t current_line = ctx.active->line;
         if (ctx.active->vase.lines() > 0 && current_line == 0)

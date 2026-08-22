@@ -29,11 +29,12 @@ Address::Address(std::string &cmd, uint64_t &i) {
     break;
   case '\'': {
     i++;
-    if (i < cmd.size() && 'a' <= cmd[i] && cmd[i] <= 'z')
+    if (i < cmd.size()
+        && (('a' <= cmd[i] && cmd[i] <= 'z') || ('A' <= cmd[i] && cmd[i] <= 'Z')))
       i++;
     else
       throw address_error("Invalid mark.");
-    base = Mark(cmd[i]);
+    base = Mark(cmd[i - 1]);
   } break;
   case '/': {
     i++;
@@ -54,7 +55,9 @@ Address::Address(std::string &cmd, uint64_t &i) {
       else
         i++;
     }
-    base = RegexLine(Direction::Forward, cmd.substr(start, i - start));
+    base = Regex(Direction::Forward, cmd.substr(start, i - start));
+    if (i < cmd.size())
+      i++;
   } break;
   case '?': {
     i++;
@@ -75,7 +78,9 @@ Address::Address(std::string &cmd, uint64_t &i) {
       else
         i++;
     }
-    base = RegexLine(Direction::Backward, cmd.substr(start, i - start));
+    base = Regex(Direction::Backward, cmd.substr(start, i - start));
+    if (i < cmd.size())
+      i++;
   } break;
   case '+': {
     base = Current();

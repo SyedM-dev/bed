@@ -156,4 +156,122 @@ std::vector<Range> Vase::regex_search(
     result.push_back({point_of(match.start), point_of(match.end)});
   return result;
 }
+
+uint64_t Vase::find_next(std::string_view pattern, uint64_t start) {
+  std::vector<RegexMatch> results;
+  int errornumber;
+  PCRE2_SIZE erroroffset;
+  pcre2_code *re = pcre2_compile(
+    (PCRE2_SPTR)pattern.data(),
+    pattern.size(),
+    PCRE2_UTF | PCRE2_EXTENDED,
+    &errornumber,
+    &erroroffset,
+    NULL
+  );
+  if (re == NULL)
+    throw ed_error("Can't compile regex.");
+  pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, nullptr);
+  if (!match_data) {
+    pcre2_code_free(re);
+    throw ed_error("Can't create regex match data.");
+  }
+  uint64_t at = (start + 1) % lines();
+  LineIterator it(root, at, Direction::Forward);
+  std::string line;
+  while (it.next(&line)) {
+    int rc = pcre2_match(re, (PCRE2_SPTR)line.data(), line.size(), 0, 0, match_data, nullptr);
+    if (rc >= 0) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      return at;
+    }
+    if (rc != PCRE2_ERROR_NOMATCH) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      throw ed_error("Regex matching failed.");
+    }
+    at++;
+  }
+  at = 0;
+  LineIterator it2(root, at, Direction::Forward);
+  while (it2.next(&line)) {
+    if (at >= start)
+      break;
+    int rc = pcre2_match(re, (PCRE2_SPTR)line.data(), line.size(), 0, 0, match_data, nullptr);
+    if (rc >= 0) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      return at;
+    }
+    if (rc != PCRE2_ERROR_NOMATCH) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      throw ed_error("Regex matching failed.");
+    }
+    at++;
+  }
+  pcre2_match_data_free(match_data);
+  pcre2_code_free(re);
+  throw ed_error("No line matched.");
+}
+
+uint64_t Vase::find_prev(std::string_view pattern, uint64_t start) {
+  std::vector<RegexMatch> results;
+  int errornumber;
+  PCRE2_SIZE erroroffset;
+  pcre2_code *re = pcre2_compile(
+    (PCRE2_SPTR)pattern.data(),
+    pattern.size(),
+    PCRE2_UTF | PCRE2_EXTENDED,
+    &errornumber,
+    &erroroffset,
+    NULL
+  );
+  if (re == NULL)
+    throw ed_error("Can't compile regex.");
+  pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, nullptr);
+  if (!match_data) {
+    pcre2_code_free(re);
+    throw ed_error("Can't create regex match data.");
+  }
+  uint64_t at = (start == 0 ? lines() : start) - 1;
+  LineIterator it(root, at, Direction::Backward);
+  std::string line;
+  while (it.next(&line)) {
+    int rc = pcre2_match(re, (PCRE2_SPTR)line.data(), line.size(), 0, 0, match_data, nullptr);
+    if (rc >= 0) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      return at;
+    }
+    if (rc != PCRE2_ERROR_NOMATCH) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      throw ed_error("Regex matching failed.");
+    }
+    at--;
+  }
+  at = lines();
+  LineIterator it2(root, at, Direction::Backward);
+  while (it2.next(&line)) {
+    if (at <= start)
+      break;
+    int rc = pcre2_match(re, (PCRE2_SPTR)line.data(), line.size(), 0, 0, match_data, nullptr);
+    if (rc >= 0) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      return at;
+    }
+    if (rc != PCRE2_ERROR_NOMATCH) {
+      pcre2_match_data_free(match_data);
+      pcre2_code_free(re);
+      throw ed_error("Regex matching failed.");
+    }
+    at--;
+  }
+  pcre2_match_data_free(match_data);
+  pcre2_code_free(re);
+  throw ed_error("No line matched.");
+}
 } // namespace bed::internal::vase

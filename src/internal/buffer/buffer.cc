@@ -64,8 +64,6 @@ void Buffer::jump(uint64_t n_line) {
   if (n_line > vase.lines())
     throw ed_error("Line number too high.");
   line = n_line;
-  prev_range.start = line;
-  prev_range.end = line;
 }
 
 void Buffer::append(std::string text, uint64_t line) {
@@ -82,6 +80,9 @@ void Buffer::append(std::string text, uint64_t line) {
   prev_range.start = p.row + 1;
   vase.insert(&p, text);
   prev_range.end = p.row + 1;
+  marks.insert(prev_range.start, prev_range.end);
+  if (parser)
+    parser->insert(vase, prev_range.start, prev_range.end);
   modified = true;
 }
 
@@ -89,6 +90,9 @@ void Buffer::remove(uint64_t start_line, uint64_t end_line) {
   vase.erase({{start_line - 1, 0}, {end_line, 0}});
   prev_range.start = start_line;
   prev_range.end = start_line;
+  marks.erase(start_line, end_line - start_line + 1);
+  if (parser)
+    parser->erase(vase, start_line, end_line - start_line + 1);
   modified = true;
 }
 
@@ -96,6 +100,9 @@ void Buffer::join(uint64_t start_line, uint64_t end_line) {
   vase.regex_search_replace(R"(\n)", {{start_line - 1, 0}, {end_line, 0}}, "", "g");
   prev_range.start = start_line;
   prev_range.end = start_line;
+  marks.collapse(start_line, end_line - start_line);
+  if (parser)
+    parser->erase(vase, start_line, end_line - start_line);
   modified = true;
 }
 
@@ -132,6 +139,8 @@ inline void reset(std::ostream &out) {
 }
 
 void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+  prev_range.start = start_line;
+  prev_range.end = end_line;
   if (parser) {
     std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(vase, start_line - 1);
     auto &it = *it_o;
@@ -169,8 +178,52 @@ void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
     while (it.next() && start_line++ <= end_line)
       std::cout << it.line << std::endl;
   }
+}
+
+void Buffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   prev_range.start = start_line;
   prev_range.end = end_line;
+  uint8_t width = 1;
+  for (uint64_t n = end_line; n >= 10; n /= 10)
+    ++width;
+  if (parser) {
+    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(vase, start_line - 1);
+    auto &it = *it_o;
+    while (start_line <= end_line) {
+      it.next();
+      std::cout << std::setw(width) << it.at << "\t";
+      const std::string &line = it.it->line;
+      const auto &tokens = it.tokens;
+      uint32_t cursor = 0;
+      for (const auto &token : tokens) {
+        const uint32_t start = token.start;
+        const uint32_t end = token.end;
+        if (start > line.size())
+          break;
+        if (end > line.size())
+          break;
+        if (cursor < start) {
+          std::cout.write(
+            line.data() + cursor,
+            start - cursor
+          );
+        }
+        const auto highlight = ctx.theme.get(token);
+        apply(std::cout, highlight);
+        std::cout.write(line.data() + start, end - start);
+        reset(std::cout);
+        cursor = end;
+      }
+      if (cursor < line.size())
+        std::cout.write(line.data() + cursor, line.size() - cursor);
+      std::cout << std::endl;
+      ++start_line;
+    }
+  } else {
+    vase::Iterator it = vase.iterate(start_line - 1, Direction::Forward);
+    while (it.next() && start_line <= end_line)
+      std::cout << std::setw(width) << start_line++ << "\t" << it.line << std::endl;
+  }
 }
 
 std::string Buffer::list_string(std::string_view s) {

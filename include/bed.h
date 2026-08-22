@@ -31,5 +31,6 @@ struct BEd {
   ~BEd();
   void handle(std::string_view cmd, bool eof);
   void run();
+  void suffix_handle(char s);
 };
 } // namespace bed

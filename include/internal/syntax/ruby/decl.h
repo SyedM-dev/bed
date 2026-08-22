@@ -5,15 +5,6 @@
 #include "tries.h"
 
 namespace bed::internal::syntax::ruby {
-enum struct ScopeTypes : uint8_t {
-  None,
-  Comment,
-  Method,
-  Class,
-  Module,
-  Block
-};
-
 struct alignas(2) RubyState {
   struct RubyInternalState {
     uint16_t brace_level;

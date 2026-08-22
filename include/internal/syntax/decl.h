@@ -69,17 +69,8 @@ struct Token {
 };
 
 struct ParseEvent {
-  std::string_view name;
-  enum T : uint8_t {
-    Opening,
-    Closing,
-    SymbolDef,
-    Symbol
-  } ev_type;
-  uint8_t type; // type.
-
-  ParseEvent(T t) : ev_type(t) {}
-  ParseEvent(T e_t, std::string_view s, uint8_t type) : name(s), ev_type(e_t), type(type) {}
+  uint8_t closing;
+  ParseEvent(uint8_t t) : closing(t) {}
 };
 
 struct Language {
@@ -88,16 +79,6 @@ struct Language {
   std::function<void *(void *)> copy;
   std::function<bool(void *, void *)> equal;
   std::function<void(void *)> destroy;
-};
-
-struct Symbol {
-  uint32_t definition;
-  uint16_t reference_count;
-  uint8_t type;
-  uint8_t len;
-  // first chars of count len, padded to 4 bytes.
-  // then a set of references. 32bit
-  // references later as modifying at end is faster than shifting the name.
 };
 
 struct ParseState {

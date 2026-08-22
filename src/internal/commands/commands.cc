@@ -9,6 +9,15 @@ void Suffix::register_suffixes(BEd &ctx) {
     .handle = [](BEd &ctx) {
       auto line = ctx.active->line;
       ctx.active->print(ctx, line, line);
+      ctx.active->jump(line);
+    }
+  };
+  ctx.suffixes['n' - 'a'] = Suffix{
+    .desc = "Prints current line with line number.",
+    .handle = [](BEd &ctx) {
+      auto line = ctx.active->line;
+      ctx.active->number_print(ctx, line, line);
+      ctx.active->jump(line);
     }
   };
 }
@@ -56,6 +65,26 @@ void Command::register_posix(BEd &ctx) {
     }
   );
   ctx.commands.insert(
+    "j",
+    Command{
+      .address_mode = Command::AddressMode::Range,
+      .suffix = Command::SuffixKind::Suffix,
+      .desc = "Join a set of lines (default: .,.+1)",
+      .accept_zero = true,
+      .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
+        std::cout << addresses.size() << "\n";
+        uint64_t start_line = ctx.active->line;
+        uint64_t end_line = ctx.active->line + 1;
+        if (addresses.size() == 1)
+          return;
+        else if (addresses.size() == 2)
+          start_line = addresses[0], end_line = addresses[1];
+        ctx.active->join(start_line, end_line);
+        ctx.active->jump(start_line);
+      }
+    }
+  );
+  ctx.commands.insert(
     "q",
     Command{
       .address_mode = Command::AddressMode::None,
@@ -92,27 +121,67 @@ void Command::register_posix(BEd &ctx) {
       .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
         uint64_t start_line = ctx.active->line;
         uint64_t end_line = ctx.active->line;
-        if (!addresses.size())
-          ctx.active->print(ctx, start_line, end_line);
-        else if (addresses.size() == 1)
-          ctx.active->print(ctx, addresses[0], addresses[0]);
-        else
-          ctx.active->print(ctx, addresses[0], addresses[1]);
+        if (addresses.size() == 1)
+          start_line = addresses[0], end_line = addresses[0];
+        else if (addresses.size() == 2)
+          start_line = addresses[0], end_line = addresses[1];
+        ctx.active->print(ctx, start_line, end_line);
+        ctx.active->jump(end_line);
+      }
+    }
+  );
+  ctx.commands.insert(
+    "n",
+    Command{
+      .address_mode = Command::AddressMode::Range,
+      .suffix = Command::SuffixKind::Suffix,
+      .desc = "Print range with line numbers (default .,.)",
+      .accept_zero = false,
+      .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
+        uint64_t start_line = ctx.active->line;
+        uint64_t end_line = ctx.active->line;
+        if (addresses.size() == 1)
+          start_line = addresses[0], end_line = addresses[0];
+        else if (addresses.size() == 2)
+          start_line = addresses[0], end_line = addresses[1];
+        ctx.active->number_print(ctx, start_line, end_line);
+        ctx.active->jump(end_line);
       }
     }
   );
   ctx.commands.insert(
     "=",
     Command{
-      .address_mode = Command::AddressMode::Single,
+      .address_mode = Command::AddressMode::Range,
       .suffix = Command::SuffixKind::Suffix,
-      .desc = "Print line number",
+      .desc = "Print line number(s)",
       .accept_zero = true,
       .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
         if (!addresses.size())
           std::cout << ctx.active->vase.lines() << std::endl;
-        else
+        else if (addresses.size() == 1)
           std::cout << addresses[0] << std::endl;
+        else
+          std::cout << addresses[0] << "," << addresses[1] << std::endl;
+      }
+    }
+  );
+  ctx.commands.insert(
+    "k",
+    Command{
+      .address_mode = Command::AddressMode::Single,
+      .suffix = Command::SuffixKind::Continuation,
+      .desc = "Mark a line.",
+      .accept_zero = true,
+      .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view args) {
+        if (args.size() < 1 || args.size() > 2)
+          throw ed_error("Malformed mark command");
+        if (addresses.size())
+          ctx.active->marks.set(args[0], addresses[0]);
+        else
+          ctx.active->marks.set(args[0], ctx.active->line);
+        if (args.size() > 1)
+          ctx.suffix_handle(args[1]);
       }
     }
   );

@@ -41,15 +41,9 @@ struct Address {
     char m;
   };
 
-  struct RegexLine { // /re/ or ?re?
+  struct Regex { // /re/ or ?re?
     internal::Direction dir;
     std::string re;
-  };
-
-  // BEd Extended types of addressing.
-  struct Regex {             // &/re/ or &?re?
-    internal::Direction dir; // returns next/previous line containing the regex
-    std::string re;          // (not only if it matches full line)
   };
 
   struct Diagnostic { // #n# for diagnostic number n. (From lsp.)
@@ -91,7 +85,6 @@ struct Address {
     Last,
     Number,
     Mark,
-    RegexLine,
     Regex,
     Diagnostic,
     DiagnosticNext,
