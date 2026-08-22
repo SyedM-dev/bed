@@ -72,7 +72,6 @@ void Command::register_posix(BEd &ctx) {
       .desc = "Join a set of lines (default: .,.+1)",
       .accept_zero = true,
       .handle = [](BEd &ctx, std::span<const uint64_t> addresses, std::string_view) {
-        std::cout << addresses.size() << "\n";
         uint64_t start_line = ctx.active->line;
         uint64_t end_line = ctx.active->line + 1;
         if (addresses.size() == 1)

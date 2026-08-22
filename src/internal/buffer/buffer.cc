@@ -106,7 +106,7 @@ void Buffer::join(uint64_t start_line, uint64_t end_line) {
   modified = true;
 }
 
-inline void apply(std::ostream &out, const theme::Highlight &hl) {
+inline void apply(std::ostream &out, const Highlight &hl) {
   out << "\x1b[0m";
   const uint8_t r = (hl.fg >> 16) & 0xff;
   const uint8_t g = (hl.fg >> 8) & 0xff;
@@ -124,13 +124,13 @@ inline void apply(std::ostream &out, const theme::Highlight &hl) {
         << (unsigned)bg << ';'
         << (unsigned)bb << 'm';
   }
-  if (hl.flags & theme::Highlight::Bold)
+  if (hl.flags & Highlight::Bold)
     out << "\x1b[1m";
-  if (hl.flags & theme::Highlight::Italic)
+  if (hl.flags & Highlight::Italic)
     out << "\x1b[3m";
-  if (hl.flags & theme::Highlight::Underline)
+  if (hl.flags & Highlight::Underline)
     out << "\x1b[4m";
-  if (hl.flags & theme::Highlight::Strikethrough)
+  if (hl.flags & Highlight::Strikethrough)
     out << "\x1b[9m";
 }
 

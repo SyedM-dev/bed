@@ -1,8 +1,8 @@
 #include "bed.h"
 
 namespace bed {
-BEd::BEd(std::vector<std::string> args)
-    : theme(internal::theme::Theme::default_theme()) {
+BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
+    : theme(internal::theme::Theme::default_theme()), io(io) {
   internal::commands::Command::register_posix(*this);
   internal::commands::Suffix::register_suffixes(*this);
   std::string prompt_ = "";
@@ -40,10 +40,7 @@ BEd::~BEd() {
 
 void BEd::run() {
   while (true) {
-    std::string cmd;
-    if (prompt_mode)
-      std::cout << prompt(*this);
-    bool eof = !std::getline(std::cin, cmd);
+    auto [cmd, eof] = io.get_command(*this);
     try {
       handle(cmd, eof);
     } catch (ed_error &e) {
