@@ -71,6 +71,6 @@ uint64_t Address::resolve(BEd &ctx) {
     base
   );
 
-  return result + offset;
+  return result;
 }
 }; // namespace bed::internal::address

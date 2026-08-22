@@ -14,7 +14,6 @@ struct Address {
   // it expands in theory to a Num,Num and so can be followed by chaining more adresses the ed way.
   // this is handled and resolved by the handle function,
   // the constuctor and resolve etc. are also only called in the handle function,
-  // i.e. handle is the only public facing API from this namespace & class for now.
   //
   // in case of any issue an instance of address_error(const char *) is thrown.
 
@@ -46,6 +45,7 @@ struct Address {
     std::string re;
   };
 
+  // extended types
   struct Diagnostic { // #n# for diagnostic number n. (From lsp.)
     uint16_t n;
   };

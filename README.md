@@ -40,21 +40,8 @@ An ed implementation (mostly posix compliant) but with:
 - Internal buffer:
     - Super fast and memory efficient buffer implementation done.
     - Loading from files/subshell commands done.
-- Most of the posix ed commands except regex ones done.
-
-### Modules
-
-#### `Vase`
-
-Vase is a avl piece tree like structure which handles loading, insertion, erasure, regex searching, regex replacing etc.
-<br/>
-done.
-
-#### `hl`
-
-`hl` is a stateful super fast syntax highlighter.
-<br/>
-mostly done.
+- Syntax highlighter and block parser system done.
+- All ed addressing modes and block addressing done (also `%`).
 
 #### `lsp`
 

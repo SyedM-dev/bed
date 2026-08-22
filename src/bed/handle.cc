@@ -57,7 +57,6 @@ void BEd::handle(std::string_view cmd_, bool eof) {
       if (suffixes[cmd[i] - 'a'].has_value())
         suffix = &(suffixes[cmd[i++] - 'a'].value());
       skip_space();
-      std::cout << i << " " << cmd << std::endl;
       if (i < cmd.size())
         throw ed_error("Command error.");
     }
