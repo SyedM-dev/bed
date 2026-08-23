@@ -252,7 +252,7 @@ uint64_t Vase::find_prev(std::string_view pattern, uint64_t start) {
     }
     at--;
   }
-  at = lines();
+  at = lines() - 1;
   LineIterator it2(root, at, Direction::Backward);
   while (it2.next(&line)) {
     if (at <= start)
