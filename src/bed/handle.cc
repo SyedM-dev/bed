@@ -90,12 +90,12 @@ void BEd::handle(std::string_view cmd_, bool eof) {
     break;
   }
   if (suffix)
-    suffix->handle(*this);
+    suffix->handle(*this, active->prev_range.values());
   return;
 }
 
 void BEd::suffix_handle(char s) {
   if (suffixes[s - 'a'].has_value())
-    suffixes[s - 'a'].value().handle(*this);
+    suffixes[s - 'a'].value().handle(*this, active->prev_range.values());
 }
 } // namespace bed

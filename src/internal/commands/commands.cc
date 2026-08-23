@@ -6,18 +6,14 @@ namespace bed::internal::commands {
 void Suffix::register_suffixes(BEd &ctx) {
   ctx.suffixes['p' - 'a'] = Suffix{
     .desc = "Prints current line.",
-    .handle = [](BEd &ctx) {
-      auto line = ctx.active->line;
-      ctx.active->print(ctx, line, line);
-      ctx.active->jump(line);
+    .handle = [](BEd &ctx, std::span<const uint64_t> addresses) {
+      ctx.active->print(ctx, addresses[0], addresses[1]);
     }
   };
   ctx.suffixes['n' - 'a'] = Suffix{
     .desc = "Prints current line with line number.",
-    .handle = [](BEd &ctx) {
-      auto line = ctx.active->line;
-      ctx.active->number_print(ctx, line, line);
-      ctx.active->jump(line);
+    .handle = [](BEd &ctx, std::span<const uint64_t> addresses) {
+      ctx.active->number_print(ctx, addresses[0], addresses[1]);
     }
   };
 }

@@ -16,9 +16,13 @@ struct Buffer {
   uint64_t line = 0;
   bool modified;
   std::filesystem::path save_path = "";
+
   struct {
     uint64_t start{0};
     uint64_t end{0};
+    std::span<const uint64_t> values() const {
+      return {&start, 2};
+    }
   } prev_range;
 
   Buffer();
