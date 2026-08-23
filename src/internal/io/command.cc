@@ -3,12 +3,16 @@
 
 namespace bed::internal::io {
 std::pair<std::string, bool> IO::get_command(BEd &ctx) {
-  auto [row, col] = cursor_position();
-  auto [rows, cols] = terminal_size();
-  if (row > rows)
-    throw fatal_error("Invalid cursor position.", 1);
-  uint16_t start = row;
-  uint16_t height = rows - row + 1;
+  uint16_t start;
+  uint16_t height;
+  {
+    auto [row, col] = cursor_position();
+    auto [rows, cols] = terminal_size();
+    if (row > rows)
+      throw fatal_error("Invalid cursor position.", 1);
+    start = row;
+    height = rows - row + 1;
+  }
   // uint16_t width = cols;
   // TODO: support multiline wrapped commands.
   // also handle ctrl+l to try and clear screen.
@@ -33,6 +37,18 @@ std::pair<std::string, bool> IO::get_command(BEd &ctx) {
 
   while (true) {
     KeyEvent ev = read_key();
+    if (ev.type == KeyEvent::KeyType::RESIZE) {
+      {
+        auto [row, col] = cursor_position();
+        auto [rows, cols] = terminal_size();
+        if (row > rows)
+          throw fatal_error("Invalid cursor position.", 1);
+        start = row;
+        height = rows - row + 1;
+      }
+      redraw();
+      continue;
+    }
     if (
       (ev.type == KeyEvent::KeyType::CHAR
        && ev.modifier == KeyEvent::Modifier::CTRL
@@ -123,6 +139,21 @@ std::pair<std::string, bool> IO::get_command(BEd &ctx) {
           if (ev.type == KeyEvent::KeyType::NONE) {
             go_ahead = false;
             break;
+          }
+          if (ev.type == KeyEvent::KeyType::RESIZE) {
+            {
+              auto [row, col] = cursor_position();
+              auto [rows, cols] = terminal_size();
+              if (row - 1 > rows)
+                throw fatal_error("Invalid cursor position.", 1);
+              start = row - 1;
+              height = rows - row;
+            }
+            redraw();
+            move_cursor(start + 1, 1);
+            write_all(STDOUT_FILENO, "\x1b[2K", 4);
+            write_all(STDOUT_FILENO, msg.c_str(), msg.size());
+            continue;
           }
         }
         move_cursor(start + 1, 1);

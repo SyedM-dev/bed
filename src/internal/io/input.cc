@@ -1,13 +1,22 @@
 #include "internal/io/io.h"
 
 namespace bed::internal::io {
-bool IO::get_next_byte(char &out) {
+KeyEvent::ReadResult IO::get_next_byte(char &out) {
   if (!input_queue.empty()) {
     out = input_queue.front();
     input_queue.pop_front();
-    return true;
+    return KeyEvent::ReadResult::SUCCESS;
   }
-  return read(STDIN_FILENO, &out, 1) == 1;
+  if (resized.load())
+    return KeyEvent::ReadResult::RESIZE;
+  ssize_t n = read(STDIN_FILENO, &out, 1);
+  if (n == 1)
+    return KeyEvent::ReadResult::SUCCESS;
+  if (n == -1 && errno == EINTR && resized.load())
+    return KeyEvent::ReadResult::RESIZE;
+  if (n == -1 && errno == EINTR)
+    return get_next_byte(out);
+  return KeyEvent::ReadResult::EOF_;
 }
 
 void IO::enqueue_bytes(const std::string &bytes) {
@@ -26,64 +35,66 @@ int IO::utf8_seq_len(uint8_t byte) {
   return 1;
 }
 
-std::string IO::read_next_unit() {
-  std::string buf;
+KeyEvent::ReadResult IO::read_next_unit(std::string &out) {
+  out.clear();
   char header;
-  if (!get_next_byte(header))
-    return buf;
+  KeyEvent::ReadResult res = get_next_byte(header);
+  if (res != KeyEvent::ReadResult::SUCCESS)
+    return res;
   if (header == '\x1b') {
-    buf.push_back(header);
+    out.push_back(header);
     char c;
-    if (!get_next_byte(c))
-      return buf;
-    buf.push_back(c);
+    if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS)
+      return res;
+    out.push_back(c);
     if (c != '[')
-      return buf;
-    if (!get_next_byte(c))
-      return buf;
-    buf.push_back(c);
+      return KeyEvent::ReadResult::SUCCESS;
+    if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS)
+      return res;
+    out.push_back(c);
     if (c == 'M') {
       for (int i = 0; i < 3; ++i) {
-        if (!get_next_byte(c))
-          break;
-        buf.push_back(c);
+        if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS)
+          return res;
+        out.push_back(c);
       }
-      return buf;
+      return KeyEvent::ReadResult::SUCCESS;
     }
     while ((uint8_t)c < 0x40 || (uint8_t)c > 0x7E) {
-      if (buf.size() >= 32)
+      if (out.size() >= 32)
         break;
-      if (!get_next_byte(c))
-        break;
-      buf.push_back(c);
+      if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS)
+        return res;
+      out.push_back(c);
     }
-    return buf;
+    return KeyEvent::ReadResult::SUCCESS;
   }
   int seq_len = utf8_seq_len((uint8_t)header);
-  buf.push_back(header);
+  out.push_back(header);
   if (seq_len == 1)
-    return buf;
+    return KeyEvent::ReadResult::SUCCESS;
   for (int i = 1; i < seq_len; i++) {
     char c;
-    if (!get_next_byte(c)) {
-      enqueue_bytes(buf);
-      return {};
+    if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS) {
+      enqueue_bytes(out);
+      out.clear();
+      return res;
     }
-    buf.push_back(c);
+    out.push_back(c);
   }
   uint32_t prev_cp, cur_cp;
-  grapheme_decode_utf8(buf.data(), buf.size(), &prev_cp);
+  grapheme_decode_utf8(out.data(), out.size(), &prev_cp);
   uint16_t state = 0;
   while (true) {
     char next_header;
-    if (!get_next_byte(next_header))
+    if ((res = get_next_byte(next_header)) != KeyEvent::ReadResult::SUCCESS)
       break;
     int next_len = utf8_seq_len((uint8_t)next_header);
     std::string next_seq(1, next_header);
     bool complete = true;
     for (int i = 1; i < next_len; i++) {
       char c;
-      if (!get_next_byte(c)) {
+      if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS) {
         complete = false;
         break;
       }
@@ -98,26 +109,27 @@ std::string IO::read_next_unit() {
       enqueue_bytes(next_seq);
       break;
     }
-    buf += next_seq;
+    out += next_seq;
     prev_cp = cur_cp;
   }
-  return buf;
+  return KeyEvent::ReadResult::SUCCESS;
 }
 
-bool IO::read_bracketed_paste(std::string &out) {
+KeyEvent::ReadResult IO::read_bracketed_paste(std::string &out) {
+  KeyEvent::ReadResult res = KeyEvent::ReadResult::SUCCESS;
   out.clear();
   std::string window;
   while (true) {
     char c;
-    if (!get_next_byte(c))
-      return false;
+    if ((res = get_next_byte(c)) != KeyEvent::ReadResult::SUCCESS)
+      return res;
     window.push_back(c);
     if (window.size() == 5 && window == "\x1b[201") {
       char tilde;
-      if (!get_next_byte(tilde))
-        return false;
+      if ((res = get_next_byte(tilde)) != KeyEvent::ReadResult::SUCCESS)
+        return res;
       if (tilde == '~')
-        return true;
+        return res;
       out += window;
       out.push_back(tilde);
       window.clear();
@@ -199,32 +211,45 @@ KeyEvent IO::parse_escape(const std::string &buf) {
 
 KeyEvent IO::read_key() {
   while (true) {
-    std::string buf = read_next_unit();
-    if (buf.empty()) {
-      KeyEvent ev;
+    std::string buf;
+    auto res = read_next_unit(buf);
+    KeyEvent ev;
+    switch (res) {
+    case KeyEvent::ReadResult::EOF_:
       ev.type = KeyEvent::KeyType::NONE;
       return ev;
+    case KeyEvent::ReadResult::RESIZE:
+      resized.store(false);
+      ev.type = KeyEvent::KeyType::RESIZE;
+      return ev;
+    case KeyEvent::ReadResult::SUCCESS:
+      break;
     }
     if (buf.size() >= 6 && buf[0] == '\x1b' && buf[1] == '[' && buf.compare(2, 4, "200~") == 0) {
-      KeyEvent ev;
       std::string pasted;
-      if (read_bracketed_paste(pasted)) {
+      switch (read_bracketed_paste(pasted)) {
+      case KeyEvent::ReadResult::SUCCESS:
         ev.type = KeyEvent::KeyType::PASTE;
         ev.text = std::move(pasted);
-      } else {
+        break;
+      case KeyEvent::ReadResult::EOF_:
         ev.type = KeyEvent::KeyType::NONE;
+        break;
+      case KeyEvent::ReadResult::RESIZE:
+        resized.store(false);
+        ev.type = KeyEvent::KeyType::RESIZE;
+        break;
       }
       return ev;
     }
     if (buf.size() >= 3 && buf[0] == '\x1b' && buf[1] == '[' && buf[2] == 'M') {
-      KeyEvent ev = parse_mouse(buf);
+      ev = parse_mouse(buf);
       if (ev.type == KeyEvent::KeyType::NONE)
         continue;
       return ev;
     }
     if (buf.size() >= 2 && buf[0] == '\x1b' && buf[1] == '[')
       return parse_escape(buf);
-    KeyEvent ev;
     ev.type = KeyEvent::KeyType::CHAR;
     ev.modifier = KeyEvent::Modifier::NONE;
     if (buf.size() == 1) {

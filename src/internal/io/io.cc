@@ -3,11 +3,17 @@
 namespace bed::internal::io {
 termios IO::orig_termios{};
 bool IO::cleaned = false;
+volatile std::atomic_bool IO::resized(false);
 
 IO::IO() {
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
     throw fatal_error("Can't get terminal state.", 1);
-  atexit(cleanup);
+  struct sigaction sa{};
+  sa.sa_handler = handle_sigwinch;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  if (sigaction(SIGWINCH, &sa, nullptr) == -1)
+    throw fatal_error("Can't install SIGWINCH handler.", 1);
   struct termios raw = orig_termios;
   raw.c_iflag &= ~(BRKINT | ISTRIP | IXON);
   raw.c_cflag |= (CS8);
@@ -18,6 +24,7 @@ IO::IO() {
     throw fatal_error("Can't set terminal state.", 1);
   std::string os = "\x1b[?2004h";
   write_all(STDOUT_FILENO, os.c_str(), os.size());
+  atexit(cleanup);
 }
 
 IO::~IO() {
@@ -71,6 +78,10 @@ void IO::cleanup() {
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
     perror("Can't clean up terminal.");
   cleaned = true;
+}
+
+void IO::handle_sigwinch(int) {
+  resized.store(true);
 }
 
 void IO::move_cursor(uint16_t row, uint16_t col) {
