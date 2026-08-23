@@ -6,6 +6,10 @@ namespace bed::internal::trie {
 template <typename T = void>
 struct Trie {
   using V = std::conditional_t<std::is_void_v<T>, std::monostate, T>;
+  using SearchResult = std::conditional_t<
+    std::is_void_v<T>,
+    std::string,
+    std::pair<std::string, V &>>;
 
   struct Node {
     std::string edge;
@@ -113,8 +117,8 @@ struct Trie {
     return true;
   }
 
-  std::vector<std::string> search(std::string_view prefix) {
-    std::vector<std::string> result;
+  std::vector<SearchResult> search(std::string_view prefix) {
+    std::vector<SearchResult> result;
     Node *current = &root;
     std::string key;
     uint64_t pos = 0;
@@ -145,10 +149,15 @@ struct Trie {
   static void collect(
     const Node &node,
     std::string &key,
-    std::vector<std::string> &result
+    std::vector<SearchResult> &result
   ) {
-    if (node.value)
-      result.push_back(key);
+    if (node.value) {
+      if constexpr (std::is_void_v<T>) {
+        result.push_back(key);
+      } else {
+        result.emplace_back(key, *node.value);
+      }
+    }
     for (auto *child : node.children) {
       const auto old_size = key.size();
       key += child->edge;
