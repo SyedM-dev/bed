@@ -14,6 +14,7 @@ void Shard::release(Shard *n) {
     release(((Branch *)n)->right);
     delete (Branch *)n;
   } else {
+    ((Petal *)n)->source->release();
     delete (Petal *)n;
   }
 }
@@ -200,28 +201,27 @@ Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
   return node;
 }
 
-Shard *Shard::from_command(const char *cmd, OriginalBuffer *o, bool posix_ending) {
+Shard *Shard::from_command(const char *cmd, bool posix_ending) {
+  auto o = new OriginalStorage("/tmp");
   int dest_fd = o->fd;
-  if (dest_fd == -1)
+  if (dest_fd == -1) {
+    delete o;
     return nullptr;
-
+  }
   FILE *pipe = popen(cmd, "r");
-  if (!pipe)
+  if (!pipe) {
+    delete o;
     return nullptr;
-
+  }
   std::vector<Shard *> pieces;
   pieces.reserve(16);
-
   uint64_t pos = 0;
   char buf[PETAL_SIZE_MAX];
   uint64_t buf_cursor = 0;
-
   char ending[2] = {'\0', '\0'};
-
   while (true) {
     size_t got = fread(buf + buf_cursor, 1, sizeof(buf) - buf_cursor, pipe);
     buf_cursor += got;
-
     if (buf_cursor == PETAL_SIZE_MAX || feof(pipe)) {
       if (buf_cursor == 0)
         break;
@@ -244,6 +244,7 @@ Shard *Shard::from_command(const char *cmd, OriginalBuffer *o, bool posix_ending
       }
       if (!write_all(dest_fd, buf, buf_cursor)) {
         pclose(pipe);
+        delete o;
         return nullptr;
       }
       pieces.push_back(new Petal(buf_cursor, lines, o, pos));
@@ -251,19 +252,24 @@ Shard *Shard::from_command(const char *cmd, OriginalBuffer *o, bool posix_ending
     }
     if (feof(pipe))
       break;
-    if (ferror(pipe))
+    if (ferror(pipe)) {
+      delete o;
       return nullptr;
+    }
   }
-
   int status = pclose(pipe);
-  if (status == -1)
+  if (status == -1) {
+    delete o;
     return nullptr;
-  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0)
+  }
+  if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    delete o;
     return nullptr;
-
-  if (pieces.empty())
+  }
+  if (pieces.empty()) {
+    delete o;
     return nullptr;
-
+  }
   if (posix_ending) {
     if (ending[1] == '\n') {
       Petal *last = (Petal *)pieces.back();
@@ -280,52 +286,58 @@ Shard *Shard::from_command(const char *cmd, OriginalBuffer *o, bool posix_ending
         last->length--;
     }
   }
-
   o->initialize();
-
   if (pieces.size() == 1)
     return pieces[0];
-
   return build(pieces.data(), 0, pieces.size());
 }
 
-Shard *Shard::from_file(std::filesystem::path &path, OriginalBuffer *o, bool posix_ending) {
+Shard *Shard::from_file(const std::filesystem::path &path, bool posix_ending) {
+  auto o = new OriginalStorage("/tmp");
   int dest_fd = o->fd;
-  if (dest_fd == -1)
+  if (dest_fd == -1) {
+    delete o;
     return nullptr;
+  }
   int src_fd = open(path.c_str(), O_RDONLY);
-  if (src_fd == -1)
+  if (src_fd == -1) {
+    delete o;
     return nullptr;
-
+  }
   uint64_t total = std::filesystem::file_size(path);
   if (posix_ending && total > 0) {
     char last;
-    if (pread(src_fd, &last, 1, (off_t)(total - 1)) != 1)
+    if (pread(src_fd, &last, 1, (off_t)(total - 1)) != 1) {
+      delete o;
       return nullptr;
+    }
     if (last == '\n') {
       total--;
       if (total > 0) {
         char s_last;
-        if (pread(src_fd, &s_last, 1, (off_t)(total - 1)) != 1)
+        if (pread(src_fd, &s_last, 1, (off_t)(total - 1)) != 1) {
+          delete o;
           return nullptr;
+        }
         if (s_last == '\r')
           total--;
       }
     }
   }
-  if (total == 0)
+  if (total == 0) {
+    delete o;
     return nullptr;
-
+  }
   std::vector<Shard *> pieces;
   uint64_t pos = 0;
   pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);
   char buf[PETAL_SIZE_MAX];
-
   while (pos < total) {
     uint64_t want = std::min(PETAL_SIZE_MAX, total - pos);
     ssize_t got = pread(src_fd, buf, want, pos);
     if (got <= 0) {
       close(src_fd);
+      delete o;
       return nullptr;
     }
     uint64_t take = (uint64_t)got;
@@ -341,19 +353,70 @@ Shard *Shard::from_file(std::filesystem::path &path, OriginalBuffer *o, bool pos
     }
     if (!write_all(dest_fd, buf, take)) {
       close(src_fd);
+      delete o;
       return nullptr;
     }
     pieces.push_back(new Petal(take, lines, o, pos));
     pos += take;
   }
-
   close(src_fd);
-
-  if (pieces.empty())
+  if (pieces.empty()) {
+    delete o;
     return nullptr;
-
+  }
   o->initialize();
+  if (pieces.size() == 1)
+    return pieces[0];
+  return build(pieces.data(), 0, pieces.size());
+}
 
+Shard *Shard::from_string(const char *data, uint64_t len, bool posix_ending) {
+  auto o = new OriginalStorage("/tmp");
+  int dest_fd = o->fd;
+  if (dest_fd == -1 || data == nullptr) {
+    delete o;
+    return nullptr;
+  }
+  uint64_t total = len;
+  if (posix_ending && total > 0) {
+    if (data[total - 1] == '\n') {
+      total--;
+      if (total > 0 && data[total - 1] == '\r')
+        total--;
+    }
+  }
+  if (total == 0) {
+    delete o;
+    return nullptr;
+  }
+  std::vector<Shard *> pieces;
+  uint64_t pos = 0;
+  pieces.reserve((total + PETAL_SIZE_MAX - 1) / PETAL_SIZE_MAX);
+  while (pos < total) {
+    uint64_t take = std::min(PETAL_SIZE_MAX, total - pos);
+    const char *buf = data + pos;
+    uint64_t lines = 0;
+    const char *p = buf;
+    const char *end = buf + take;
+    while (p < end) {
+      const void *nl = memchr(p, '\n', end - p);
+      if (!nl)
+        break;
+      lines++;
+      p = (const char *)nl + 1;
+    }
+    if (!write_all(dest_fd, buf, take)) {
+      delete o;
+      return nullptr;
+    }
+    pieces.push_back(new Petal(take, lines, o, pos));
+    pos += take;
+  }
+  if (pieces.empty()) {
+    delete o;
+    return nullptr;
+  }
+  o->initialize();
   if (pieces.size() == 1)
     return pieces[0];
   return build(pieces.data(), 0, pieces.size());

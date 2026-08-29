@@ -89,4 +89,12 @@ void IO::move_cursor(uint16_t row, uint16_t col) {
   int n = snprintf(buf, sizeof(buf), "\x1b[%u;%uH", row, col);
   write_all(STDOUT_FILENO, buf, n);
 }
+
+void IO::write(const char *buf, uint64_t n) {
+  write_all(STDOUT_FILENO, buf, n);
+}
+
+void IO::write(std::string_view s) {
+  write_all(STDOUT_FILENO, s.data(), s.size());
+}
 } // namespace bed::internal::io

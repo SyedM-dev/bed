@@ -1,10 +1,11 @@
 #include "bed.h"
+#include "internal/parser/parser.h"
 
 namespace bed {
 BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
     : theme(internal::theme::Theme::default_theme()), io(io) {
-  internal::commands::Command::register_posix(*this);
-  internal::commands::Suffix::register_suffixes(*this);
+  internal::functions::Function::register_posix(*this);
+  internal::functions::Suffix::register_suffixes(*this);
   std::string prompt_ = "";
   std::string file = "";
   bool suppress = false;
@@ -27,10 +28,15 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
   else
     prompt_mode = false;
   suppress_mode = suppress;
-  active = new internal::buffer::Buffer();
-  buffers.emplace("0", active);
-  if (file != "")
-    handle("E " + file, false);
+  try {
+    if (file != "")
+      handle(":default:E " + file, false);
+  } catch (ed_error &e) {
+    std::cout << "?" << std::endl;
+    if (help_mode)
+      std::cout << e.what() << std::endl;
+    last_help = e.what();
+  }
 }
 
 BEd::~BEd() {
@@ -44,8 +50,85 @@ void BEd::run() {
     try {
       handle(cmd, eof);
     } catch (ed_error &e) {
-      std::cout << e.what() << std::endl;
+      std::cout << "?" << std::endl;
+      if (help_mode)
+        std::cout << e.what() << std::endl;
+      last_help = e.what();
     }
   }
+}
+
+void BEd::handle(std::string_view cmd, bool eof) {
+  if (eof) {
+    eof_op.handle(*this, "", nullptr, std::monostate(), nullptr);
+    return;
+  }
+  internal::parser::Command c = internal::parser::Parser::get_command(cmd, *this);
+  internal::buffer::Address address;
+  switch (c.function->address_kind) {
+  case internal::functions::Function::AddressKind::None: {
+    auto a = internal::parser::AddressPromise::get_line(*this, c.addresses);
+    if (a.has_value()) {
+      address = a->buffername;
+    } else {
+      auto vec = internal::parser::Parser::get_addresses(c.function->default_address, *this);
+      a = internal::parser::AddressPromise::get_line(*this, vec);
+      address = a->buffername;
+    }
+  } break;
+  case internal::functions::Function::AddressKind::Line: {
+    auto a = internal::parser::AddressPromise::get_line(*this, c.addresses);
+    if (a.has_value()) {
+      address = *a;
+    } else {
+      auto vec = internal::parser::Parser::get_addresses(c.function->default_address, *this);
+      a = internal::parser::AddressPromise::get_line(*this, vec);
+      address = *a;
+    }
+  } break;
+  case internal::functions::Function::AddressKind::Range: {
+    auto a = internal::parser::AddressPromise::get_range(*this, c.addresses);
+    if (a.has_value()) {
+      address = *a;
+    } else {
+      auto vec = internal::parser::Parser::get_addresses(c.function->default_address, *this);
+      a = internal::parser::AddressPromise::get_range(*this, vec);
+      address = *a;
+    }
+  } break;
+  }
+  if (std::holds_alternative<internal::buffer::Line>(c.argument)) {
+    auto a = internal::parser::AddressPromise::get_line(*this, c.argument_addresses);
+    if (a.has_value())
+      c.argument = *a;
+    else
+      c.argument = current();
+  } else if (std::holds_alternative<internal::buffer::Range>(c.argument)) {
+    auto a = internal::parser::AddressPromise::get_range(*this, c.argument_addresses);
+    if (a.has_value())
+      c.argument = *a;
+    else
+      c.argument = internal::buffer::Range(current(), current());
+  }
+  c.function->handle(*this, address, nullptr, c.argument, nullptr);
+  if (c.suffix)
+    c.suffix->handle(*this);
+}
+
+internal::buffer::Buffer &BEd::buffer(const std::string &name) {
+  auto it = buffers.find(name);
+  if (it != buffers.end())
+    return *it->second;
+  auto *buf = new internal::buffer::Buffer(name);
+  buffers.emplace(name, buf);
+  return *buf;
+}
+
+internal::buffer::Line &BEd::current() {
+  return marks.get(250);
+}
+
+void BEd::mark(char m, internal::buffer::Line line) {
+  marks.get(m) = line;
 }
 } // namespace bed

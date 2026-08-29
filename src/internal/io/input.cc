@@ -216,7 +216,7 @@ KeyEvent IO::read_key() {
     KeyEvent ev;
     switch (res) {
     case KeyEvent::ReadResult::EOF_:
-      ev.type = KeyEvent::KeyType::NONE;
+      ev.type = KeyEvent::KeyType::EOF_;
       return ev;
     case KeyEvent::ReadResult::RESIZE:
       resized.store(false);
@@ -233,7 +233,7 @@ KeyEvent IO::read_key() {
         ev.text = std::move(pasted);
         break;
       case KeyEvent::ReadResult::EOF_:
-        ev.type = KeyEvent::KeyType::NONE;
+        ev.type = KeyEvent::KeyType::EOF_;
         break;
       case KeyEvent::ReadResult::RESIZE:
         resized.store(false);
@@ -244,7 +244,7 @@ KeyEvent IO::read_key() {
     }
     if (buf.size() >= 3 && buf[0] == '\x1b' && buf[1] == '[' && buf[2] == 'M') {
       ev = parse_mouse(buf);
-      if (ev.type == KeyEvent::KeyType::NONE)
+      if (ev.type == KeyEvent::KeyType::EOF_)
         continue;
       return ev;
     }

@@ -11,7 +11,7 @@ struct KeyEvent {
     RESIZE
   };
   enum struct KeyType {
-    NONE,
+    EOF_,
     CHAR,
     SPECIAL,
     MOUSE,
@@ -38,7 +38,7 @@ struct KeyEvent {
     RELEASE
   };
 
-  KeyType type = KeyType::NONE;
+  KeyType type = KeyType::EOF_;
   std::string text;
 
   SpecialKey special_key = SpecialKey::UNKNOWN;
@@ -67,6 +67,8 @@ struct IO {
   std::pair<std::string, bool> get_text(BEd &);
 
   KeyEvent read_key();
+  void write(const char *, uint64_t);
+  void write(std::string_view);
 
 private:
   static termios orig_termios;

@@ -147,7 +147,7 @@ struct Trie {
   }
 
   static void collect(
-    const Node &node,
+    Node &node,
     std::string &key,
     std::vector<SearchResult> &result
   ) {
@@ -226,6 +226,44 @@ struct Trie {
     if (!current->value)
       return std::nullopt;
     return *current->value;
+  }
+
+  V *get_ptr(std::string_view key) {
+    Node *current = &root;
+    uint64_t pos = 0;
+    while (pos < key.size()) {
+      Node *child = find_child(*current, key[pos]);
+      if (!child)
+        return nullptr;
+      const auto remaining = key.substr(pos);
+      const auto common = common_prefix(child->edge, remaining);
+      if (common != child->edge.size())
+        return nullptr;
+      pos += common;
+      current = child;
+    }
+    if (!current->value)
+      return nullptr;
+    return &*current->value;
+  }
+
+  const V *get_ptr(std::string_view key) const {
+    const Node *current = &root;
+    uint64_t pos = 0;
+    while (pos < key.size()) {
+      const Node *child = find_child(*current, key[pos]);
+      if (!child)
+        return nullptr;
+      const auto remaining = key.substr(pos);
+      const auto common = common_prefix(child->edge, remaining);
+      if (common != child->edge.size())
+        return nullptr;
+      pos += common;
+      current = child;
+    }
+    if (!current->value)
+      return nullptr;
+    return &*current->value;
   }
 
   bool equal_char(char a, char b) const {

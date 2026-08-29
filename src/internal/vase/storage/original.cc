@@ -1,7 +1,7 @@
 #include "internal/vase/vase.h"
 
 namespace bed::internal::vase {
-OriginalBuffer::OriginalBuffer(std::filesystem::path base_dir) {
+OriginalStorage::OriginalStorage(std::filesystem::path base_dir) {
   if (!std::filesystem::exists(base_dir) || !std::filesystem::is_directory(base_dir))
     throw std::runtime_error("Swap directory does not exist or is not a directory.");
   base_dir /= "tbuf.XXXXXX";
@@ -13,14 +13,14 @@ OriginalBuffer::OriginalBuffer(std::filesystem::path base_dir) {
   free(s);
 }
 
-OriginalBuffer::~OriginalBuffer() {
+OriginalStorage::~OriginalStorage() {
   if (buf)
     munmap((char *)buf, len);
   if (fd != -1)
     close(fd);
 }
 
-void OriginalBuffer::initialize() {
+void OriginalStorage::initialize() {
   struct stat st;
   if (fstat(fd, &st) == -1)
     throw std::runtime_error("fstat failed");
@@ -35,13 +35,13 @@ void OriginalBuffer::initialize() {
   fd = -1;
 }
 
-const char *OriginalBuffer::read(uint64_t pos) {
+const char *OriginalStorage::read(uint64_t pos) {
   if (pos >= len)
     return nullptr;
   return buf + pos;
 }
 
-uint64_t OriginalBuffer::length() {
+uint64_t OriginalStorage::length() {
   return len;
 }
 } // namespace bed::internal::vase

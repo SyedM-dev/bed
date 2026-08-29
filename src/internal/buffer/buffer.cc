@@ -2,108 +2,70 @@
 #include "bed.h"
 
 namespace bed::internal::buffer {
-Buffer::Buffer() : vase("/tmp") {
-  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
-  line = vase.lines();
-  modified = false;
+Buffer::Buffer(std::string name)
+    : state(Unmodified), root(nullptr), name(name) {
+  parser.emplace(root, lines(), syntax::ruby::lang_ruby()); // just for debug.
 }
 
-Buffer::Buffer(std::string command) : vase(command, "/tmp") {
-  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
-  line = vase.lines();
-  if (!line)
-    return;
-  prev_range.start = 1;
-  prev_range.end = line;
-  modified = false;
+Buffer::~Buffer() {
+  vase::Shard::release(root);
 }
 
-Buffer::Buffer(std::filesystem::path path) : vase(path, "/tmp") {
-  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
-  line = vase.lines();
-  if (!line)
-    return;
-  prev_range.start = 1;
-  prev_range.end = line;
-  save_path = path;
-  modified = false;
+uint64_t Buffer::lines() {
+  if (root)
+    return root->lines + 1;
+  return 0;
 }
 
-void Buffer::load(std::string command) {
-  vase::Vase new_vase = vase::Vase(command, "/tmp");
-  vase = std::move(new_vase);
-  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
-  line = vase.lines();
-  if (!line) {
-    prev_range.start = 0;
-    prev_range.end = 0;
-  } else {
-    prev_range.start = 1;
-    prev_range.end = line;
-  }
-  modified = false;
-}
-
-void Buffer::load(std::filesystem::path path) {
-  vase::Vase new_vase = vase::Vase(path, "/tmp");
-  vase = std::move(new_vase);
-  parser.emplace(vase, vase.lines(), syntax::ruby::lang_ruby());
-  line = vase.lines();
-  if (!line) {
-    prev_range.start = 0;
-    prev_range.end = 0;
-  } else {
-    prev_range.start = 1;
-    prev_range.end = line;
-  }
-  save_path = path;
-  modified = false;
-}
-
-void Buffer::jump(uint64_t n_line) {
-  if (n_line > vase.lines())
-    throw ed_error("Line number too high.");
-  line = n_line;
-}
-
-void Buffer::append(std::string text, uint64_t line) {
-  using namespace bed::internal::vase;
-  Point p = {line, 0};
-  if (!vase.lines()) {
-    text.pop_back();
-  } else if (line == vase.lines()) {
-    p.row--;
-    p.col = UINT64_MAX;
-    text = "\n" + text;
-    text.pop_back();
-  }
-  prev_range.start = p.row + 1;
-  vase.insert(&p, text);
-  prev_range.end = p.row + 1;
-  marks.insert(prev_range.start, prev_range.end);
+void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
+  ctx.prev.buffername = name;
+  ctx.prev.start = line;
+  ctx.prev.end = line + text->lines;
+  root = vase::insert(&ctx.append, root, text, line);
+  ctx.marks.insert(name, ctx.prev.start, ctx.prev.end);
   if (parser)
-    parser->insert(vase, prev_range.start, prev_range.end);
-  modified = true;
+    parser->insert(root, ctx.prev.start, ctx.prev.end);
+  state = Modified;
 }
 
-void Buffer::remove(uint64_t start_line, uint64_t end_line) {
-  vase.erase({{start_line - 1, 0}, {end_line, 0}});
-  prev_range.start = start_line;
-  prev_range.end = start_line;
-  marks.erase(start_line, end_line - start_line + 1);
+void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+  root = vase::erase(root, start_line, end_line);
+  ctx.prev.buffername = name;
+  ctx.prev.start = start_line;
+  ctx.prev.end = start_line;
+  ctx.marks.erase(name, start_line, end_line - start_line + 1);
   if (parser)
-    parser->erase(vase, start_line, end_line - start_line + 1);
-  modified = true;
+    parser->erase(root, start_line, end_line - start_line + 1);
+  state = Modified;
 }
 
-void Buffer::join(uint64_t start_line, uint64_t end_line) {
-  vase.regex_search_replace(R"(\n)", {{start_line - 1, 0}, {end_line, 0}}, "", "g");
-  prev_range.start = start_line;
+void Buffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+  root = vase::substitute(&ctx.append, root, R"(\n)", start_line, end_line, "", "g");
+  ctx.prev.buffername = name;
+  ctx.prev.start = start_line;
+  ctx.prev.end = start_line;
+  ctx.marks.collapse(name, start_line, end_line - start_line);
+  if (parser)
+    parser->erase(root, start_line, end_line - start_line);
+  state = Modified;
+}
+
+void Buffer::substitute(
+  BEd &ctx, uint64_t start_line, uint64_t end_line,
+  std::string &regex, std::string &replacement, std::string &options
+) {
+  // make substitue return a list of modifications made.
+  root = vase::substitute(&ctx.append, root, regex, start_line, end_line, replacement, options);
+  /*prev_range.start = start_line;
   prev_range.end = start_line;
   marks.collapse(start_line, end_line - start_line);
   if (parser)
-    parser->erase(vase, start_line, end_line - start_line);
-  modified = true;
+    parser->erase(vase, start_line, end_line - start_line);*/
+  state = Modified;
+}
+
+vase::Shard *Buffer::copy(uint64_t start_line, uint64_t end_line) {
+  return vase::copy(root, start_line, end_line);
 }
 
 inline void apply(std::ostream &out, const Highlight &hl) {
@@ -139,10 +101,11 @@ inline void reset(std::ostream &out) {
 }
 
 void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
-  prev_range.start = start_line;
-  prev_range.end = end_line;
+  ctx.prev.buffername = name;
+  ctx.prev.start = start_line;
+  ctx.prev.end = end_line;
   if (parser) {
-    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(vase, start_line - 1);
+    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(root, start_line - 1);
     auto &it = *it_o;
     while (start_line <= end_line) {
       it.next();
@@ -174,24 +137,25 @@ void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
       ++start_line;
     }
   } else {
-    vase::Iterator it = vase.iterate(start_line - 1, Direction::Forward);
+    vase::Iterator it(root, start_line - 1, Direction::Forward);
     while (it.next() && start_line++ <= end_line)
       std::cout << it.line << std::endl;
   }
 }
 
 void Buffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
-  prev_range.start = start_line;
-  prev_range.end = end_line;
+  ctx.prev.buffername = name;
+  ctx.prev.start = start_line;
+  ctx.prev.end = end_line;
   uint8_t width = 1;
   for (uint64_t n = end_line; n >= 10; n /= 10)
     ++width;
   if (parser) {
-    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(vase, start_line - 1);
+    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(root, start_line - 1);
     auto &it = *it_o;
     while (start_line <= end_line) {
       it.next();
-      std::cout << std::setw(width) << it.at << "\t";
+      std::cout << std::setw(width) << start_line << "\t";
       const std::string &line = it.it->line;
       const auto &tokens = it.tokens;
       uint32_t cursor = 0;
@@ -220,7 +184,7 @@ void Buffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
       ++start_line;
     }
   } else {
-    vase::Iterator it = vase.iterate(start_line - 1, Direction::Forward);
+    vase::Iterator it(root, start_line - 1, Direction::Forward);
     while (it.next() && start_line <= end_line)
       std::cout << std::setw(width) << start_line++ << "\t" << it.line << std::endl;
   }

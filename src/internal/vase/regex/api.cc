@@ -1,7 +1,7 @@
 #include "internal/vase/vase.h"
 
 namespace bed::internal::vase {
-std::vector<Vase::ReplacePart> Vase::parse_replace(std::string_view s) {
+std::vector<ReplacePart> parse_replace(AppendStorage *ap, std::string_view s) {
   std::vector<ReplacePart> parts;
   std::string constant;
   auto flush_constant = [&]() {
@@ -13,11 +13,11 @@ std::vector<Vase::ReplacePart> Vase::parse_replace(std::string_view s) {
         ++lines;
         ++p;
       }
-      uint64_t pos = append->append(constant.data(), (uint64_t)constant.size());
+      uint64_t pos = ap->append(constant.data(), (uint64_t)constant.size());
       parts.push_back(
         ReplacePart{
           .type = ReplacePart::PartType::Constant,
-          .value = new Petal((uint64_t)constant.size(), lines, append, pos)
+          .value = new Petal((uint64_t)constant.size(), lines, ap, pos)
         }
       );
       constant.clear();
@@ -61,15 +61,31 @@ std::vector<Vase::ReplacePart> Vase::parse_replace(std::string_view s) {
   return parts;
 }
 
-void Vase::regex_search_replace(
-  std::string_view pattern, Range range,
+Shard *substitute(
+  AppendStorage *ap, Shard *root,
+  std::string_view pattern, uint64_t start, uint64_t end,
   std::string_view replace, std::string_view options
 ) {
-  std::vector<RegexMatch> matches = _regex_search(pattern, range, options);
-  if (matches.empty())
-    return;
+  if (!start || !end)
+    throw ed_error("Invalid range.");
+  start--;
+  end--;
+  if (!root)
+    throw ed_error("line range out of bounds");
+  uint64_t line_count = root->lines + 1;
+  if (start > end || end >= line_count)
+    throw ed_error("line range out of bounds");
+  uint64_t start_offset = offset_of(root, start);
+  uint64_t end_offset =
+    (end + 1 == line_count)
+      ? root->length
+      : offset_of(root, end + 1);
 
-  std::vector<ReplacePart> replace_parts = parse_replace(replace);
+  std::vector<RegexMatch> matches = _regex_search(root, pattern, start_offset, end_offset, options);
+  if (matches.empty())
+    return root;
+
+  std::vector<ReplacePart> replace_parts = parse_replace(ap, replace);
 
   std::vector<Shard *> pieces;
   pieces.reserve(matches.size() * 2 + 1);
@@ -141,23 +157,13 @@ void Vase::regex_search_replace(
 
   Shard *new_root = compact.empty() ? nullptr : Shard::build(compact.data(), 0, compact.size());
   Shard::release(root);
-  root = new_root;
+  return new_root;
 }
 
-std::vector<Range> Vase::regex_search(
-  std::string_view pattern, Range range, std::string_view options
-) {
-  std::vector<RegexMatch> matches = _regex_search(pattern, range, options);
-  if (matches.empty())
-    return {};
-  std::vector<Range> result;
-  result.reserve(matches.size());
-  for (auto match : matches)
-    result.push_back({point_of(match.start), point_of(match.end)});
-  return result;
-}
-
-uint64_t Vase::find_next(std::string_view pattern, uint64_t start) {
+uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
+  if (start == 0 || start > root->lines)
+    throw ed_error("Invalid line number.");
+  start--;
   std::vector<RegexMatch> results;
   int errornumber;
   PCRE2_SIZE erroroffset;
@@ -176,7 +182,7 @@ uint64_t Vase::find_next(std::string_view pattern, uint64_t start) {
     pcre2_code_free(re);
     throw ed_error("Can't create regex match data.");
   }
-  uint64_t at = (start + 1) % lines();
+  uint64_t at = (start + 1) % (root->lines + 1);
   LineIterator it(root, at, Direction::Forward);
   std::string line;
   while (it.next(&line)) {
@@ -196,7 +202,7 @@ uint64_t Vase::find_next(std::string_view pattern, uint64_t start) {
   at = 0;
   LineIterator it2(root, at, Direction::Forward);
   while (it2.next(&line)) {
-    if (at >= start)
+    if (at > start)
       break;
     int rc = pcre2_match(re, (PCRE2_SPTR)line.data(), line.size(), 0, 0, match_data, nullptr);
     if (rc >= 0) {
@@ -216,7 +222,10 @@ uint64_t Vase::find_next(std::string_view pattern, uint64_t start) {
   throw ed_error("No line matched.");
 }
 
-uint64_t Vase::find_prev(std::string_view pattern, uint64_t start) {
+uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start) {
+  if (start == 0 || start > root->lines)
+    throw ed_error("Invalid line number.");
+  start--;
   std::vector<RegexMatch> results;
   int errornumber;
   PCRE2_SIZE erroroffset;
@@ -235,7 +244,7 @@ uint64_t Vase::find_prev(std::string_view pattern, uint64_t start) {
     pcre2_code_free(re);
     throw ed_error("Can't create regex match data.");
   }
-  uint64_t at = (start == 0 ? lines() : start) - 1;
+  uint64_t at = (start == 0 ? root->lines : start - 1);
   LineIterator it(root, at, Direction::Backward);
   std::string line;
   while (it.next(&line)) {
@@ -252,10 +261,10 @@ uint64_t Vase::find_prev(std::string_view pattern, uint64_t start) {
     }
     at--;
   }
-  at = lines() - 1;
+  at = root->lines;
   LineIterator it2(root, at, Direction::Backward);
   while (it2.next(&line)) {
-    if (at <= start)
+    if (at < start)
       break;
     int rc = pcre2_match(re, (PCRE2_SPTR)line.data(), line.size(), 0, 0, match_data, nullptr);
     if (rc >= 0) {

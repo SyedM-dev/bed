@@ -3,16 +3,18 @@
 
 namespace bed::internal::io {
 std::pair<std::string, bool> IO::get_text(BEd &) {
-  auto [row, col] = cursor_position();
-  auto [rows, cols] = terminal_size();
-  if (row > rows)
-    throw fatal_error("Invalid cursor position.", 1);
-  uint16_t start = row;
-  uint16_t height = rows - row + 1;
+  uint16_t start;
+  uint16_t height;
+  {
+    auto [row, col] = cursor_position();
+    auto [rows, cols] = terminal_size();
+    if (row > rows)
+      throw fatal_error("Invalid cursor position.", 1);
+    start = row;
+    height = rows - row + 1;
+  }
   enable_mouse();
   // uint16_t width = cols;
-  // TODO: support multiline wrapped commands.
-  // also handle ctrl+l to try and clear screen.
 
   disable_mouse();
   for (uint16_t i = 1; i < height; ++i) {

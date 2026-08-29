@@ -1,182 +1,156 @@
 #include "bed.h"
-#include "internal/io/io.h"
 
 namespace bed::internal::io {
-std::pair<std::string, bool> IO::get_command(BEd &ctx) {
-  uint16_t start;
-  uint16_t height;
-  {
-    auto [row, col] = cursor_position();
-    auto [rows, cols] = terminal_size();
-    if (row > rows)
-      throw fatal_error("Invalid cursor position.", 1);
-    start = row;
-    height = rows - row + 1;
+/*template <typename F>
+static void for_each_cluster(std::string_view s, F &&f) {
+  unicode_width_state_t state;
+  unicode_width_init(&state);
+  size_t i = 0;
+  while (i < s.size()) {
+    unsigned char c = static_cast<unsigned char>(s[i]);
+    size_t bytes = 1;
+    int width = 0;
+    if (c < 128) {
+      width = unicode_width_process(&state, c);
+    } else {
+      uint_least32_t cp;
+      size_t decoded = grapheme_decode_utf8(s.data() + i, s.size() - i, &cp);
+      bytes = decoded > 0 ? decoded : 1;
+      width = unicode_width_process(&state, cp);
+    }
+    if (width < 0)
+      width = 0;
+    f(i, bytes, width);
+    i += bytes;
   }
-  // uint16_t width = cols;
-  // TODO: support multiline wrapped commands.
-  // also handle ctrl+l to try and clear screen.
+}
 
-  std::string cmd;
-  size_t cursor = 0;
+static int display_width(std::string_view s) {
+  int w = 0;
+  for_each_cluster(s, [&](size_t, size_t, int cw) { w += cw; });
+  return w;
+}
 
-  std::string prompt;
-  if (ctx.prompt_mode)
-    prompt = ctx.prompt(ctx);
+static uint16_t count_clusters(std::string_view s) {
+  uint16_t n = 0;
+  for_each_cluster(s, [&](size_t, size_t, int) { ++n; });
+  return n;
+}
 
-  auto redraw = [&] {
-    move_cursor(start, 1);
-    write_all(STDOUT_FILENO, "\x1b[2K", 4);
-    write_all(STDOUT_FILENO, prompt.c_str(), prompt.size());
-    write_all(STDOUT_FILENO, cmd.c_str(), cmd.size());
-    move_cursor(start, cursor + prompt.size() + 1);
-  };
+static std::vector<uint16_t> wrap_offsets(std::string_view line, uint16_t avail) {
+  std::vector<uint16_t> offsets{0};
+  int col = 0;
+  for_each_cluster(line, [&](uint16_t i, uint16_t, int w) {
+    if (col + w > avail && col > 0) {
+      offsets.push_back(i);
+      col = 0;
+    }
+    col += w;
+  });
+  return offsets;
+}
+
+// The word under/before `byte_pos`, split on plain ASCII spaces. Used to
+// pick what prefix to hand the suggestion trie.
+// TODO: change to use libgrapheme word break here.
+static std::string current_word(const std::string &line, size_t byte_pos) {
+  size_t start = (byte_pos == 0) ? std::string::npos : line.rfind(' ', byte_pos - 1);
+  start = (start == std::string::npos) ? 0 : start + 1;
+  if (byte_pos < start)
+    byte_pos = start;
+  return line.substr(start, byte_pos - start);
+}*/
+
+CommandIO::CommandIO(BEd &bed, IO &io) : bed(bed), io(io) {
+  prompt = bed.prompt(bed);
+  cursor = 0;
+}
+
+std::pair<std::string, bool> CommandIO::run() {
+  auto [row, col] = io.cursor_position();
+  auto [rows, cols] = io.terminal_size();
+  if (row > rows)
+    throw fatal_error("Invalid cursor position.", 1);
+  start = row;
+  height = rows - row + 1;
+  term_width = cols;
+  term_height = rows;
   redraw();
 
-  bool eof = false;
-
-  while (true) {
-    KeyEvent ev = read_key();
-    if (ev.type == KeyEvent::KeyType::RESIZE) {
-      {
-        auto [row, col] = cursor_position();
-        auto [rows, cols] = terminal_size();
-        if (row > rows)
-          throw fatal_error("Invalid cursor position.", 1);
-        start = row;
-        height = rows - row + 1;
+  // main loop.
+  KeyEvent res;
+  bool running = true;
+  while (running) {
+    res = io.read_key();
+    switch (res.type) {
+    case KeyEvent::KeyType::EOF_:
+      running = false;
+      break;
+    case KeyEvent::KeyType::MOUSE:
+    case KeyEvent::KeyType::RESIZE:
+      break;
+    case KeyEvent::KeyType::CHAR:
+      switch (res.modifier) {
+      case KeyEvent::Modifier::SHIFT:
+      case KeyEvent::Modifier::ALT:
+      case KeyEvent::Modifier::CTRL_ALT:
+      case KeyEvent::Modifier::CTRL:
+        break;
+      case KeyEvent::Modifier::NONE:
+        if (res.text[0] == '\b' || res.text[0] == 0x7f) {
+          if (cursor > 0)
+            cmd.erase(--cursor, 1);
+        } else if (res.text[0] == '\n') {
+          running = false;
+        } else {
+          cmd.insert(cursor++, res.text);
+        }
+        break;
       }
-      redraw();
-      continue;
-    }
-    if (
-      (ev.type == KeyEvent::KeyType::CHAR
-       && ev.modifier == KeyEvent::Modifier::CTRL
-       && ev.text[0] == 'd')
-      || ev.type == KeyEvent::KeyType::NONE
-    ) {
-      eof = true;
+      break;
+    case KeyEvent::KeyType::PASTE:
+      cmd.insert(cursor, res.text);
+      cursor += res.text.size();
+      break;
+    case KeyEvent::KeyType::SPECIAL:
+      switch (res.special_key) {
+      case KeyEvent::SpecialKey::UNKNOWN:
+      case KeyEvent::SpecialKey::UP:
+      case KeyEvent::SpecialKey::DOWN:
+        break;
+      case KeyEvent::SpecialKey::RIGHT:
+        if (cursor < cmd.size())
+          cursor++;
+        break;
+      case KeyEvent::SpecialKey::LEFT:
+        if (cursor > 0)
+          cursor--;
+        break;
+      case KeyEvent::SpecialKey::DELETE:
+        if (cursor < cmd.size())
+          cmd.erase(cursor, 1);
+        break;
+      }
       break;
     }
-    if (ev.type == KeyEvent::KeyType::CHAR
-        && ev.modifier == KeyEvent::Modifier::CTRL
-        && ev.text[0] == 'w') {
-      // TODO: delete previous word here.
-      if (cursor == 0)
-        continue;
-      cmd.erase(cursor -= 1, 1);
-      redraw();
-      continue;
-    }
-    if (ev.type == KeyEvent::KeyType::CHAR
-        && ev.modifier == KeyEvent::Modifier::NONE) {
-      if (ev.text == "\r" || ev.text == "\n")
-        break;
-      if (ev.text.size() == 1
-          && (ev.text[0] == '\x7f' || ev.text[0] == '\x08')) {
-        if (cursor == 0)
-          continue;
-        cmd.erase(cursor -= 1, 1);
-        redraw();
-        continue;
-      }
-      cmd.insert(cursor, ev.text);
-      cursor += ev.text.size();
-      redraw();
-      continue;
-    }
-    if (ev.type == KeyEvent::KeyType::SPECIAL) {
-      if (ev.special_key == KeyEvent::SpecialKey::LEFT) {
-        if (cursor == 0)
-          continue;
-        cursor -= 1;
-      } else if (ev.special_key == KeyEvent::SpecialKey::RIGHT) {
-        if (cursor >= cmd.size())
-          continue;
-        cursor += 1;
-      } else if (ev.special_key == KeyEvent::SpecialKey::DELETE) {
-        if (cursor >= cmd.size())
-          continue;
-        cmd.erase(cursor, 1);
-      }
-      redraw();
-      continue;
-    }
-    if (ev.type == KeyEvent::KeyType::PASTE) {
-      std::string text = ev.text;
-      if (!text.empty() && text.front() == '\n')
-        text.erase(text.begin());
-      if (!text.empty() && text.back() == '\n')
-        text.pop_back();
-      bool multiline = text.find('\n') != std::string::npos;
-      if (multiline) {
-        size_t line_count = 1 + std::count(text.begin(), text.end(), '\n');
-        if (height == 1) {
-          write_all(STDOUT_FILENO, "\n", 1);
-          --start;
-          ++height;
-        }
-        bool go_ahead;
-        std::string msg =
-          "* paste "
-          + std::to_string(line_count)
-          + " lines into a single-line command? (y/n) ";
-        move_cursor(start + 1, 1);
-        write_all(STDOUT_FILENO, "\x1b[2K", 4);
-        write_all(STDOUT_FILENO, msg.c_str(), msg.size());
-        while (true) {
-          KeyEvent ev = read_key();
-          if (ev.type == KeyEvent::KeyType::CHAR && ev.text.size() == 1) {
-            if (ev.text[0] == 'y' || ev.text[0] == 'Y') {
-              go_ahead = true;
-              break;
-            }
-            if (ev.text[0] == 'n' || ev.text[0] == 'N') {
-              go_ahead = false;
-              break;
-            }
-          }
-          if (ev.type == KeyEvent::KeyType::NONE) {
-            go_ahead = false;
-            break;
-          }
-          if (ev.type == KeyEvent::KeyType::RESIZE) {
-            {
-              auto [row, col] = cursor_position();
-              auto [rows, cols] = terminal_size();
-              if (row - 1 > rows)
-                throw fatal_error("Invalid cursor position.", 1);
-              start = row - 1;
-              height = rows - row;
-            }
-            redraw();
-            move_cursor(start + 1, 1);
-            write_all(STDOUT_FILENO, "\x1b[2K", 4);
-            write_all(STDOUT_FILENO, msg.c_str(), msg.size());
-            continue;
-          }
-        }
-        move_cursor(start + 1, 1);
-        write_all(STDOUT_FILENO, "\x1b[2K", 4);
-        if (!go_ahead) {
-          redraw();
-          continue;
-        }
-        std::replace(text.begin(), text.end(), '\n', ' ');
-      }
-      cmd.insert(cursor, text);
-      cursor += text.size();
-      redraw();
-      continue;
-    }
+    redraw();
   }
 
   for (uint16_t i = 1; i < height; ++i) {
-    move_cursor(start + i, 1);
-    write_all(STDOUT_FILENO, "\x1b[2K", 4);
+    io.move_cursor(start + i, 1);
+    io.write("\x1b[2K", 4);
   }
-  move_cursor(start, 1);
-  write_all(STDOUT_FILENO, "\n", 1);
-  return {cmd, eof};
+  io.move_cursor(start, 1);
+  io.write("\n", 1);
+  return {cmd, false};
+}
+
+void CommandIO::redraw() {
+  io.move_cursor(start, 1);
+  io.write("\x1b[2K", 4);
+  io.move_cursor(start, 1);
+  io.write(prompt);
+  io.write(cmd);
+  io.move_cursor(start, prompt.size() + cursor + 1);
 }
 } // namespace bed::internal::io

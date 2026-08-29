@@ -1,8 +1,8 @@
 #include "internal/vase/vase.h"
 
 namespace bed::internal::vase {
-std::vector<Vase::RegexMatch> Vase::_regex_search(
-  std::string_view pattern, Range range, std::string_view options
+std::vector<RegexMatch> _regex_search(
+  Shard *root, std::string_view pattern, uint64_t start_offset, uint64_t end_offset, std::string_view options
 ) {
   bool global = false;
   uint64_t flags = PCRE2_MULTILINE | PCRE2_UTF;
@@ -51,9 +51,6 @@ std::vector<Vase::RegexMatch> Vase::_regex_search(
     return results;
 
   pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(re, NULL);
-
-  uint64_t start_offset = offset_of(range.start);
-  uint64_t end_offset = offset_of(range.end);
 
   PetalIterator it(root, Direction::Forward);
   it.seek_offset(start_offset);

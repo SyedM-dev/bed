@@ -4,6 +4,8 @@
 #include "pch.h"
 
 namespace bed {
+struct BEd;
+
 struct fatal_error : std::runtime_error {
   uint8_t code;
   fatal_error(std::string msg, uint8_t code)
@@ -26,6 +28,4 @@ struct Highlight {
   uint32_t bg;
   uint8_t flags;
 };
-
-struct BEd;
 } // namespace bed

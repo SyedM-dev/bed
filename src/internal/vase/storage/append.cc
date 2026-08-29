@@ -1,7 +1,7 @@
 #include "internal/vase/vase.h"
 
 namespace bed::internal::vase {
-AppendBuffer::AppendBuffer(std::filesystem::path base_dir) {
+AppendStorage::AppendStorage(std::filesystem::path base_dir) {
   base_dir /= "tapp.XXXXXX";
   char *s = strdup(base_dir.c_str());
   fd = mkstemp(s);
@@ -17,14 +17,14 @@ AppendBuffer::AppendBuffer(std::filesystem::path base_dir) {
     throw std::runtime_error("mmap failed");
 }
 
-AppendBuffer::~AppendBuffer() {
+AppendStorage::~AppendStorage() {
   if (buf && buf != MAP_FAILED)
     munmap(buf, allocated_capacity);
   if (fd != -1)
     close(fd);
 }
 
-void AppendBuffer::grow(uint64_t len) {
+void AppendStorage::grow(uint64_t len) {
   if (current_size + len > allocated_capacity) {
     uint64_t new_capacity = allocated_capacity * 2;
     if (new_capacity < current_size + len)
@@ -46,13 +46,13 @@ void AppendBuffer::grow(uint64_t len) {
   }
 }
 
-uint64_t AppendBuffer::append(const char c) {
+uint64_t AppendStorage::append(const char c) {
   grow(1);
   buf[current_size++] = c;
   return current_size - 1;
 }
 
-uint64_t AppendBuffer::append(const char *text, uint64_t len) {
+uint64_t AppendStorage::append(const char *text, uint64_t len) {
   grow(len);
   memcpy(buf + current_size, text, len);
   uint64_t old_pos = current_size;
@@ -60,13 +60,13 @@ uint64_t AppendBuffer::append(const char *text, uint64_t len) {
   return old_pos;
 }
 
-const char *AppendBuffer::read(uint64_t pos) {
+const char *AppendStorage::read(uint64_t pos) {
   if (pos >= current_size)
     return nullptr;
   return buf + pos;
 }
 
-uint64_t AppendBuffer::length() {
+uint64_t AppendStorage::length() {
   return current_size;
 }
 } // namespace bed::internal::vase

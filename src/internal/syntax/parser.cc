@@ -79,7 +79,7 @@ static ParseState *build_tree(std::vector<ParseStateLeaf *> &leaves, size_t begi
   return make_branch(left, right);
 }
 
-Parser::Parser(vase::Vase &vase, uint64_t lines, Language lang)
+Parser::Parser(vase::Shard *vase, uint64_t lines, Language lang)
     : root(nullptr), lang(lang) {
   reset(vase, lines, lang);
 }
@@ -88,7 +88,7 @@ Parser::~Parser() {
   destroy_tree(root, lang);
 }
 
-void Parser::reset(vase::Vase &vase, uint64_t lines, Language lang_) {
+void Parser::reset(vase::Shard *vase, uint64_t lines, Language lang_) {
   destroy_tree(root, lang);
   root = nullptr;
   if (lines == 0)
@@ -158,7 +158,7 @@ ParseState *Parser::join_tree(ParseState *a, ParseState *b) {
   return make_branch(a, b);
 }
 
-void Parser::erase(vase::Vase &vase, uint64_t start, uint64_t count) {
+void Parser::erase(vase::Shard *vase, uint64_t start, uint64_t count) {
   if (count == 0 || !root)
     return;
   auto [a, remaining] = split_tree(root, start);
@@ -168,7 +168,7 @@ void Parser::erase(vase::Vase &vase, uint64_t start, uint64_t count) {
   modify(vase, start, 1);
 }
 
-void Parser::insert(vase::Vase &vase, uint64_t start, uint64_t count) {
+void Parser::insert(vase::Shard *vase, uint64_t start, uint64_t count) {
   if (count == 0)
     return;
   std::vector<ParseStateLeaf *> leaves;
@@ -191,7 +191,7 @@ void Parser::insert(vase::Vase &vase, uint64_t start, uint64_t count) {
   modify(vase, start, count);
 }
 
-void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
+void Parser::modify(vase::Shard *vase, uint64_t target, uint64_t count) {
   if (count == 0 || !root)
     return;
   std::vector<Token> tokens;
@@ -218,7 +218,7 @@ void Parser::modify(vase::Vase &vase, uint64_t target, uint64_t count) {
       c = TreeCursor(root, 0, &offset);
     }
   }
-  vase::Iterator it = vase.iterate(at, Direction::Forward);
+  vase::Iterator it(vase, at, Direction::Forward);
   uint64_t chunk_start = at;
   uint64_t next_boundary = at + c.leaf->lines();
   c.leaf->n = 0;
@@ -318,13 +318,13 @@ uint64_t Parser::prev_opening(uint64_t line) {
   return 0;
 }
 
-std::optional<Parser::Iterator> Parser::get_hl(vase::Vase &vase, uint64_t target) {
+std::optional<Parser::Iterator> Parser::get_hl(vase::Shard *vase, uint64_t target) {
   if (!root)
     return std::nullopt;
   return Parser::Iterator(target, this, vase);
 }
 
-Parser::Iterator::Iterator(uint64_t target, Parser *p, vase::Vase &vase) : p(p) {
+Parser::Iterator::Iterator(uint64_t target, Parser *p, vase::Shard *vase) : p(p) {
   uint64_t offset;
   TreeCursor c = TreeCursor(p->root, target, &offset);
   at = target - offset;
@@ -346,7 +346,7 @@ Parser::Iterator::Iterator(uint64_t target, Parser *p, vase::Vase &vase) : p(p) 
       c = TreeCursor(p->root, 0, &offset);
     }
   }
-  it = vase.iterate(at, Direction::Forward);
+  it = vase::Iterator(vase, at, Direction::Forward);
   while (at < target) {
     it->next();
     tokens.clear();

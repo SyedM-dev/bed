@@ -13,15 +13,15 @@ struct Parser {
   ParseState *root;
   Language lang;
 
-  Parser(vase::Vase &, uint64_t, Language);
+  Parser(vase::Shard *, uint64_t, Language);
   ~Parser();
   Parser(const Parser &) = delete;
   Parser &operator=(const Parser &) = delete;
 
-  void reset(vase::Vase &, uint64_t, Language);
-  void erase(vase::Vase &, uint64_t, uint64_t);
-  void insert(vase::Vase &, uint64_t, uint64_t);
-  void modify(vase::Vase &, uint64_t, uint64_t);
+  void reset(vase::Shard *, uint64_t, Language);
+  void erase(vase::Shard *, uint64_t, uint64_t);
+  void insert(vase::Shard *, uint64_t, uint64_t);
+  void modify(vase::Shard *, uint64_t, uint64_t);
 
   uint64_t next_closing(uint64_t line);
   uint64_t prev_opening(uint64_t line);
@@ -36,7 +36,7 @@ struct Parser {
     uint64_t at;
     std::vector<Token> tokens;
     std::vector<ParseEvent> events;
-    Iterator(uint64_t, Parser *, vase::Vase &);
+    Iterator(uint64_t, Parser *, vase::Shard *);
     ~Iterator();
     Iterator(const Iterator &) = delete;
     Iterator &operator=(const Iterator &) = delete;
@@ -44,6 +44,6 @@ struct Parser {
     Iterator &operator=(Iterator &&other);
     void next();
   };
-  std::optional<Iterator> get_hl(vase::Vase &, uint64_t);
+  std::optional<Iterator> get_hl(vase::Shard *, uint64_t);
 };
 } // namespace bed::internal::syntax

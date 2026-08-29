@@ -1,9 +1,9 @@
 #pragma once
 
-#include "buffer/buffer.h"
-#include "buffer/original.h"
 #include "constants.h"
 #include "pch.h"
+#include "storage/original.h"
+#include "storage/storage.h"
 
 namespace bed::internal::vase {
 struct Shard {
@@ -24,9 +24,10 @@ struct Shard {
   static void retain(Shard *n);
   static void release(Shard *n);
 
-  static Shard *from_file(std::filesystem::path &path, OriginalBuffer *b, bool posix_ending);
-  static Shard *from_command(const char *cmd, OriginalBuffer *o, bool posix_ending);
-  static std::vector<Shard *> from_swap(std::filesystem::path &path, OriginalBuffer *b);
+  static Shard *from_file(const std::filesystem::path &path, bool posix_ending);
+  static Shard *from_string(const char *data, uint64_t len, bool posix_ending);
+  static Shard *from_command(const char *cmd, bool posix_ending);
+  // static std::vector<Shard *> from_swap(std::filesystem::path &path, OriginalStorage *b);
 
   static std::pair<Shard *, Shard *> split(Shard *n, uint64_t offset);
   static Shard *concat(Shard *a, Shard *b);
@@ -54,12 +55,14 @@ struct Branch : Shard {
 };
 
 struct Petal : Shard {
-  Buffer *source;
+  Storage *source;
   uint64_t pos;
 
-  Petal(uint64_t length, uint64_t lines, Buffer *source, uint64_t pos)
+  Petal(uint64_t length, uint64_t lines, Storage *source, uint64_t pos)
       : Shard(Kind::Petal, length, lines, 1),
-        source(source), pos(pos) {};
+        source(source), pos(pos) {
+    source->retain();
+  };
 };
 
 } // namespace bed::internal::vase

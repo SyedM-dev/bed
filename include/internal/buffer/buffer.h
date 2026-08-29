@@ -1,7 +1,6 @@
 #pragma once
 
 #include "definitions.h"
-#include "internal/marks/marks.h"
 #include "internal/syntax/parser.h"
 #include "internal/syntax/ruby/parser.h"
 #include "internal/theme/theme.h"
@@ -9,36 +8,67 @@
 
 namespace bed::internal::buffer {
 struct Buffer {
-  vase::Vase vase;
-  marks::MarksEngine marks;
-  std::string language;
-  std::optional<syntax::Parser> parser;
-  uint64_t line = 0;
-  bool modified;
+  enum {
+    Unmodified,
+    Modified,
+    Warned
+  } state;
   std::filesystem::path save_path = "";
 
-  struct {
-    uint64_t start{0};
-    uint64_t end{0};
-    std::span<const uint64_t> values() const {
-      return {&start, 2};
-    }
-  } prev_range;
+  vase::Shard *root;
 
-  Buffer();
-  Buffer(std::string command);
-  Buffer(std::filesystem::path path);
+  std::string name;
+  std::string language;
+  std::optional<syntax::Parser> parser;
 
-  ~Buffer() = default;
+  explicit Buffer(std::string name);
+  ~Buffer();
 
-  void load(std::string command);
-  void load(std::filesystem::path path);
-  void jump(uint64_t n_line);
-  void join(uint64_t start_line, uint64_t end_line);
-  void remove(uint64_t start_line, uint64_t end_line);
-  void append(std::string text, uint64_t line);
+  uint64_t lines();
+  vase::Shard *copy(uint64_t start_line, uint64_t end_line);
+  void substitute(
+    BEd &ctx, uint64_t start_line, uint64_t end_line,
+    std::string &regex, std::string &replacement, std::string &options
+  );
+  void join(BEd &ctx, uint64_t start_line, uint64_t end_line);
+  void remove(BEd &ctx, uint64_t start_line, uint64_t end_line);
+  void append(BEd &ctx, vase::Shard *text, uint64_t line);
   void print(BEd &ctx, uint64_t start_line, uint64_t end_line);
   void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line);
   std::string list_string(std::string_view s);
 };
+
+struct Line {
+  std::string buffername;
+  uint64_t number;
+};
+
+struct Range {
+  std::string buffername;
+  uint64_t start;
+  uint64_t end;
+
+  explicit Range(const Line &a, const Line &b) {
+    if (a.buffername != b.buffername)
+      throw ed_error("Invalid range.");
+    if (a.number > b.number)
+      throw ed_error("Invalid range.");
+    buffername = a.buffername;
+    start = a.number;
+    end = b.number;
+  };
+
+  explicit Range(std::string buffername, uint64_t start, uint64_t end)
+      : buffername(buffername), start(start), end(end) {
+    if (start > end)
+      throw ed_error("Invalid range.");
+  };
+
+  explicit Range() : buffername("default"), start(0), end(0) {};
+};
+
+using Address = std::variant<
+  std::string,
+  buffer::Range,
+  buffer::Line>;
 } // namespace bed::internal::buffer
