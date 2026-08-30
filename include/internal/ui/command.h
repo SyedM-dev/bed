@@ -1,7 +1,6 @@
 #pragma once
 
 #include "internal/io/io.h"
-#include "internal/ui/autocomp.h"
 #include "pch.h"
 
 namespace bed::internal::ui {

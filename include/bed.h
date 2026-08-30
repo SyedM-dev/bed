@@ -7,7 +7,6 @@
 #include "internal/io/io.h"
 #include "internal/marks/marks.h"
 #include "internal/theme/theme.h"
-#include "internal/ui/autocomp.h"
 #include "internal/ui/command.h"
 #include "pch.h"
 
