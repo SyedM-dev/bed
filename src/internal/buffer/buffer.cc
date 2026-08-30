@@ -36,7 +36,7 @@ void Buffer::load(BEd &, vase::Shard *text) {
 
 void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   ctx.prev.buffername = name;
-  ctx.prev.start = line;
+  ctx.prev.start = line + 1;
   ctx.prev.end = line + text->lines + 1;
   root = vase::insert(&ctx.append, root, text, line);
   ctx.marks.insert(name, ctx.prev.start, ctx.prev.end);
