@@ -64,37 +64,41 @@ void BEd::handle(std::string_view cmd, bool eof) {
     return;
   }
   internal::parser::Command c = internal::parser::Parser::get_command(cmd, *this);
+  if (c.temp_address) {
+    marks.get(251) = marks.get(250);
+    temporary_current = true;
+  }
   internal::buffer::Address address;
   switch (c.function->address_kind) {
   case internal::functions::Function::AddressKind::None: {
     auto a = internal::parser::AddressPromise::get_line(*this, c.addresses);
-    if (a.has_value()) {
-      address = a->buffername;
-    } else {
+    if (!a.has_value()) {
       auto vec = internal::parser::Parser::get_addresses(c.function->default_address, *this);
       a = internal::parser::AddressPromise::get_line(*this, vec);
-      address = a->buffername;
+      if (!a.has_value())
+        a = current();
     }
+    address = a->buffername;
   } break;
   case internal::functions::Function::AddressKind::Line: {
     auto a = internal::parser::AddressPromise::get_line(*this, c.addresses);
-    if (a.has_value()) {
-      address = *a;
-    } else {
+    if (!a.has_value()) {
       auto vec = internal::parser::Parser::get_addresses(c.function->default_address, *this);
       a = internal::parser::AddressPromise::get_line(*this, vec);
-      address = *a;
+      if (!a.has_value())
+        a = current();
     }
+    address = *a;
   } break;
   case internal::functions::Function::AddressKind::Range: {
     auto a = internal::parser::AddressPromise::get_range(*this, c.addresses);
-    if (a.has_value()) {
-      address = *a;
-    } else {
+    if (!a.has_value()) {
       auto vec = internal::parser::Parser::get_addresses(c.function->default_address, *this);
       a = internal::parser::AddressPromise::get_range(*this, vec);
-      address = *a;
+      if (!a.has_value())
+        a = internal::buffer::Range(current(), current());
     }
+    address = *a;
   } break;
   }
   if (std::holds_alternative<internal::buffer::Line>(c.argument)) {
@@ -110,12 +114,36 @@ void BEd::handle(std::string_view cmd, bool eof) {
     else
       c.argument = internal::buffer::Range(current(), current());
   }
+  if (!c.function->accept_zero) {
+    if (std::holds_alternative<internal::buffer::Line>(address)) {
+      if (std::get<internal::buffer::Line>(address).number == 0)
+        throw ed_error("Line number can't be zero.");
+    } else if (std::holds_alternative<internal::buffer::Range>(address)) {
+      auto r = std::get<internal::buffer::Range>(address);
+      if (r.start == 0 || r.end == 0)
+        throw ed_error("Line number can't be zero.");
+    }
+  }
   c.function->handle(*this, address, nullptr, c.argument, nullptr);
   if (c.suffix)
     c.suffix->handle(*this);
+  if (c.temp_address)
+    temporary_current = false;
+  for (auto it = buffers.begin(); it != buffers.end();) {
+    internal::buffer::Buffer *buf = it->second;
+    if (buf->save_path.empty()
+        && buf->root == nullptr) {
+      delete buf;
+      it = buffers.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 internal::buffer::Buffer &BEd::buffer(const std::string &name) {
+  if (name.empty())
+    throw ed_error("can't have empty buffer name");
   auto it = buffers.find(name);
   if (it != buffers.end())
     return *it->second;
@@ -125,7 +153,7 @@ internal::buffer::Buffer &BEd::buffer(const std::string &name) {
 }
 
 internal::buffer::Line &BEd::current() {
-  return marks.get(250);
+  return marks.get(250 + temporary_current);
 }
 
 void BEd::mark(char m, internal::buffer::Line line) {

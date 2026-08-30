@@ -2,7 +2,8 @@
 
 namespace bed::internal::io {
 termios IO::orig_termios{};
-bool IO::cleaned = false;
+termios IO::raw_termios{};
+bool IO::cleaned = true;
 volatile std::atomic_bool IO::resized(false);
 
 IO::IO() {
@@ -14,16 +15,13 @@ IO::IO() {
   sa.sa_flags = 0;
   if (sigaction(SIGWINCH, &sa, nullptr) == -1)
     throw fatal_error("Can't install SIGWINCH handler.", 1);
-  struct termios raw = orig_termios;
-  raw.c_iflag &= ~(BRKINT | ISTRIP | IXON);
-  raw.c_cflag |= (CS8);
-  raw.c_lflag &= ~(ECHO | ICANON | ISIG);
-  raw.c_cc[VMIN] = 1;
-  raw.c_cc[VTIME] = 0;
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
-    throw fatal_error("Can't set terminal state.", 1);
-  std::string os = "\x1b[?2004h";
-  write_all(STDOUT_FILENO, os.c_str(), os.size());
+  raw_termios = orig_termios;
+  raw_termios.c_iflag &= ~(BRKINT | ISTRIP | IXON);
+  raw_termios.c_cflag |= (CS8);
+  raw_termios.c_lflag &= ~(ECHO | ICANON | ISIG);
+  raw_termios.c_cc[VMIN] = 1;
+  raw_termios.c_cc[VTIME] = 0;
+  enable_raw();
   atexit(cleanup);
 }
 
@@ -68,6 +66,16 @@ std::pair<uint16_t, uint16_t> IO::cursor_position() {
   if (sscanf(response.c_str(), "%u;%u", &row, &col) != 2)
     throw fatal_error("Invalid cursor position response.", 1);
   return {(uint16_t)row, (uint16_t)col};
+}
+
+void IO::enable_raw() {
+  if (!cleaned)
+    return;
+  std::string os = "\x1b[?2004h";
+  write_all(STDOUT_FILENO, os.c_str(), os.size());
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw_termios) == -1)
+    throw fatal_error("Can't set raw terminal state.", 1);
+  cleaned = false;
 }
 
 void IO::cleanup() {

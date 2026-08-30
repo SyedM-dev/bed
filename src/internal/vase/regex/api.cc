@@ -80,20 +80,15 @@ Shard *substitute(
     (end + 1 == line_count)
       ? root->length
       : offset_of(root, end + 1);
-
   std::vector<RegexMatch> matches = _regex_search(root, pattern, start_offset, end_offset, options);
   if (matches.empty())
     return root;
-
   std::vector<ReplacePart> replace_parts = parse_replace(ap, replace);
-
   std::vector<Shard *> pieces;
   pieces.reserve(matches.size() * 2 + 1);
-
   Shard *remaining = root;
   Shard::retain(remaining);
   uint64_t cursor = 0;
-
   for (const RegexMatch &match : matches) {
     uint64_t gap = match.start - cursor;
     if (gap > 0) {
@@ -102,11 +97,9 @@ Shard *substitute(
       pieces.push_back(keep);
       remaining = rest;
     }
-
     auto [dropped, rest2] = Shard::split(remaining, match.end - match.start);
     Shard::release(remaining);
     remaining = rest2;
-
     for (size_t i = 0; i < replace_parts.size(); ++i) {
       const ReplacePart &part = replace_parts[i];
       switch (part.type) {
@@ -141,11 +134,9 @@ Shard *substitute(
     cursor = match.end;
   }
   pieces.push_back(remaining);
-
   for (auto &part : replace_parts)
     if (part.type == ReplacePart::PartType::Constant)
       Shard::release(std::get<Shard *>(part.value));
-
   std::vector<Shard *> compact;
   compact.reserve(pieces.size());
   for (Shard *p : pieces) {
@@ -154,7 +145,6 @@ Shard *substitute(
     else if (p)
       Shard::release(p);
   }
-
   Shard *new_root = compact.empty() ? nullptr : Shard::build(compact.data(), 0, compact.size());
   Shard::release(root);
   return new_root;

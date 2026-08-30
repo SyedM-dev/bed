@@ -25,6 +25,8 @@ struct Buffer {
   ~Buffer();
 
   uint64_t lines();
+  uint64_t bytes();
+  void load(BEd &ctx, vase::Shard *text);
   vase::Shard *copy(uint64_t start_line, uint64_t end_line);
   void substitute(
     BEd &ctx, uint64_t start_line, uint64_t end_line,

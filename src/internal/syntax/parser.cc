@@ -1,42 +1,6 @@
 #include "internal/syntax/parser.h"
 
 namespace bed::internal::syntax {
-void dump_events(ParseState *root) {
-  if (!root)
-    return;
-  uint64_t offset = 0;
-  TreeCursor c(root, 0, &offset);
-  uint64_t line_offset = 0;
-  int depth = 0;
-  while (c.leaf) {
-    auto *leaf = c.leaf;
-    for (uint32_t i = 0; i < leaf->n; ++i) {
-      uint32_t block = leaf->blocks[i];
-      uint32_t pos = block & ParseStateLeaf::LINE_MASK;
-      bool closing = block & ParseStateLeaf::IS_CLOSING;
-      if (closing) {
-        if (depth > 0)
-          --depth;
-        else
-          std::cout << "!! UNMATCHED CLOSE !! ";
-      }
-      std::cout << std::string(static_cast<size_t>(depth) * 2, ' ')
-                << (closing ? "}" : "{")
-                << " line " << (line_offset + pos)
-                << '\n';
-      if (!closing)
-        ++depth;
-    }
-    line_offset += leaf->lines();
-    c.next();
-  }
-  if (depth != 0) {
-    std::cout << "!! UNBALANCED: depth = "
-              << depth
-              << " !!\n";
-  }
-}
-
 static void destroy_tree(ParseState *node, Language &lang) {
   if (!node)
     return;

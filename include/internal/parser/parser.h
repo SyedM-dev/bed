@@ -2,7 +2,7 @@
 
 #include "internal/functions/functions.h"
 #include "internal/functions/suffixes.h"
-#include "internal/io/command.h"
+#include "internal/ui/command.h"
 #include "pch.h"
 
 namespace bed::internal::parser {
@@ -85,12 +85,12 @@ struct Parser {
   std::string_view cmd;
   uint16_t i;
   Command *command;
-  std::vector<io::Token> *tokens;
+  std::vector<ui::Token> *tokens;
   CompletionContext *completion;
 
   explicit Parser(
     std::string_view cmd, BEd &bed, Command *command,
-    std::vector<io::Token> *tokens, CompletionContext *completion
+    std::vector<ui::Token> *tokens, CompletionContext *completion
   );
 
   char peek(uint16_t = 0); // == \0 if at eof.

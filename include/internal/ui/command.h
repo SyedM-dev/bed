@@ -4,7 +4,7 @@
 #include "internal/ui/autocomp.h"
 #include "pch.h"
 
-namespace bed::internal::io {
+namespace bed::internal::ui {
 struct Token {
   enum struct Type : uint8_t {
     TempCurrent,      // @
@@ -39,10 +39,10 @@ struct CommandIO {
   uint16_t term_height;
   uint16_t term_width;
   BEd &bed;
-  IO &io;
+  io::IO &io;
 
-  CommandIO(BEd &, IO &);
+  CommandIO(BEd &, io::IO &);
   std::pair<std::string, bool> run();
   void redraw();
 };
-} // namespace bed::internal::io
+} // namespace bed::internal::ui

@@ -27,14 +27,12 @@ struct Shard {
   static Shard *from_file(const std::filesystem::path &path, bool posix_ending);
   static Shard *from_string(const char *data, uint64_t len, bool posix_ending);
   static Shard *from_command(const char *cmd, bool posix_ending);
-  // static std::vector<Shard *> from_swap(std::filesystem::path &path, OriginalStorage *b);
 
   static std::pair<Shard *, Shard *> split(Shard *n, uint64_t offset);
   static Shard *concat(Shard *a, Shard *b);
   static Shard *merge_leaves(Shard *a, Shard *b);
   static Shard *append(Shard *root, Shard *leaf);
   static Shard *build(Shard **pieces, uint64_t lo, uint64_t hi);
-  static void dump(Shard *node, int depth = 0);
 };
 
 struct Branch : Shard {

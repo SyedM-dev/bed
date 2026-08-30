@@ -6,13 +6,16 @@ namespace bed::internal::parser {
 buffer::Line AddressPromise::resolve(BEd &ctx) {
   buffer::Line result = std::visit(
     [&](auto const &addr) -> buffer::Line {
-      if (!bufname.has_value())
+      if (!bufname.has_value() || bufname->empty())
         throw ed_error("Buffer name can't be empty.");
       buffer::Line line = {*bufname, 0};
       auto &buf = ctx.buffer(line.buffername);
       using T = std::decay_t<decltype(addr)>;
       if constexpr (std::is_same_v<T, None>) {
-        throw ed_error("no address");
+        if (line.buffername == ctx.current().buffername)
+          line.number = ctx.current().number;
+        else
+          line.number = buf.lines();
       } else if constexpr (std::is_same_v<T, Current>) {
         if (line.buffername == ctx.current().buffername)
           line.number = ctx.current().number;
@@ -133,15 +136,18 @@ std::optional<buffer::Line> AddressPromise::get_line(BEd &ctx, std::vector<Addre
       prev_set = true;
     } else {
       if (std::holds_alternative<None>(curr.base)) {
-        if (!prev_set)
-          return std::nullopt;
-        if (prev_given) {
-          curr.base = prev.base;
-          curr.offset = prev.offset;
-        } else {
-          curr.base = Last();
-          curr.offset = 0;
+        if (prev_set) {
+          if (prev_given) {
+            curr.base = prev.base;
+            curr.offset = prev.offset;
+          } else {
+            curr.base = Last();
+            curr.offset = 0;
+          }
         }
+      } else if (std::holds_alternative<LastRange>(curr.base)) {
+        curr.bufname = ctx.prev.buffername;
+        curr.base = Number(ctx.prev.end);
       }
       return curr.resolve(ctx);
     }
@@ -193,16 +199,18 @@ std::optional<buffer::Range> AddressPromise::get_range(BEd &ctx, std::vector<Add
       prev_set = true;
     } else {
       if (std::holds_alternative<None>(curr.base)) {
-        if (!prev_set)
-          return std::nullopt;
-        if (prev_given) {
-          curr.base = prev.base;
-          curr.offset = prev.offset;
-        } else {
-          curr.base = Last();
-          curr.offset = 0;
+        if (prev_set) {
+          if (prev_given) {
+            curr.base = prev.base;
+            curr.offset = prev.offset;
+          } else {
+            curr.base = Last();
+            curr.offset = 0;
+          }
+          return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));
         }
-        return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));
+      } else if (std::holds_alternative<LastRange>(curr.base)) {
+        return ctx.prev;
       }
       if (prev_given)
         return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));

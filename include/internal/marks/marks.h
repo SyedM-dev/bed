@@ -48,8 +48,8 @@ struct MarksEngine {
         continue;
       if (marks[i].number == UINT64_MAX)
         continue;
-      if (marks[i].number >= start) {
-        if (marks[i].number < start + count)
+      if (marks[i].number > start) {
+        if (marks[i].number <= start + count)
           marks[i].number = start;
         else
           marks[i].number -= count;

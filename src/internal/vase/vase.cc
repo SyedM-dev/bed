@@ -222,6 +222,38 @@ Shard *erase(Shard *root, uint64_t start, uint64_t end) {
   return new_root;
 }
 
+Shard *join(Shard *root, uint64_t start, uint64_t end) {
+  if (!start || !end)
+    throw ed_error("Invalid range.");
+  start--;
+  end--;
+  if (!root)
+    throw ed_error("line range out of bounds");
+  uint64_t line_count = root->lines + 1;
+  if (start >= end || end >= line_count)
+    throw ed_error("line range out of bounds");
+
+  uint64_t offset = offset_of(root, start);
+  std::vector<Shard *> pieces;
+  pieces.reserve(end - start + 3);
+  auto [a, b] = Shard::split(root, offset);
+  pieces.push_back(a);
+  for (uint64_t line = start; line < end; line++) {
+    uint64_t nl_pos = offset_of(b, 1) - 1;
+    auto [content, rest] = Shard::split(b, nl_pos);
+    Shard::release(b);
+    auto [nl, next_b] = Shard::split(rest, 1);
+    Shard::release(rest);
+    Shard::release(nl);
+    pieces.push_back(content);
+    b = next_b;
+  }
+  pieces.push_back(b);
+  Shard *joined = Shard::build(pieces.data(), 0, pieces.size());
+  Shard::release(root);
+  return joined;
+}
+
 Shard *copy(Shard *root, uint64_t start, uint64_t end) {
   if (!start || !end)
     throw ed_error("Invalid range.");

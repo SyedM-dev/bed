@@ -5,8 +5,6 @@
 #include "pch.h"
 
 namespace bed::internal::syntax {
-void dump_events(ParseState *node);
-
 struct Parser {
   static constexpr uint64_t MAX_CHUNK = 512;
 

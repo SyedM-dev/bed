@@ -50,6 +50,14 @@ struct KeyEvent {
 };
 
 struct IO {
+  static termios orig_termios;
+  static termios raw_termios;
+  static bool cleaned;
+  static void cleanup();
+  static void enable_raw();
+  static volatile std::atomic_bool resized;
+  static void handle_sigwinch(int);
+
   IO();
   ~IO();
 
@@ -69,13 +77,6 @@ struct IO {
   KeyEvent read_key();
   void write(const char *, uint64_t);
   void write(std::string_view);
-
-private:
-  static termios orig_termios;
-  static bool cleaned;
-  static void cleanup();
-  static volatile std::atomic_bool resized;
-  static void handle_sigwinch(int);
 
   std::deque<char> input_queue;
 

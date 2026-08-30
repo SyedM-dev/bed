@@ -4,11 +4,11 @@
 #include "internal/buffer/buffer.h"
 #include "internal/functions/functions.h"
 #include "internal/functions/suffixes.h"
-#include "internal/io/command.h"
 #include "internal/io/io.h"
 #include "internal/marks/marks.h"
 #include "internal/theme/theme.h"
 #include "internal/ui/autocomp.h"
+#include "internal/ui/command.h"
 #include "pch.h"
 
 namespace bed {
@@ -27,6 +27,7 @@ struct BEd {
   bool prompt_mode = true;
   std::function<std::string(BEd &)> prompt = nullptr;
   bool suppress_mode = false;
+  bool temporary_current = false;
   std::string last_regex = "";
   std::string last_symbol = "";
   std::string last_replacement = "";

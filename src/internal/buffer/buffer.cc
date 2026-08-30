@@ -4,7 +4,6 @@
 namespace bed::internal::buffer {
 Buffer::Buffer(std::string name)
     : state(Unmodified), root(nullptr), name(name) {
-  parser.emplace(root, lines(), syntax::ruby::lang_ruby()); // just for debug.
 }
 
 Buffer::~Buffer() {
@@ -15,6 +14,24 @@ uint64_t Buffer::lines() {
   if (root)
     return root->lines + 1;
   return 0;
+}
+
+uint64_t Buffer::bytes() {
+  if (root)
+    return root->length + 1;
+  return 0;
+}
+
+void Buffer::load(BEd &, vase::Shard *text) {
+  try {
+    vase::Shard::release(root);
+    root = text;
+    state = buffer::Buffer::Unmodified;
+    parser.emplace(root, lines(), syntax::ruby::lang_ruby());
+  } catch (...) {
+    vase::Shard::release(text);
+    throw;
+  }
 }
 
 void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
@@ -31,8 +48,8 @@ void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
 void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   root = vase::erase(root, start_line, end_line);
   ctx.prev.buffername = name;
-  ctx.prev.start = start_line;
-  ctx.prev.end = start_line;
+  ctx.prev.start = lines() ? 1 : 0;
+  ctx.prev.end = lines();
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
   if (parser)
     parser->erase(root, start_line, end_line - start_line + 1);
@@ -40,7 +57,7 @@ void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
 }
 
 void Buffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
-  root = vase::substitute(&ctx.append, root, R"(\n)", start_line, end_line, "", "g");
+  root = vase::join(root, start_line, end_line);
   ctx.prev.buffername = name;
   ctx.prev.start = start_line;
   ctx.prev.end = start_line;
@@ -54,7 +71,7 @@ void Buffer::substitute(
   BEd &ctx, uint64_t start_line, uint64_t end_line,
   std::string &regex, std::string &replacement, std::string &options
 ) {
-  // make substitue return a list of modifications made.
+  // TODO: make substitue return a list of modifications made.
   root = vase::substitute(&ctx.append, root, regex, start_line, end_line, replacement, options);
   /*prev_range.start = start_line;
   prev_range.end = start_line;

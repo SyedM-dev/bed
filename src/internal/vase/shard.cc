@@ -1,3 +1,4 @@
+#include "internal/io/io.h"
 #include "internal/vase/vase.h"
 
 namespace bed::internal::vase {
@@ -192,10 +193,10 @@ Shard *Shard::append(Shard *root, Shard *leaf) {
 Shard *Shard::build(Shard **pieces, uint64_t lo, uint64_t hi) {
   if (hi - lo == 1)
     return pieces[lo];
-  size_t mid = lo + (hi - lo) / 2;
+  uint64_t mid = lo + (hi - lo) / 2;
   Shard *left = build(pieces, lo, mid);
   Shard *right = build(pieces, mid, hi);
-  Shard *node = new Branch(left, right);
+  Shard *node = Shard::concat(left, right);
   Shard::release(left);
   Shard::release(right);
   return node;
@@ -208,9 +209,11 @@ Shard *Shard::from_command(const char *cmd, bool posix_ending) {
     delete o;
     return nullptr;
   }
+  io::IO::cleanup();
   FILE *pipe = popen(cmd, "r");
   if (!pipe) {
     delete o;
+    io::IO::enable_raw();
     return nullptr;
   }
   std::vector<Shard *> pieces;
@@ -245,6 +248,7 @@ Shard *Shard::from_command(const char *cmd, bool posix_ending) {
       if (!write_all(dest_fd, buf, buf_cursor)) {
         pclose(pipe);
         delete o;
+        io::IO::enable_raw();
         return nullptr;
       }
       pieces.push_back(new Petal(buf_cursor, lines, o, pos));
@@ -254,20 +258,24 @@ Shard *Shard::from_command(const char *cmd, bool posix_ending) {
       break;
     if (ferror(pipe)) {
       delete o;
+      io::IO::enable_raw();
       return nullptr;
     }
   }
   int status = pclose(pipe);
   if (status == -1) {
     delete o;
+    io::IO::enable_raw();
     return nullptr;
   }
   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
     delete o;
+    io::IO::enable_raw();
     return nullptr;
   }
   if (pieces.empty()) {
     delete o;
+    io::IO::enable_raw();
     return nullptr;
   }
   if (posix_ending) {
@@ -287,6 +295,7 @@ Shard *Shard::from_command(const char *cmd, bool posix_ending) {
     }
   }
   o->initialize();
+  io::IO::enable_raw();
   if (pieces.size() == 1)
     return pieces[0];
   return build(pieces.data(), 0, pieces.size());
@@ -420,55 +429,5 @@ Shard *Shard::from_string(const char *data, uint64_t len, bool posix_ending) {
   if (pieces.size() == 1)
     return pieces[0];
   return build(pieces.data(), 0, pieces.size());
-}
-
-void Shard::dump(Shard *node, int depth) {
-  if (!node) {
-    std::cout << std::string(depth * 2, ' ') << "<null>\n";
-    return;
-  }
-  std::string indent(depth * 2, ' ');
-  std::cout << indent
-            << "Shard@" << node
-            << " kind=";
-  switch (node->kind) {
-  case Shard::Kind::Branch:
-    std::cout << "Branch";
-    break;
-  case Shard::Kind::Petal:
-    std::cout << "Petal";
-    break;
-  }
-  std::cout
-    << " height=" << unsigned(node->height)
-    << " length=" << node->length
-    << " lines=" << node->lines
-    << " refs=" << node->refs.load()
-    << "\n";
-  if (node->kind == Shard::Kind::Branch) {
-    auto *branch = (Branch *)node;
-    std::cout << indent << "  left:\n";
-    dump(branch->left, depth + 2);
-    std::cout << indent << "  right:\n";
-    dump(branch->right, depth + 2);
-  } else {
-    auto *petal = static_cast<Petal *>(node);
-    constexpr auto clean = [](const std::string &text) {
-      std::string result = text;
-      size_t pos = 0;
-      while ((pos = result.find('\n', pos)) != std::string::npos) {
-        result.replace(pos, 1, "\\n");
-        pos += 2;
-      }
-      return result;
-    };
-    std::cout
-      << indent << "  source=" << petal->source
-      << " pos=" << petal->pos
-      << " length=" << petal->length
-      << " lines=" << petal->lines
-      << " text=\"" << clean(std::string(petal->source->read(petal->pos), petal->length))
-      << "\"\n";
-  }
 }
 } // namespace bed::internal::vase

@@ -150,12 +150,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "$",
       .accept_zero = true,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         auto addr = std::get<buffer::Range>(addr_);
         if (addr.start == addr.end)
           std::cout << ':' << addr.buffername << ':' << addr.start << "\n";
         else
           std::cout << ':' << addr.buffername << ':' << addr.start << "," << addr.end << "\n";
+        ctx.current() = {addr.buffername, addr.end};
       },
     }
   );
@@ -204,17 +205,8 @@ void Function::register_posix(BEd &ctx) {
           else
             throw ed_error("Need filename to load.");
         }
-        try {
-          if (buf.lines())
-            buf.remove(ctx, 1, buf.lines());
-          buf.append(ctx, s, 0);
-          buf.state = buffer::Buffer::Unmodified;
-        } catch (...) {
-          vase::Shard::release(s);
-          throw;
-        }
-        std::cout << (s->length + 1) << std::endl;
-        vase::Shard::release(s);
+        buf.load(ctx, s);
+        std::cout << buf.bytes() << std::endl;
         ctx.current() = {addr, buf.lines()};
       }
     }
@@ -244,17 +236,8 @@ void Function::register_posix(BEd &ctx) {
           else
             throw ed_error("Need filename to load.");
         }
-        try {
-          if (buf.lines())
-            buf.remove(ctx, 1, buf.lines());
-          buf.append(ctx, s, 0);
-          buf.state = buffer::Buffer::Unmodified;
-        } catch (...) {
-          vase::Shard::release(s);
-          throw;
-        }
-        std::cout << (s->length + 1) << std::endl;
-        vase::Shard::release(s);
+        buf.load(ctx, s);
+        std::cout << buf.bytes() << std::endl;
         ctx.current() = {addr, buf.lines()};
       }
     }
@@ -288,6 +271,24 @@ void Function::register_posix(BEd &ctx) {
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         std::cout << ctx.last_help << std::endl;
+      }
+    }
+  );
+  ctx.functions.insert(
+    "P",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "Toggle prompt.",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+        ctx.prompt_mode = !ctx.prompt_mode;
+        if (ctx.prompt_mode && !ctx.prompt) {
+          ctx.prompt = [](BEd &) { return "*"; };
+        }
       }
     }
   );
