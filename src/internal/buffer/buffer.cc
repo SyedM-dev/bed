@@ -22,11 +22,20 @@ uint64_t Buffer::bytes() {
   return 0;
 }
 
-void Buffer::load(BEd &, vase::Shard *text) {
+void Buffer::load(BEd &ctx, vase::Shard *text) {
   try {
     vase::Shard::release(root);
     root = text;
     state = buffer::Buffer::Unmodified;
+    if (!text) {
+      ctx.prev().buffername = name;
+      ctx.prev().start = 0;
+      ctx.prev().end = 0;
+    } else {
+      ctx.prev().buffername = name;
+      ctx.prev().start = 1;
+      ctx.prev().end = text->lines + 1;
+    }
     parser.emplace(root, lines(), syntax::ruby::lang_ruby());
   } catch (...) {
     vase::Shard::release(text);
@@ -71,13 +80,35 @@ void Buffer::substitute(
   BEd &ctx, uint64_t start_line, uint64_t end_line,
   std::string &regex, std::string &replacement, std::string &options
 ) {
-  // TODO: make substitue return a list of modifications made.
-  root = vase::substitute(&ctx.append, root, regex, start_line, end_line, replacement, options);
-  /*prev_range.start = start_line;
-  prev_range.end = start_line;
-  marks.collapse(start_line, end_line - start_line);
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = end_line;
   if (parser)
-    parser->erase(vase, start_line, end_line - start_line);*/
+    parser->begin_edit();
+  root = vase::substitute(
+    &ctx.append,
+    root,
+    regex,
+    start_line,
+    end_line,
+    replacement,
+    options,
+    [&](uint64_t line, uint64_t old_lines, uint64_t new_lines) {
+      if (old_lines) {
+        ctx.marks.erase(name, line, old_lines);
+        if (parser)
+          parser->erase(line, old_lines);
+      }
+      if (new_lines) {
+        ctx.marks.insert(name, line, line + new_lines - 1);
+        if (parser)
+          parser->insert(line, line + new_lines - 1);
+      }
+    }
+  );
+  if (parser)
+    parser->end_edit(root);
+  ctx.prev().buffername = name;
   state = Modified;
 }
 

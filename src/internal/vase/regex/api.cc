@@ -25,12 +25,7 @@ std::vector<ReplacePart> parse_replace(AppendStorage *ap, std::string_view s) {
   };
   for (size_t i = 0; i < s.size(); ++i) {
     char c = s[i];
-    if (c == '\\' && i + 1 < s.size() && s[i + 1] == '$') {
-      constant.push_back('$');
-      ++i;
-      continue;
-    }
-    if (c == '$' && i + 1 < s.size()) {
+    if (c == '\\' && i + 1 < s.size()) {
       char next = s[i + 1];
       if (next == '0') {
         flush_constant();
@@ -40,10 +35,7 @@ std::vector<ReplacePart> parse_replace(AppendStorage *ap, std::string_view s) {
             .value = (uint8_t)0
           }
         );
-        ++i;
-        continue;
-      }
-      if (next >= '1' && next <= '9') {
+      } else if (next >= '1' && next <= '9') {
         flush_constant();
         parts.push_back(
           ReplacePart{
@@ -51,9 +43,22 @@ std::vector<ReplacePart> parse_replace(AppendStorage *ap, std::string_view s) {
             .value = (uint8_t)(next - '0')
           }
         );
-        ++i;
-        continue;
+      } else if (next == 'n') {
+        constant.push_back('\n');
+      } else {
+        constant.push_back(next);
       }
+      ++i;
+      continue;
+    }
+    if (c == '&') {
+      flush_constant();
+      parts.push_back(
+        ReplacePart{
+          .type = ReplacePart::PartType::FullMatch,
+          .value = (uint8_t)0
+        }
+      );
     }
     constant.push_back(c);
   }
@@ -64,7 +69,8 @@ std::vector<ReplacePart> parse_replace(AppendStorage *ap, std::string_view s) {
 Shard *substitute(
   AppendStorage *ap, Shard *root,
   std::string_view pattern, uint64_t start, uint64_t end,
-  std::string_view replace, std::string_view options
+  std::string_view replace, std::string_view options,
+  const std::function<void(uint64_t line, uint64_t old_lines, uint64_t new_lines)> &on_edit
 ) {
   if (!start || !end)
     throw ed_error("Invalid range.");
@@ -79,11 +85,18 @@ Shard *substitute(
   uint64_t end_offset =
     (end + 1 == line_count)
       ? root->length
-      : offset_of(root, end + 1);
+      : offset_of(root, end + 1) - 1;
   std::vector<RegexMatch> matches = _regex_search(root, pattern, start_offset, end_offset, options);
   if (matches.empty())
     return root;
   std::vector<ReplacePart> replace_parts = parse_replace(ap, replace);
+  struct Edit {
+    uint64_t line;
+    uint64_t old_lines;
+    uint64_t new_lines;
+  };
+  uint64_t orig_line = start;
+  int64_t line_delta = 0;
   std::vector<Shard *> pieces;
   pieces.reserve(matches.size() * 2 + 1);
   Shard *remaining = root;
@@ -96,26 +109,33 @@ Shard *substitute(
       Shard::release(remaining);
       pieces.push_back(keep);
       remaining = rest;
+      orig_line += keep ? keep->lines : 0;
     }
     auto [dropped, rest2] = Shard::split(remaining, match.end - match.start);
     Shard::release(remaining);
     remaining = rest2;
+    uint64_t old_lines = dropped ? dropped->lines : 0;
+    uint64_t new_lines = 0;
     for (size_t i = 0; i < replace_parts.size(); ++i) {
       const ReplacePart &part = replace_parts[i];
       switch (part.type) {
-      case ReplacePart::PartType::Constant:
-        Shard::retain(std::get<Shard *>(part.value));
-        pieces.push_back(std::get<Shard *>(part.value));
+      case ReplacePart::PartType::Constant: {
+        Shard *c = std::get<Shard *>(part.value);
+        Shard::retain(c);
+        pieces.push_back(c);
+        new_lines += c ? c->lines : 0;
         break;
+      }
       case ReplacePart::PartType::FullMatch:
         Shard::retain(dropped);
         pieces.push_back(dropped);
+        new_lines += dropped ? dropped->lines : 0;
         break;
       case ReplacePart::PartType::CaptureGroup: {
         uint8_t idx = std::get<uint8_t>(part.value);
         if (idx <= 9) {
           const RegexGroup &group = match.groups[idx - 1];
-          if (group.start > group.end) {
+          if (group.start != UINT64_MAX) {
             uint64_t ls = group.start - match.start;
             uint64_t le = group.end - match.start;
             auto [a, b] = Shard::split(dropped, ls);
@@ -124,6 +144,7 @@ Shard *substitute(
             Shard::release(b);
             Shard::release(c);
             pieces.push_back(g);
+            new_lines += g ? g->lines : 0;
           }
         }
         break;
@@ -131,6 +152,13 @@ Shard *substitute(
       }
     }
     Shard::release(dropped);
+    if (old_lines || new_lines) {
+      uint64_t report_line = (uint64_t)((int64_t)orig_line + line_delta);
+      if (on_edit)
+        on_edit(report_line, old_lines, new_lines);
+      line_delta += (int64_t)new_lines - (int64_t)old_lines;
+    }
+    orig_line += old_lines;
     cursor = match.end;
   }
   pieces.push_back(remaining);
@@ -151,7 +179,7 @@ Shard *substitute(
 }
 
 uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
-  if (start == 0 || start > root->lines)
+  if (start == 0 || start > root->lines + 1)
     throw ed_error("Invalid line number.");
   start--;
   std::vector<RegexMatch> results;
@@ -180,7 +208,7 @@ uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
     if (rc >= 0) {
       pcre2_match_data_free(match_data);
       pcre2_code_free(re);
-      return at;
+      return at + 1;
     }
     if (rc != PCRE2_ERROR_NOMATCH) {
       pcre2_match_data_free(match_data);
@@ -198,7 +226,7 @@ uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
     if (rc >= 0) {
       pcre2_match_data_free(match_data);
       pcre2_code_free(re);
-      return at;
+      return at + 1;
     }
     if (rc != PCRE2_ERROR_NOMATCH) {
       pcre2_match_data_free(match_data);
@@ -213,7 +241,7 @@ uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
 }
 
 uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start) {
-  if (start == 0 || start > root->lines)
+  if (start == 0 || start > root->lines + 1)
     throw ed_error("Invalid line number.");
   start--;
   std::vector<RegexMatch> results;
@@ -242,7 +270,7 @@ uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start) {
     if (rc >= 0) {
       pcre2_match_data_free(match_data);
       pcre2_code_free(re);
-      return at;
+      return at + 1;
     }
     if (rc != PCRE2_ERROR_NOMATCH) {
       pcre2_match_data_free(match_data);
@@ -260,7 +288,7 @@ uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start) {
     if (rc >= 0) {
       pcre2_match_data_free(match_data);
       pcre2_code_free(re);
-      return at;
+      return at + 1;
     }
     if (rc != PCRE2_ERROR_NOMATCH) {
       pcre2_match_data_free(match_data);

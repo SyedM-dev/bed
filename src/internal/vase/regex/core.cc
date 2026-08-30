@@ -64,7 +64,7 @@ std::vector<RegexMatch> _regex_search(
   uint64_t offset = UINT64_MAX;
 
   auto record_match = [&](int rc, PCRE2_SIZE *ovector) {
-    if (global_offset + (uint64_t)ovector[1] > end_offset || ovector[0] == ovector[1])
+    if (global_offset + (uint64_t)ovector[1] > end_offset)
       return;
     RegexMatch match{
       .start = global_offset + (uint64_t)ovector[0],
@@ -74,8 +74,8 @@ std::vector<RegexMatch> _regex_search(
       PCRE2_SIZE s = ovector[2 * i];
       PCRE2_SIZE e = ovector[2 * i + 1];
       if (s != PCRE2_UNSET) {
-        match.groups[i].start = global_offset + (uint64_t)s;
-        match.groups[i].end = global_offset + (uint64_t)e;
+        match.groups[i - 1].start = global_offset + (uint64_t)s;
+        match.groups[i - 1].end = global_offset + (uint64_t)e;
       }
     }
     results.push_back(std::move(match));

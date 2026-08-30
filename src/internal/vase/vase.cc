@@ -232,7 +232,6 @@ Shard *join(Shard *root, uint64_t start, uint64_t end) {
   uint64_t line_count = root->lines + 1;
   if (start >= end || end >= line_count)
     throw ed_error("line range out of bounds");
-
   uint64_t offset = offset_of(root, start);
   std::vector<Shard *> pieces;
   pieces.reserve(end - start + 3);

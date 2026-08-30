@@ -123,36 +123,15 @@ ParseState *Parser::join_tree(ParseState *a, ParseState *b) {
 }
 
 void Parser::erase(vase::Shard *vase, uint64_t start, uint64_t count) {
-  if (count == 0 || !root)
-    return;
-  auto [a, remaining] = split_tree(root, start);
-  auto [waste, b] = split_tree(remaining, count);
-  destroy_tree(waste, lang);
-  root = join_tree(a, b);
-  modify(vase, start, 1);
+  begin_edit();
+  erase(start, count);
+  end_edit(vase);
 }
 
 void Parser::insert(vase::Shard *vase, uint64_t start, uint64_t count) {
-  if (count == 0)
-    return;
-  std::vector<ParseStateLeaf *> leaves;
-  leaves.reserve((count + MAX_CHUNK - 1) / MAX_CHUNK);
-  uint64_t consumed = 0;
-  while (consumed < count) {
-    auto *leaf = (ParseStateLeaf *)malloc(sizeof(ParseStateLeaf));
-    leaf->state = nullptr;
-    leaf->blocks = nullptr;
-    leaf->n = 0;
-    leaf->cap = 0;
-    uint64_t chunk = std::min(MAX_CHUNK, count - consumed);
-    leaf->header = chunk;
-    consumed += chunk;
-    leaves.push_back(leaf);
-  }
-  ParseState *subtree = build_tree(leaves, 0, leaves.size());
-  auto [left, right] = split_tree(root, start);
-  root = join_tree(join_tree(left, subtree), right);
-  modify(vase, start, count);
+  begin_edit();
+  insert(start, count);
+  end_edit(vase);
 }
 
 void Parser::modify(vase::Shard *vase, uint64_t target, uint64_t count) {
@@ -217,6 +196,63 @@ void Parser::modify(vase::Shard *vase, uint64_t target, uint64_t count) {
     at++;
   }
   lang.destroy(state);
+}
+
+void Parser::begin_edit() {
+  in_edit = true;
+}
+
+void Parser::mark_dirty(uint64_t start, uint64_t end) {
+  if (!dirty) {
+    dirty_start = start;
+    dirty_end = end;
+    dirty = true;
+  } else {
+    dirty_start = std::min(dirty_start, start);
+    dirty_end = std::max(dirty_end, end);
+  }
+}
+
+void Parser::erase(uint64_t start, uint64_t count) {
+  if (count == 0 || !root)
+    return;
+  auto [a, remaining] = split_tree(root, start);
+  auto [waste, b] = split_tree(remaining, count);
+  destroy_tree(waste, lang);
+  root = join_tree(a, b);
+  mark_dirty(start, start + 1);
+}
+
+void Parser::insert(uint64_t start, uint64_t count) {
+  if (count == 0)
+    return;
+  std::vector<ParseStateLeaf *> leaves;
+  leaves.reserve((count + MAX_CHUNK - 1) / MAX_CHUNK);
+  uint64_t consumed = 0;
+  while (consumed < count) {
+    auto *leaf = (ParseStateLeaf *)malloc(sizeof(ParseStateLeaf));
+    leaf->state = nullptr;
+    leaf->blocks = nullptr;
+    leaf->n = 0;
+    leaf->cap = 0;
+    uint64_t chunk = std::min(MAX_CHUNK, count - consumed);
+    leaf->header = chunk;
+    consumed += chunk;
+    leaves.push_back(leaf);
+  }
+  ParseState *subtree = build_tree(leaves, 0, leaves.size());
+  auto [left, right] = split_tree(root, start);
+  root = join_tree(join_tree(left, subtree), right);
+  mark_dirty(start, start + count);
+}
+
+void Parser::end_edit(vase::Shard *vase) {
+  in_edit = false;
+  if (!dirty)
+    return;
+  uint64_t count = dirty_end > dirty_start ? dirty_end - dirty_start : 1;
+  modify(vase, dirty_start, count);
+  dirty = false;
 }
 
 uint64_t Parser::next_closing(uint64_t line) {

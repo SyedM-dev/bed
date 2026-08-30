@@ -132,7 +132,7 @@ void Parser::operation() {
     if (delim == '\0')
       throw ed_error("regex expected");
     advance();
-    uint64_t j = 0;
+    uint16_t j = 0;
     while (true) {
       if (peek(j) == '\0')
         throw ed_error("Unterminated regex");
@@ -141,7 +141,7 @@ void Parser::operation() {
       else if (peek(j) == '\\')
         j += 2;
       else if (peek(j) == '[')
-        while (peek(j) != '\0' && cmd[i] != ']')
+        while (peek(j) != '\0' && peek(j) != ']')
           j++;
       else
         j++;
@@ -157,15 +157,16 @@ void Parser::operation() {
       else if (peek(j) == '\\')
         j += 2;
       else if (peek(j) == '[')
-        while (peek(j) != '\0' && cmd[i] != ']')
+        while (peek(j) != '\0' && peek(j) != ']')
           j++;
       else
         j++;
     }
-    std::string replacement;
+    std::string replacement(peek_str(j));
     if (peek(j) != '\0') {
-      replacement = peek_str(j);
       advance(j + 1);
+    } else {
+      advance(j);
     }
     std::string options;
     if (peek() != '\0') {

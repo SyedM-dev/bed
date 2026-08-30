@@ -20,8 +20,8 @@ struct Range {
 };
 
 struct RegexGroup {
-  uint64_t start{0};
-  uint64_t end{0};
+  uint64_t start{UINT64_MAX};
+  uint64_t end{UINT64_MAX};
 };
 
 struct RegexMatch {
@@ -57,7 +57,10 @@ uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start);
 Shard *substitute(
   AppendStorage *ap, Shard *root,
   std::string_view pattern, uint64_t start, uint64_t end,
-  std::string_view replace, std::string_view options
+  std::string_view replace, std::string_view options,
+  const std::function<void(
+    uint64_t line, uint64_t old_lines, uint64_t new_lines
+  )> &on_edit = nullptr
 );
 
 // internal

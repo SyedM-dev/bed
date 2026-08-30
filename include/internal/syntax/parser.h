@@ -10,6 +10,10 @@ struct Parser {
 
   ParseState *root;
   Language lang;
+  bool in_edit = false;
+  bool dirty = false;
+  uint64_t dirty_start = 0;
+  uint64_t dirty_end = 0;
 
   Parser(vase::Shard *, uint64_t, Language);
   ~Parser();
@@ -20,6 +24,12 @@ struct Parser {
   void erase(vase::Shard *, uint64_t, uint64_t);
   void insert(vase::Shard *, uint64_t, uint64_t);
   void modify(vase::Shard *, uint64_t, uint64_t);
+
+  void begin_edit();
+  void erase(uint64_t start, uint64_t count);
+  void insert(uint64_t start, uint64_t count);
+  void end_edit(vase::Shard *vase);
+  void mark_dirty(uint64_t start, uint64_t end);
 
   uint64_t next_closing(uint64_t line);
   uint64_t prev_opening(uint64_t line);

@@ -79,12 +79,31 @@ void Function::register_posix(BEd &ctx) {
       .input_mode = Function::InputMode::None,
       .desc = "Delete set of lines.",
       .default_address = ".,.",
-      .accept_zero = true,
+      .accept_zero = false,
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).remove(ctx, addr.start, addr.end);
         ctx.current() = {addr.buffername, addr.start};
+      }
+    }
+  );
+  ctx.functions.insert(
+    "c",
+    Function{
+      .address_kind = Function::AddressKind::Range,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::Text,
+      .desc = "Change set of lines.",
+      .default_address = ".,.",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *text, const Argument &, std::vector<buffer::Line> *) {
+        auto addr = std::get<buffer::Range>(addr_);
+        ctx.buffer(addr.buffername).remove(ctx, addr.start, addr.end);
+        ctx.buffer(addr.buffername).append(ctx, text, addr.start - 1);
+        ctx.current() = {ctx.prev().buffername, ctx.prev().end};
+        vase::Shard::release(text);
       }
     }
   );
@@ -186,7 +205,7 @@ void Function::register_posix(BEd &ctx) {
       .accept_zero = true,
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
-        auto addr = std::get<buffer::Range>(addr_);
+        auto &addr = std::get<buffer::Range>(addr_);
         if (addr.start == addr.end)
           std::cout << ':' << addr.buffername << ':' << addr.start << "\n";
         else
@@ -206,8 +225,41 @@ void Function::register_posix(BEd &ctx) {
       .accept_zero = false,
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
-        auto addr = std::get<buffer::Line>(addr_);
+        auto &addr = std::get<buffer::Line>(addr_);
         ctx.mark(std::get<char>(arg), addr);
+      }
+    }
+  );
+  ctx.functions.insert(
+    "s",
+    Function{
+      .address_kind = Function::AddressKind::Range,
+      .argument_kind = Function::ArgumentKind::Regex,
+      .input_mode = Function::InputMode::None,
+      .desc = "Substitute regex.",
+      .default_address = ".,.",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+        auto &addr = std::get<buffer::Range>(addr_);
+        auto arg = std::get<RegexArg>(arg_);
+        if (arg.expression == "")
+          arg.expression = ctx.last_regex;
+        else
+          ctx.last_regex = arg.expression;
+        if (arg.replacement == "%")
+          arg.replacement = ctx.last_replacement;
+        else
+          ctx.last_replacement = arg.replacement;
+        ctx.buffer(addr.buffername)
+          .substitute(
+            ctx,
+            addr.start,
+            addr.end,
+            arg.expression,
+            arg.replacement,
+            arg.options
+          );
       }
     }
   );
