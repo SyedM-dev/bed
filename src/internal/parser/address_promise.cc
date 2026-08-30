@@ -44,9 +44,9 @@ buffer::Line AddressPromise::resolve(BEd &ctx) {
         if (re.size() == 0)
           throw ed_error("No regex given.");
         if (addr.dir == Direction::Forward)
-          line.number = vase::find_next(buf.root, re, line.number);
+          line.number = buf.find_next(re, line.number);
         else
-          line.number = vase::find_prev(buf.root, re, line.number);
+          line.number = buf.find_prev(re, line.number);
         ctx.last_regex = re;
       } else if constexpr (std::is_same_v<T, Block>) {
         if (line.buffername == ctx.current().buffername)
@@ -55,28 +55,10 @@ buffer::Line AddressPromise::resolve(BEd &ctx) {
           line.number = buf.lines();
         if (buf.lines() > 0 && line.number == 0)
           line.number = 1;
-        if (addr.dir == Direction::Forward) {
-          if (buf.parser.has_value()) {
-            uint64_t closing = buf.parser->next_closing(line.number - 1);
-            if (closing == UINT64_MAX)
-              line.number = buf.lines();
-            else
-              line.number = closing + 1;
-          } else {
-            line.number += 10;
-            if (line.number > buf.lines())
-              line.number = buf.lines();
-          }
-        } else {
-          if (buf.parser.has_value()) {
-            line.number = buf.parser->prev_opening(line.number - 1) + 1;
-          } else {
-            if (line.number > 10)
-              line.number -= 10;
-            else
-              line.number = 0;
-          }
-        }
+        if (addr.dir == Direction::Forward)
+          line.number = buf.next_closing(line.number);
+        else
+          line.number = buf.prev_closing(line.number);
       } else {
         throw ed_error("Unhandled address given.");
       }

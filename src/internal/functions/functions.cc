@@ -280,19 +280,12 @@ void Function::register_posix(BEd &ctx) {
           buf.state = buffer::Buffer::Warned;
           throw ed_error("Buffer modified.");
         }
-        vase::Shard *s = nullptr;
-        if (std::holds_alternative<std::filesystem::path>(arg)) {
-          s = vase::Shard::from_file(std::get<std::filesystem::path>(arg), true);
-          buf.save_path = std::get<std::filesystem::path>(arg);
-        } else if (std::holds_alternative<ShellArg>(arg)) {
-          s = vase::Shard::from_command(std::get<ShellArg>(arg).cmd.c_str(), true);
-        } else if (std::holds_alternative<std::monostate>(arg)) {
-          if (buf.save_path != "")
-            s = vase::Shard::from_file(buf.save_path, true);
-          else
-            throw ed_error("Need filename to load.");
-        }
-        buf.load(ctx, s);
+        if (std::holds_alternative<std::filesystem::path>(arg))
+          buf.load(ctx, std::get<std::filesystem::path>(arg));
+        else if (std::holds_alternative<ShellArg>(arg))
+          buf.load(ctx, std::get<ShellArg>(arg).cmd.c_str());
+        else if (std::holds_alternative<std::monostate>(arg))
+          buf.load(ctx);
         std::cout << buf.bytes() << std::endl;
         ctx.current() = {addr, buf.lines()};
       }
@@ -310,20 +303,16 @@ void Function::register_posix(BEd &ctx) {
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
         auto &addr = std::get<std::string>(addr_);
-        auto &buf = ctx.buffer(addr);
-        vase::Shard *s = nullptr;
-        if (std::holds_alternative<std::filesystem::path>(arg)) {
-          s = vase::Shard::from_file(std::get<std::filesystem::path>(arg), true);
-          buf.save_path = std::get<std::filesystem::path>(arg);
-        } else if (std::holds_alternative<ShellArg>(arg)) {
-          s = vase::Shard::from_command(std::get<ShellArg>(arg).cmd.c_str(), true);
-        } else if (std::holds_alternative<std::monostate>(arg)) {
-          if (buf.save_path != "")
-            s = vase::Shard::from_file(buf.save_path, true);
-          else
-            throw ed_error("Need filename to load.");
-        }
-        buf.load(ctx, s);
+        auto &buf_ = ctx.buffer(addr);
+        if (buf_.kind != buffer::Buffer::Kind::Generic)
+          return;
+        auto &buf = *(buffer::GenericBuffer *)&buf_;
+        if (std::holds_alternative<std::filesystem::path>(arg))
+          buf.load(ctx, std::get<std::filesystem::path>(arg));
+        else if (std::holds_alternative<ShellArg>(arg))
+          buf.load(ctx, std::get<ShellArg>(arg).cmd.c_str());
+        else if (std::holds_alternative<std::monostate>(arg))
+          buf.load(ctx);
         std::cout << buf.bytes() << std::endl;
         ctx.current() = {addr, buf.lines()};
       }

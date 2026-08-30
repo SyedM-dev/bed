@@ -273,7 +273,6 @@ Shard *copy(Shard *root, uint64_t start, uint64_t end) {
   Shard::release(left);
   Shard::release(rest);
   Shard::release(right);
-  Shard::release(root);
   return middle;
 }
 } // namespace bed::internal::vase

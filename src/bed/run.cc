@@ -28,6 +28,7 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
   else
     prompt_mode = false;
   suppress_mode = suppress;
+  buffers["clip"] = new internal::buffer::ClipBuffer("clip");
   try {
     if (file != "")
       handle(":default:E " + file, false);
@@ -141,8 +142,7 @@ void BEd::handle(std::string_view cmd, bool eof) {
     temporary_current = false;
   for (auto it = buffers.begin(); it != buffers.end();) {
     internal::buffer::Buffer *buf = it->second;
-    if (buf->save_path.empty()
-        && buf->root == nullptr) {
+    if (buf->waste()) {
       delete buf;
       it = buffers.erase(it);
     } else {
@@ -157,7 +157,7 @@ internal::buffer::Buffer &BEd::buffer(const std::string &name) {
   auto it = buffers.find(name);
   if (it != buffers.end())
     return *it->second;
-  auto *buf = new internal::buffer::Buffer(name);
+  auto *buf = new internal::buffer::GenericBuffer(name);
   buffers.emplace(name, buf);
   return *buf;
 }

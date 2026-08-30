@@ -2,31 +2,34 @@
 #include "bed.h"
 
 namespace bed::internal::buffer {
-Buffer::Buffer(std::string name)
-    : state(Unmodified), root(nullptr), name(name) {
-}
-
-Buffer::~Buffer() {
+GenericBuffer::~GenericBuffer() {
   vase::Shard::release(root);
 }
 
-uint64_t Buffer::lines() {
+bool GenericBuffer::waste() {
+  return save_path.empty()
+         && root == nullptr;
+}
+
+uint64_t GenericBuffer::lines() {
   if (root)
     return root->lines + 1;
   return 0;
 }
 
-uint64_t Buffer::bytes() {
+uint64_t GenericBuffer::bytes() {
   if (root)
     return root->length + 1;
   return 0;
 }
 
-void Buffer::load(BEd &ctx, vase::Shard *text) {
+void GenericBuffer::load(BEd &ctx, vase::Shard *text) {
   try {
+    if (lines())
+      ctx.marks.erase(name, 1, lines());
     vase::Shard::release(root);
     root = text;
-    state = buffer::Buffer::Unmodified;
+    state = buffer::GenericBuffer::Unmodified;
     if (!text) {
       ctx.prev().buffername = name;
       ctx.prev().start = 0;
@@ -43,7 +46,61 @@ void Buffer::load(BEd &ctx, vase::Shard *text) {
   }
 }
 
-void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
+void GenericBuffer::load(BEd &ctx) {
+  if (save_path.empty())
+    throw ed_error("File cannot be implied.");
+  load(ctx, save_path);
+}
+
+void GenericBuffer::load(BEd &ctx, const char *cmd) {
+  auto text = vase::Shard::from_command(cmd, true);
+  try {
+    if (lines())
+      ctx.marks.erase(name, 1, lines());
+    vase::Shard::release(root);
+    root = text;
+    state = buffer::GenericBuffer::Unmodified;
+    if (!text) {
+      ctx.prev().buffername = name;
+      ctx.prev().start = 0;
+      ctx.prev().end = 0;
+    } else {
+      ctx.prev().buffername = name;
+      ctx.prev().start = 1;
+      ctx.prev().end = text->lines + 1;
+    }
+    parser.emplace(root, lines(), syntax::ruby::lang_ruby());
+  } catch (...) {
+    vase::Shard::release(text);
+    throw;
+  }
+}
+
+void GenericBuffer::load(BEd &ctx, std::filesystem::path path) {
+  auto text = vase::Shard::from_file(path, true);
+  try {
+    if (lines())
+      ctx.marks.erase(name, 1, lines());
+    vase::Shard::release(root);
+    root = text;
+    state = buffer::GenericBuffer::Unmodified;
+    if (!text) {
+      ctx.prev().buffername = name;
+      ctx.prev().start = 0;
+      ctx.prev().end = 0;
+    } else {
+      ctx.prev().buffername = name;
+      ctx.prev().start = 1;
+      ctx.prev().end = text->lines + 1;
+    }
+    parser.emplace(root, lines(), syntax::ruby::lang_ruby());
+  } catch (...) {
+    vase::Shard::release(text);
+    throw;
+  }
+}
+
+void GenericBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   ctx.prev().buffername = name;
   ctx.prev().start = line + 1;
   ctx.prev().end = line + text->lines + 1;
@@ -54,7 +111,7 @@ void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   state = Modified;
 }
 
-void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+void GenericBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   root = vase::erase(root, start_line, end_line);
   ctx.prev().buffername = name;
   ctx.prev().start = lines() ? 1 : 0;
@@ -65,7 +122,7 @@ void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   state = Modified;
 }
 
-void Buffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+void GenericBuffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   root = vase::join(root, start_line, end_line);
   ctx.prev().buffername = name;
   ctx.prev().start = start_line;
@@ -76,7 +133,7 @@ void Buffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   state = Modified;
 }
 
-void Buffer::substitute(
+void GenericBuffer::substitute(
   BEd &ctx, uint64_t start_line, uint64_t end_line,
   std::string &regex, std::string &replacement, std::string &options
 ) {
@@ -112,8 +169,40 @@ void Buffer::substitute(
   state = Modified;
 }
 
-vase::Shard *Buffer::copy(uint64_t start_line, uint64_t end_line) {
+vase::Shard *GenericBuffer::copy(uint64_t start_line, uint64_t end_line) {
   return vase::copy(root, start_line, end_line);
+}
+
+uint64_t GenericBuffer::find_next(std::string_view pattern, uint64_t start) {
+  return vase::find_next(root, pattern, start);
+}
+
+uint64_t GenericBuffer::find_prev(std::string_view pattern, uint64_t start) {
+  return vase::find_prev(root, pattern, start);
+}
+
+uint64_t GenericBuffer::next_closing(uint64_t start) {
+  if (parser.has_value()) {
+    uint64_t closing = parser->next_closing(start - 1);
+    if (closing == UINT64_MAX)
+      return lines();
+    return closing + 1;
+  } else {
+    start += 10;
+    if (start > lines())
+      return lines();
+    return start;
+  }
+}
+
+uint64_t GenericBuffer::prev_closing(uint64_t start) {
+  if (parser.has_value()) {
+    return parser->prev_opening(start - 1) + 1;
+  } else {
+    if (start > 10)
+      return start - 10;
+    return 0;
+  }
 }
 
 inline void apply(std::ostream &out, const Highlight &hl) {
@@ -148,7 +237,7 @@ inline void reset(std::ostream &out) {
   out << "\x1b[0m";
 }
 
-void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+void GenericBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.prev().buffername = name;
   ctx.prev().start = start_line;
   ctx.prev().end = end_line;
@@ -191,7 +280,7 @@ void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   }
 }
 
-void Buffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+void GenericBuffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.prev().buffername = name;
   ctx.prev().start = start_line;
   ctx.prev().end = end_line;
@@ -238,7 +327,7 @@ void Buffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   }
 }
 
-std::string Buffer::list_string(std::string_view s) {
+/*std::string GenericBuffer::list_string(std::string_view s) {
   uint32_t width = 80;
   winsize ws{};
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col != 0)
@@ -294,5 +383,5 @@ std::string Buffer::list_string(std::string_view s) {
   }
   out += '$';
   return out;
-}
+}*/
 } // namespace bed::internal::buffer

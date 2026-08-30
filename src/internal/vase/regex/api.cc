@@ -179,6 +179,8 @@ Shard *substitute(
 }
 
 uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
+  if (!root)
+    throw ed_error("Invalid line number.");
   if (start == 0 || start > root->lines + 1)
     throw ed_error("Invalid line number.");
   start--;
@@ -241,6 +243,8 @@ uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start) {
 }
 
 uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start) {
+  if (!root)
+    throw ed_error("Invalid line number.");
   if (start == 0 || start > root->lines + 1)
     throw ed_error("Invalid line number.");
   start--;
