@@ -35,21 +35,21 @@ void Buffer::load(BEd &, vase::Shard *text) {
 }
 
 void Buffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
-  ctx.prev.buffername = name;
-  ctx.prev.start = line + 1;
-  ctx.prev.end = line + text->lines + 1;
+  ctx.prev().buffername = name;
+  ctx.prev().start = line + 1;
+  ctx.prev().end = line + text->lines + 1;
   root = vase::insert(&ctx.append, root, text, line);
-  ctx.marks.insert(name, ctx.prev.start, ctx.prev.end);
+  ctx.marks.insert(name, ctx.prev().start, ctx.prev().end);
   if (parser)
-    parser->insert(root, ctx.prev.start, ctx.prev.end);
+    parser->insert(root, ctx.prev().start, ctx.prev().end);
   state = Modified;
 }
 
 void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   root = vase::erase(root, start_line, end_line);
-  ctx.prev.buffername = name;
-  ctx.prev.start = lines() ? 1 : 0;
-  ctx.prev.end = lines();
+  ctx.prev().buffername = name;
+  ctx.prev().start = lines() ? 1 : 0;
+  ctx.prev().end = lines();
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
   if (parser)
     parser->erase(root, start_line, end_line - start_line + 1);
@@ -58,9 +58,9 @@ void Buffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
 
 void Buffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   root = vase::join(root, start_line, end_line);
-  ctx.prev.buffername = name;
-  ctx.prev.start = start_line;
-  ctx.prev.end = start_line;
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = start_line;
   ctx.marks.collapse(name, start_line, end_line - start_line);
   if (parser)
     parser->erase(root, start_line, end_line - start_line);
@@ -118,9 +118,9 @@ inline void reset(std::ostream &out) {
 }
 
 void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
-  ctx.prev.buffername = name;
-  ctx.prev.start = start_line;
-  ctx.prev.end = end_line;
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = end_line;
   if (parser) {
     std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(root, start_line - 1);
     auto &it = *it_o;
@@ -161,9 +161,9 @@ void Buffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
 }
 
 void Buffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
-  ctx.prev.buffername = name;
-  ctx.prev.start = start_line;
-  ctx.prev.end = end_line;
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = end_line;
   uint8_t width = 1;
   for (uint64_t n = end_line; n >= 10; n /= 10)
     ++width;

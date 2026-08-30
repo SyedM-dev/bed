@@ -34,7 +34,8 @@ struct BEd {
 
   std::unordered_map<std::string, internal::buffer::Buffer *> buffers;
 
-  internal::buffer::Range prev;
+  internal::buffer::Range prev_1;
+  internal::buffer::Range prev_2;
   internal::marks::MarksEngine marks;
 
   BEd(std::vector<std::string> args, internal::io::IO &io);
@@ -42,6 +43,7 @@ struct BEd {
 
   internal::buffer::Buffer &buffer(const std::string &);
   internal::buffer::Line &current();
+  internal::buffer::Range &prev();
   void mark(char, internal::buffer::Line);
 
   void handle(std::string_view cmd, bool eof);

@@ -119,8 +119,8 @@ std::optional<buffer::Line> AddressPromise::get_line(BEd &ctx, std::vector<Addre
         curr.offset = 0;
         prev_given = false;
       } else if (std::holds_alternative<LastRange>(curr.base)) {
-        curr.bufname = ctx.prev.buffername;
-        curr.base = Number(ctx.prev.end);
+        curr.bufname = ctx.prev().buffername;
+        curr.base = Number(ctx.prev().end);
         prev_given = true;
       } else {
         prev_given = true;
@@ -146,8 +146,8 @@ std::optional<buffer::Line> AddressPromise::get_line(BEd &ctx, std::vector<Addre
           }
         }
       } else if (std::holds_alternative<LastRange>(curr.base)) {
-        curr.bufname = ctx.prev.buffername;
-        curr.base = Number(ctx.prev.end);
+        curr.bufname = ctx.prev().buffername;
+        curr.base = Number(ctx.prev().end);
       }
       return curr.resolve(ctx);
     }
@@ -182,8 +182,8 @@ std::optional<buffer::Range> AddressPromise::get_range(BEd &ctx, std::vector<Add
         curr.offset = 0;
         prev_given = false;
       } else if (std::holds_alternative<LastRange>(curr.base)) {
-        curr.bufname = ctx.prev.buffername;
-        curr.base = Number(ctx.prev.end);
+        curr.bufname = ctx.prev().buffername;
+        curr.base = Number(ctx.prev().end);
         prev_given = true;
       } else {
         prev_given = true;
@@ -210,7 +210,7 @@ std::optional<buffer::Range> AddressPromise::get_range(BEd &ctx, std::vector<Add
           return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));
         }
       } else if (std::holds_alternative<LastRange>(curr.base)) {
-        return ctx.prev;
+        return ctx.prev();
       }
       if (prev_given)
         return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));

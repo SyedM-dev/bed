@@ -66,8 +66,25 @@ void Function::register_posix(BEd &ctx) {
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *text, const Argument &, std::vector<buffer::Line> *) {
         auto addr = std::get<buffer::Line>(addr_);
         ctx.buffer(addr.buffername).append(ctx, text, addr.number);
-        ctx.current() = {ctx.prev.buffername, ctx.prev.end};
+        ctx.current() = {ctx.prev().buffername, ctx.prev().end};
         vase::Shard::release(text);
+      }
+    }
+  );
+  ctx.functions.insert(
+    "d",
+    Function{
+      .address_kind = Function::AddressKind::Range,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "Delete set of lines.",
+      .default_address = ".,.",
+      .accept_zero = true,
+      .pre_text_mode = nullptr,
+      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+        auto addr = std::get<buffer::Range>(addr_);
+        ctx.buffer(addr.buffername).remove(ctx, addr.start, addr.end);
+        ctx.current() = {addr.buffername, addr.start};
       }
     }
   );

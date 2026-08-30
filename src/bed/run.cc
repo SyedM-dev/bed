@@ -67,6 +67,7 @@ void BEd::handle(std::string_view cmd, bool eof) {
   internal::parser::Command c = internal::parser::Parser::get_command(cmd, *this);
   if (c.temp_address) {
     marks.get(251) = marks.get(250);
+    prev_2 = prev_1;
     temporary_current = true;
   }
   internal::buffer::Address address;
@@ -163,6 +164,13 @@ internal::buffer::Buffer &BEd::buffer(const std::string &name) {
 
 internal::buffer::Line &BEd::current() {
   return marks.get(250 + temporary_current);
+}
+
+internal::buffer::Range &BEd::prev() {
+  if (temporary_current)
+    return prev_2;
+  else
+    return prev_1;
 }
 
 void BEd::mark(char m, internal::buffer::Line line) {
