@@ -8,6 +8,7 @@
 #include "internal/marks/marks.h"
 #include "internal/theme/theme.h"
 #include "internal/ui/command.h"
+#include "internal/ui/text_mode.h"
 #include "pch.h"
 
 namespace bed {

@@ -46,7 +46,8 @@ BEd::~BEd() {
 
 void BEd::run() {
   while (true) {
-    auto [cmd, eof] = io.get_command(*this);
+    internal::ui::CommandIO command(*this);
+    auto [cmd, eof] = command.run();
     try {
       handle(cmd, eof);
     } catch (ed_error &e) {
@@ -124,8 +125,15 @@ void BEd::handle(std::string_view cmd, bool eof) {
         throw ed_error("Line number can't be zero.");
     }
   }
+  internal::vase::Shard *text = nullptr;
+  if (c.function->input_mode == internal::functions::Function::InputMode::Text) {
+    internal::ui::TextMode tm(*this);
+    auto [a, b] = tm.run();
+    if (!b)
+      text = a;
+  }
   if (c.function->handle)
-    c.function->handle(*this, address, nullptr, c.argument, nullptr);
+    c.function->handle(*this, address, text, c.argument, nullptr);
   if (c.suffix)
     c.suffix->handle(*this);
   if (c.temp_address)

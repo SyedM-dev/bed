@@ -62,15 +62,15 @@ static std::string current_word(const std::string &line, size_t byte_pos) {
   return line.substr(start, byte_pos - start);
 }*/
 
-CommandIO::CommandIO(BEd &bed, io::IO &io) : bed(bed), io(io) {
+CommandIO::CommandIO(BEd &bed) : bed(bed) {
   if (bed.prompt_mode)
     prompt = bed.prompt(bed);
   cursor = 0;
 }
 
 std::pair<std::string, bool> CommandIO::run() {
-  auto [row, col] = io.cursor_position();
-  auto [rows, cols] = io.terminal_size();
+  auto [row, col] = bed.io.cursor_position();
+  auto [rows, cols] = bed.io.terminal_size();
   if (row > rows)
     throw fatal_error("Invalid cursor position.", 1);
   start = row;
@@ -79,11 +79,10 @@ std::pair<std::string, bool> CommandIO::run() {
   term_height = rows;
   redraw();
 
-  // main loop.
   io::KeyEvent res;
   bool running = true;
   while (running) {
-    res = io.read_key();
+    res = bed.io.read_key();
     switch (res.type) {
     case io::KeyEvent::KeyType::EOF_:
       running = false;
@@ -139,20 +138,20 @@ std::pair<std::string, bool> CommandIO::run() {
   }
 
   for (uint16_t i = 1; i < height; ++i) {
-    io.move_cursor(start + i, 1);
-    io.write("\x1b[2K", 4);
+    bed.io.move_cursor(start + i, 1);
+    bed.io.write("\x1b[2K", 4);
   }
-  io.move_cursor(start, 1);
-  io.write("\n", 1);
+  bed.io.move_cursor(start, 1);
+  bed.io.write("\n", 1);
   return {cmd, false};
 }
 
 void CommandIO::redraw() {
-  io.move_cursor(start, 1);
-  io.write("\x1b[2K", 4);
-  io.move_cursor(start, 1);
-  io.write(prompt);
-  io.write(cmd);
-  io.move_cursor(start, prompt.size() + cursor + 1);
+  bed.io.move_cursor(start, 1);
+  bed.io.write("\x1b[2K", 4);
+  bed.io.move_cursor(start, 1);
+  bed.io.write(prompt);
+  bed.io.write(cmd);
+  bed.io.move_cursor(start, prompt.size() + cursor + 1);
 }
 } // namespace bed::internal::ui

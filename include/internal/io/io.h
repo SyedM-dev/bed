@@ -71,9 +71,6 @@ struct IO {
   std::pair<uint16_t, uint16_t> cursor_position();
   void move_cursor(uint16_t row, uint16_t col);
 
-  std::pair<std::string, bool> get_command(BEd &);
-  std::pair<std::string, bool> get_text(BEd &);
-
   KeyEvent read_key();
   void write(const char *, uint64_t);
   void write(std::string_view);

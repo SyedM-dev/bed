@@ -1,6 +1,6 @@
 #pragma once
 
-#include "internal/io/io.h"
+#include "definitions.h"
 #include "pch.h"
 
 namespace bed::internal::ui {
@@ -38,9 +38,8 @@ struct CommandIO {
   uint16_t term_height;
   uint16_t term_width;
   BEd &bed;
-  io::IO &io;
 
-  CommandIO(BEd &, io::IO &);
+  CommandIO(BEd &);
   std::pair<std::string, bool> run();
   void redraw();
 };
