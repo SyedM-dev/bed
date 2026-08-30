@@ -1,5 +1,5 @@
-#include "internal/buffer/buffer.h"
 #include "bed.h"
+#include "internal/buffer/buffer.h"
 
 namespace bed::internal::buffer {
 GenericBuffer::~GenericBuffer() {
