@@ -124,7 +124,8 @@ void BEd::handle(std::string_view cmd, bool eof) {
         throw ed_error("Line number can't be zero.");
     }
   }
-  c.function->handle(*this, address, nullptr, c.argument, nullptr);
+  if (c.function->handle)
+    c.function->handle(*this, address, nullptr, c.argument, nullptr);
   if (c.suffix)
     c.suffix->handle(*this);
   if (c.temp_address)

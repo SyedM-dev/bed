@@ -65,10 +65,10 @@ struct AddressPromise {
 struct Command {
   bool temp_address{false};
   std::vector<AddressPromise> addresses{};
-  functions::Function *function;
-  functions::Function::Argument argument;
+  functions::Function *function{nullptr};
+  functions::Function::Argument argument{std::monostate()};
   std::vector<AddressPromise> argument_addresses{};
-  functions::Suffix *suffix;
+  functions::Suffix *suffix{nullptr};
 };
 
 struct CompletionContext {
