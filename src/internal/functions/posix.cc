@@ -433,7 +433,7 @@ void Function::register_posix(BEd &ctx) {
       .input_mode = Function::InputMode::None,
       .desc = "Read from file into buffer.",
       .default_address = "$",
-      .accept_zero = false,
+      .accept_zero = true,
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
         auto &addr = std::get<buffer::Line>(addr_);
