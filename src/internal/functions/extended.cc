@@ -18,7 +18,10 @@ void Function::register_extented(BEd &ctx) {
         auto path = std::get<std::string>(arg_);
         const auto first = path.find_first_not_of(" \t");
         const auto last = path.find_last_not_of(" \t");
-        path = path.substr(first, last - first + 1);
+        if (first == std::string::npos)
+          path.clear();
+        else
+          path = path.substr(first, last - first + 1);
         if (path.empty())
           path = getenv("HOME");
         if (path == "~")
@@ -28,9 +31,8 @@ void Function::register_extented(BEd &ctx) {
           if (home)
             path = std::string(home) + path.substr(1);
         }
-        if (first != std::string::npos)
-          if (chdir(path.c_str()) == -1)
-            throw ed_error("Can't change directory.");
+        if (chdir(path.c_str()) == -1)
+          throw ed_error("Can't change directory.");
       },
     }
   );
