@@ -48,6 +48,7 @@ std::string to_string(Shard *root, Range range);
 
 Shard *insert(AppendStorage *ap, Shard *root, Shard *text, uint64_t line);
 Shard *erase(Shard *root, uint64_t start, uint64_t end);
+Shard *replace(Shard *root, Shard *text, uint64_t start, uint64_t end);
 Shard *join(Shard *root, uint64_t start, uint64_t end);
 Shard *copy(Shard *root, uint64_t start, uint64_t end);
 void write_file(std::filesystem::path path, Shard *text);

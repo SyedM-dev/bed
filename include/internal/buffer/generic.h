@@ -28,6 +28,7 @@ struct GenericBuffer : Buffer {
   void join(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   void remove(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   void append(BEd &ctx, vase::Shard *text, uint64_t line) override;
+  void replace(BEd &ctx, vase::Shard *text, uint64_t start_line, uint64_t end_line) override;
   void print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   void list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;

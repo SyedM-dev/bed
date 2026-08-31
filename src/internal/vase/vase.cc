@@ -173,6 +173,8 @@ Shard *insert(AppendStorage *ap, Shard *root, Shard *text, uint64_t line) {
     Shard::retain(text);
     return text;
   }
+  if (!text)
+    return root;
   if (line > root->lines + 1)
     throw ed_error("line out of range");
   Shard::retain(text);
@@ -199,6 +201,34 @@ Shard *insert(AppendStorage *ap, Shard *root, Shard *text, uint64_t line) {
   Shard::release(new_root);
   Shard::release(text);
   return result;
+}
+
+Shard *replace(Shard *root, Shard *text, uint64_t start, uint64_t end) {
+  if (!start || !end)
+    throw ed_error("Invalid range.");
+  start--;
+  end--;
+  if (!root)
+    throw ed_error("line range out of bounds");
+  uint64_t line_count = root->lines + 1;
+  if (start > end || end >= line_count)
+    throw ed_error("line range out of bounds");
+  uint64_t start_offset = offset_of(root, start);
+  uint64_t end_offset =
+    (end + 1 == line_count)
+      ? root->length
+      : offset_of(root, end + 1) - 1;
+  auto [left, rest] = Shard::split(root, start_offset);
+  auto [middle, right] = Shard::split(rest, end_offset - start_offset);
+  Shard *a = Shard::concat(left, text);
+  Shard *new_root = Shard::concat(a, right);
+  Shard::release(left);
+  Shard::release(rest);
+  Shard::release(middle);
+  Shard::release(right);
+  Shard::release(a);
+  Shard::release(root);
+  return new_root;
 }
 
 Shard *erase(Shard *root, uint64_t start, uint64_t end) {

@@ -54,12 +54,12 @@ std::filesystem::path ClipBuffer::filename() {
 void ClipBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   ctx.prev().buffername = name;
   ctx.prev().start = line + 1;
-  ctx.prev().end = line + text->lines + 1;
+  ctx.prev().end = line + (text ? text->lines + 1 : 0);
   auto s = vase::Shard::from_command("xclip -selection clipboard -o", true);
   s = vase::insert(&ctx.append, s, text, line);
   clip_write(s);
   vase::Shard::release(s);
-  ctx.marks.insert(name, ctx.prev().start, ctx.prev().end);
+  ctx.marks.insert(name, line, text->lines + 1);
 }
 
 void ClipBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
@@ -71,6 +71,30 @@ void ClipBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.prev().end = std::min(start_line, s ? s->lines + 1 : 0);
   vase::Shard::release(s);
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
+}
+
+void ClipBuffer::replace(BEd &ctx, vase::Shard *text, uint64_t start_line, uint64_t end_line) {
+  if (!text) {
+    remove(ctx, start_line, end_line);
+    return;
+  }
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = start_line + text->lines;
+  uint64_t new_count = text->lines + 1;
+  uint64_t old_count = end_line - start_line + 1;
+  auto s = vase::Shard::from_command("xclip -selection clipboard -o", true);
+  s = vase::replace(s, text, start_line, end_line);
+  clip_write(s);
+  vase::Shard::release(s);
+  if (new_count > old_count) {
+    uint64_t diff = new_count - old_count;
+    ctx.marks.insert(name, end_line, diff);
+  } else if (new_count < old_count) {
+    uint64_t diff = old_count - new_count;
+    ctx.marks.collapse(name, start_line + new_count - 1, diff);
+  }
+  state = Modified;
 }
 
 void ClipBuffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {

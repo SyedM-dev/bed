@@ -123,9 +123,14 @@ std::pair<vase::Shard *, bool> TextMode::run() {
       cursor = cmd.size();
       running = false;
     }
+    if (cmd.size() == 2 && cmd.compare(0, 2, ".\n") == 0) {
+      cmd.clear();
+      cursor = 0;
+      running = false;
+    }
   }
 
-  size_t total_lines = 1 + std::count(cmd.begin(), cmd.end(), '\n');
+  size_t total_lines = cmd.size() ? 1 + std::count(cmd.begin(), cmd.end(), '\n') : 0;
   uint16_t last_row = start + total_lines;
   bed.io.move_cursor(last_row, 1);
   bed.io.write("\n", 1);

@@ -38,7 +38,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".",
       .accept_zero = true,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *text, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *text,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Line>(addr_);
         ctx.buffer(addr.buffername).append(ctx, text, addr.number);
         ctx.current() = {ctx.prev().buffername, ctx.prev().end};
@@ -56,10 +62,15 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *text, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *text,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
-        ctx.buffer(addr.buffername).remove(ctx, addr.start, addr.end);
-        ctx.buffer(addr.buffername).append(ctx, text, addr.start - 1);
+        ctx.buffer(addr.buffername).replace(ctx, text, addr.start, addr.end);
         ctx.current() = {ctx.prev().buffername, ctx.prev().end};
         vase::Shard::release(text);
       }
@@ -75,7 +86,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).remove(ctx, addr.start, addr.end);
         ctx.current() = {addr.buffername, addr.start};
@@ -92,7 +109,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<std::string>(addr_);
         auto &buf = ctx.buffer(addr);
         if (buf.state == buffer::Buffer::Modified) {
@@ -136,7 +159,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<std::string>(addr_);
         auto &buf = ctx.buffer(addr);
         vase::Shard *s = nullptr;
@@ -176,7 +205,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<std::string>(addr_);
         auto &buf_ = ctx.buffer(addr);
         if (buf_.kind != buffer::Buffer::Kind::Generic)
@@ -202,7 +237,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         ctx.io.write_line(ctx.last_help);
       }
     }
@@ -217,7 +258,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         ctx.help_mode = !ctx.help_mode;
         if (ctx.help_mode)
           ctx.io.write_line(ctx.last_help);
@@ -234,7 +281,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".",
       .accept_zero = true,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *text, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *text,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Line>(addr_);
         if (addr.number)
           addr.number--;
@@ -254,7 +307,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.+1",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).join(ctx, addr.start, addr.end);
         ctx.current() = {addr.buffername, addr.start};
@@ -271,7 +330,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<buffer::Line>(addr_);
         ctx.mark(std::get<char>(arg), addr);
       }
@@ -287,7 +352,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).list_print(ctx, addr.start, addr.end);
         ctx.current() = {addr.buffername, addr.end};
@@ -304,7 +375,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         auto arg = std::get<buffer::Line>(arg_);
         if (arg.buffername == addr.buffername
@@ -343,7 +420,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).number_print(ctx, addr.start, addr.end);
         ctx.current() = {addr.buffername, addr.end};
@@ -360,7 +443,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).print(ctx, addr.start, addr.end);
         ctx.current() = {addr.buffername, addr.end};
@@ -377,7 +466,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         ctx.prompt_mode = !ctx.prompt_mode;
         if (ctx.prompt_mode && !ctx.prompt) {
           ctx.prompt = [](BEd &) { return "*"; };
@@ -395,7 +490,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         std::string modified_buffers;
         for (auto &[name, buffer] : ctx.buffers) {
           if (buffer->state == buffer::Buffer::Modified) {
@@ -420,7 +521,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         throw fatal_error("Force Quitting", 0);
       }
     }
@@ -435,7 +542,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "$",
       .accept_zero = true,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<buffer::Line>(addr_);
         auto &buf = ctx.buffer(addr.buffername);
         vase::Shard *s = nullptr;
@@ -476,7 +589,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<buffer::Range>(addr_);
         auto arg = std::get<RegexArg>(arg_);
         if (arg.expression == "")
@@ -509,7 +628,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = ".,.",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         auto arg = std::get<buffer::Line>(arg_);
         auto text = ctx.buffer(addr.buffername).copy(addr.start, addr.end);
@@ -517,11 +642,6 @@ void Function::register_posix(BEd &ctx) {
           ctx.buffer(arg.buffername).append(ctx, text, arg.number);
           vase::Shard::release(text);
         } catch (...) {
-          if (!addr.start) {
-            vase::Shard::release(text);
-            throw;
-          }
-          ctx.buffer(addr.buffername).append(ctx, text, --addr.start);
           vase::Shard::release(text);
           throw;
         }
@@ -539,7 +659,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "0,$",
       .accept_zero = true,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg,
+                  std::vector<buffer::Line> *
+                ) {
         auto addr = std::get<buffer::Range>(addr_);
         auto &buf = ctx.buffer(addr.buffername);
         vase::Shard *text;
@@ -584,7 +710,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "$",
       .accept_zero = true,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<buffer::Range>(addr_);
         if (addr.start == addr.end)
           ctx.io.write_line(std::format(":{}:{}", addr.buffername, addr.start));
@@ -604,7 +736,13 @@ void Function::register_posix(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
         auto &addr = std::get<std::string>(addr_);
         auto filename = ctx.buffer(addr).filename();
         auto &arg = std::get<ShellArg>(arg_);
@@ -624,7 +762,13 @@ void Function::register_posix(BEd &ctx) {
     .default_address = ".+1",
     .accept_zero = true,
     .pre_text_mode = nullptr,
-    .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+    .handle = [](
+                BEd &ctx,
+                const buffer::Address &addr_,
+                vase::Shard *,
+                const Argument &,
+                std::vector<buffer::Line> *
+              ) {
       auto addr = std::get<buffer::Line>(addr_);
       if (addr.number != 0)
         ctx.buffer(addr.buffername).print(ctx, addr.number, addr.number);
@@ -639,7 +783,13 @@ void Function::register_posix(BEd &ctx) {
     .default_address = "",
     .accept_zero = false,
     .pre_text_mode = nullptr,
-    .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+    .handle = [](
+                BEd &ctx,
+                const buffer::Address &,
+                vase::Shard *,
+                const Argument &,
+                std::vector<buffer::Line> *
+              ) {
       std::string modified_buffers;
       for (auto &[name, buffer] : ctx.buffers) {
         if (buffer->state == buffer::Buffer::Modified) {

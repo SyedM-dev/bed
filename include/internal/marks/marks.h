@@ -22,7 +22,7 @@ struct MarksEngine {
         continue;
       if (marks[i].number == UINT64_MAX)
         continue;
-      if (marks[i].number >= start)
+      if (marks[i].number > start)
         marks[i].number += count;
     }
   }

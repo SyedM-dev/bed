@@ -14,7 +14,13 @@ void Function::register_extented(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &, const buffer::Address &, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
         auto path = std::get<std::string>(arg_);
         const auto first = path.find_first_not_of(" \t");
         const auto last = path.find_last_not_of(" \t");
@@ -46,11 +52,48 @@ void Function::register_extented(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
         char cwd[PATH_MAX];
         if (!getcwd(cwd, sizeof(cwd)))
           throw ed_error("Can't determine current directory.");
         ctx.io.write_line(cwd);
+      },
+    }
+  );
+  ctx.functions.insert(
+    "x",
+    Function{
+      .address_kind = Function::AddressKind::Range,
+      .argument_kind = Function::ArgumentKind::Range,
+      .input_mode = Function::InputMode::None,
+      .desc = "Exchange a range of lines for another.",
+      .default_address = ".,.",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
+        auto addr = std::get<buffer::Range>(addr_);
+        auto arg = std::get<buffer::Range>(arg_);
+        auto text = ctx.buffer(addr.buffername).copy(addr.start, addr.end);
+        try {
+          ctx.buffer(arg.buffername).replace(ctx, text, arg.start, arg.end);
+          vase::Shard::release(text);
+        } catch (...) {
+          vase::Shard::release(text);
+          throw;
+        }
+        ctx.current() = {arg.buffername, arg.start + addr.end - addr.start + 1};
       },
     }
   );

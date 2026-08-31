@@ -51,13 +51,15 @@ std::filesystem::path GenericBuffer::filename() {
 };
 
 void GenericBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
+  if (!text)
+    return;
   ctx.prev().buffername = name;
   ctx.prev().start = line + 1;
   ctx.prev().end = line + text->lines + 1;
   root = vase::insert(&ctx.append, root, text, line);
-  ctx.marks.insert(name, ctx.prev().start, ctx.prev().end);
+  ctx.marks.insert(name, line, text->lines + 1);
   if (parser)
-    parser->insert(root, ctx.prev().start, ctx.prev().end);
+    parser->insert(root, line, text->lines + 1);
   state = Modified;
 }
 
@@ -69,6 +71,33 @@ void GenericBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
   if (parser)
     parser->erase(root, start_line, end_line - start_line + 1);
+  state = Modified;
+}
+
+void GenericBuffer::replace(BEd &ctx, vase::Shard *text, uint64_t start_line, uint64_t end_line) {
+  if (!text) {
+    remove(ctx, start_line, end_line);
+    return;
+  }
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = start_line + text->lines;
+  uint64_t new_count = text->lines + 1;
+  uint64_t old_count = end_line - start_line + 1;
+  root = vase::replace(root, text, start_line, end_line);
+  if (parser) {
+    parser->begin_edit();
+    parser->erase(start_line, old_count);
+    parser->insert(start_line, new_count);
+    parser->end_edit(root);
+  }
+  if (new_count > old_count) {
+    uint64_t diff = new_count - old_count;
+    ctx.marks.insert(name, end_line, diff);
+  } else if (new_count < old_count) {
+    uint64_t diff = old_count - new_count;
+    ctx.marks.collapse(name, start_line + new_count - 1, diff);
+  }
   state = Modified;
 }
 
@@ -107,9 +136,9 @@ void GenericBuffer::substitute(
           parser->erase(line, old_lines);
       }
       if (new_lines) {
-        ctx.marks.insert(name, line, line + new_lines - 1);
+        ctx.marks.insert(name, line, line + new_lines);
         if (parser)
-          parser->insert(line, line + new_lines - 1);
+          parser->insert(line, new_lines);
       }
     }
   );

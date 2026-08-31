@@ -43,6 +43,7 @@ struct Buffer {
   virtual void join(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
   virtual void remove(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
   virtual void append(BEd &ctx, vase::Shard *text, uint64_t line) = 0;
+  virtual void replace(BEd &ctx, vase::Shard *text, uint64_t start_line, uint64_t end_line) = 0;
   virtual void print(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
   virtual void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
   virtual void list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
