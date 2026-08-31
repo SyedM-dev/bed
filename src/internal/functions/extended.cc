@@ -47,7 +47,7 @@ void Function::register_extented(BEd &ctx) {
       .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         char cwd[PATH_MAX];
         if (!getcwd(cwd, sizeof(cwd)))
-          throw ed_error("Directory changed, but couldn't determine current directory.");
+          throw ed_error("Can't determine current directory.");
         ctx.io.write_line(cwd);
       },
     }
