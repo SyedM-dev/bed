@@ -15,7 +15,7 @@ struct TextMode {
 
   TextMode(BEd &);
   std::pair<vase::Shard *, bool> run();
-  void grow(size_t required_height);
+  void grow();
   void redraw();
 };
 } // namespace bed::internal::ui

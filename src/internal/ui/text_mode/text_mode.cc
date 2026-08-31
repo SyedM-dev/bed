@@ -42,9 +42,8 @@ std::pair<vase::Shard *, bool> TextMode::run() {
             cmd.erase(--cursor, 1);
           }
         } else if (res.text[0] == '\n') {
-          size_t lines = 1 + std::count(cmd.begin(), cmd.end(), '\n');
-          grow(lines + 1);
           cmd.insert(cursor++, 1, '\n');
+          grow();
         } else {
           cmd.insert(cursor, res.text);
           cursor += res.text.size();
@@ -55,6 +54,7 @@ std::pair<vase::Shard *, bool> TextMode::run() {
     case io::KeyEvent::KeyType::PASTE:
       cmd.insert(cursor, res.text);
       cursor += res.text.size();
+      grow();
       break;
     case io::KeyEvent::KeyType::SPECIAL:
       switch (res.special_key) {
@@ -137,7 +137,8 @@ std::pair<vase::Shard *, bool> TextMode::run() {
   return {vase::Shard::from_string(cmd.data(), cmd.length(), true), false};
 }
 
-void TextMode::grow(size_t required_height) {
+void TextMode::grow() {
+  size_t required_height = 1 + std::count(cmd.begin(), cmd.end(), '\n');
   auto [rows, cols] = bed.io.terminal_size();
   term_height = rows;
   term_width = cols;
