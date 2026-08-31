@@ -14,13 +14,15 @@ void Function::register_extented(BEd &ctx) {
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
-      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
+      .handle = [](BEd &, const buffer::Address &, vase::Shard *, const Argument &arg_, std::vector<buffer::Line> *) {
         auto path = std::get<std::string>(arg_);
         const auto first = path.find_first_not_of(" \t");
         const auto last = path.find_last_not_of(" \t");
         path = path.substr(first, last - first + 1);
+        if (path.empty())
+          path = getenv("HOME");
         if (path == "~")
-          path = std::getenv("HOME");
+          path = getenv("HOME");
         if (path.starts_with("~/")) {
           const char *home = getenv("HOME");
           if (home)
@@ -29,6 +31,20 @@ void Function::register_extented(BEd &ctx) {
         if (first != std::string::npos)
           if (chdir(path.c_str()) == -1)
             throw ed_error("Can't change directory.");
+      },
+    }
+  );
+  ctx.functions.insert(
+    "pwd",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "Print directory.",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         char cwd[PATH_MAX];
         if (!getcwd(cwd, sizeof(cwd)))
           throw ed_error("Directory changed, but couldn't determine current directory.");
