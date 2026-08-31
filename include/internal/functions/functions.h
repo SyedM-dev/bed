@@ -81,5 +81,6 @@ struct Function {
     handle;
 
   static void register_posix(BEd &ctx);
+  static void register_extented(BEd &ctx);
 };
 } // namespace bed::internal::functions

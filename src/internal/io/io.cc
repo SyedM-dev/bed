@@ -106,6 +106,11 @@ void IO::write(std::string_view s) {
   write_all(STDOUT_FILENO, s.data(), s.size());
 }
 
+void IO::write_line(std::string_view s) {
+  write(s);
+  write("\n", 1);
+}
+
 void IO::run_pty(const std::string &cmd) {
   int master_fd = -1;
   struct winsize ws{};
@@ -120,7 +125,12 @@ void IO::run_pty(const std::string &cmd) {
   if (pid == -1)
     throw fatal_error("Can't create PTY.", 1);
   if (pid == 0) {
-    execl("/bin/sh", "sh", "-c", cmd.c_str(), (char *)nullptr);
+    const char *shell = getenv("BED_SHELL");
+    if (!shell || !*shell)
+      shell = getenv("SHELL");
+    if (!shell || !*shell)
+      shell = "/bin/sh";
+    execl(shell, shell, "-i", "-c", cmd.c_str(), (char *)nullptr);
     _exit(127);
   }
   struct pollfd fds[2];

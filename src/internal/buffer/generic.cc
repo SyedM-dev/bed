@@ -155,36 +155,30 @@ uint64_t GenericBuffer::prev_closing(uint64_t start) {
   }
 }
 
-inline void apply(std::ostream &out, const Highlight &hl) {
-  out << "\x1b[0m";
+inline void apply(io::IO &io, const Highlight &hl) {
+  io.write("\x1b[0m");
   const uint8_t r = (hl.fg >> 16) & 0xff;
   const uint8_t g = (hl.fg >> 8) & 0xff;
   const uint8_t b = hl.fg & 0xff;
-  out << "\x1b[38;2;"
-      << (unsigned)r << ';'
-      << (unsigned)g << ';'
-      << (unsigned)b << 'm';
+  io.write(std::format("\x1b[38;2;{};{};{}m", r, g, b));
   if (hl.bg != 0) {
     const uint8_t br = (hl.bg >> 16) & 0xff;
     const uint8_t bg = (hl.bg >> 8) & 0xff;
     const uint8_t bb = hl.bg & 0xff;
-    out << "\x1b[48;2;"
-        << (unsigned)br << ';'
-        << (unsigned)bg << ';'
-        << (unsigned)bb << 'm';
+    io.write(std::format("\x1b[48;2;{};{};{}m", br, bg, bb));
   }
   if (hl.flags & Highlight::Bold)
-    out << "\x1b[1m";
+    io.write("\x1b[1m");
   if (hl.flags & Highlight::Italic)
-    out << "\x1b[3m";
+    io.write("\x1b[3m");
   if (hl.flags & Highlight::Underline)
-    out << "\x1b[4m";
+    io.write("\x1b[4m");
   if (hl.flags & Highlight::Strikethrough)
-    out << "\x1b[9m";
+    io.write("\x1b[9m");
 }
 
-inline void reset(std::ostream &out) {
-  out << "\x1b[0m";
+inline void reset(io::IO &io) {
+  io.write("\x1b[0m");
 }
 
 void GenericBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
@@ -192,7 +186,7 @@ void GenericBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.prev().start = start_line;
   ctx.prev().end = end_line;
   if (parser) {
-    std::optional<syntax::Parser::Iterator> it_o = parser->get_hl(root, start_line - 1);
+    auto it_o = parser->get_hl(root, start_line - 1);
     auto &it = *it_o;
     while (start_line <= end_line) {
       it.next();
@@ -202,31 +196,25 @@ void GenericBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
       for (const auto &token : tokens) {
         const uint32_t start = token.start;
         const uint32_t end = token.end;
-        if (start > line.size())
+        if (start > line.size() || end > line.size())
           break;
-        if (end > line.size())
-          break;
-        if (cursor < start) {
-          std::cout.write(
-            line.data() + cursor,
-            start - cursor
-          );
-        }
+        if (cursor < start)
+          ctx.io.write(line.data() + cursor, start - cursor);
         const auto highlight = ctx.theme.get(token);
-        apply(std::cout, highlight);
-        std::cout.write(line.data() + start, end - start);
-        reset(std::cout);
+        apply(ctx.io, highlight);
+        ctx.io.write(line.data() + start, end - start);
+        reset(ctx.io);
         cursor = end;
       }
       if (cursor < line.size())
-        std::cout.write(line.data() + cursor, line.size() - cursor);
-      std::cout << std::endl;
+        ctx.io.write(line.data() + cursor, line.size() - cursor);
+      ctx.io.write_line("");
       ++start_line;
     }
   } else {
     vase::Iterator it(root, start_line - 1, Direction::Forward);
     while (it.next() && start_line++ <= end_line)
-      std::cout << it.line << std::endl;
+      ctx.io.write_line(it.line);
   }
 }
 
@@ -242,38 +230,32 @@ void GenericBuffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_lin
     auto &it = *it_o;
     while (start_line <= end_line) {
       it.next();
-      std::cout << std::setw(width) << start_line << "\t";
+      ctx.io.write(std::format("{:>{}}\t", start_line, width));
       const std::string &line = it.it->line;
       const auto &tokens = it.tokens;
       uint32_t cursor = 0;
       for (const auto &token : tokens) {
         const uint32_t start = token.start;
         const uint32_t end = token.end;
-        if (start > line.size())
+        if (start > line.size() || end > line.size())
           break;
-        if (end > line.size())
-          break;
-        if (cursor < start) {
-          std::cout.write(
-            line.data() + cursor,
-            start - cursor
-          );
-        }
+        if (cursor < start)
+          ctx.io.write(line.data() + cursor, start - cursor);
         const auto highlight = ctx.theme.get(token);
-        apply(std::cout, highlight);
-        std::cout.write(line.data() + start, end - start);
-        reset(std::cout);
+        apply(ctx.io, highlight);
+        ctx.io.write(line.data() + start, end - start);
+        reset(ctx.io);
         cursor = end;
       }
       if (cursor < line.size())
-        std::cout.write(line.data() + cursor, line.size() - cursor);
-      std::cout << std::endl;
+        ctx.io.write(line.data() + cursor, line.size() - cursor);
+      ctx.io.write_line("");
       ++start_line;
     }
   } else {
     vase::Iterator it(root, start_line - 1, Direction::Forward);
     while (it.next() && start_line <= end_line)
-      std::cout << std::setw(width) << start_line++ << "\t" << it.line << std::endl;
+      ctx.io.write_line(std::format("{:>{}}\t{}", start_line++, width, it.line));
   }
 }
 
@@ -283,6 +265,6 @@ void GenericBuffer::list_print(BEd &ctx, uint64_t start_line, uint64_t end_line)
   ctx.prev().end = end_line;
   vase::Iterator it(root, start_line - 1, Direction::Forward);
   while (it.next() && start_line++ <= end_line)
-    std::cout << list_string(it.line) << std::endl;
+    ctx.io.write_line(list_string(it.line));
 }
 } // namespace bed::internal::buffer

@@ -154,7 +154,7 @@ void ClipBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   auto s = vase::Shard::from_command("xclip -selection clipboard -o", true);
   vase::Iterator it(s, start_line - 1, Direction::Forward);
   while (it.next() && start_line++ <= end_line)
-    std::cout << it.line << std::endl;
+    ctx.io.write_line(it.line);
   vase::Shard::release(s);
 }
 
@@ -168,7 +168,7 @@ void ClipBuffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) 
   auto s = vase::Shard::from_command("xclip -selection clipboard -o", true);
   vase::Iterator it(s, start_line - 1, Direction::Forward);
   while (it.next() && start_line <= end_line)
-    std::cout << std::setw(width) << start_line++ << "\t" << it.line << std::endl;
+    ctx.io.write_line(std::format("{:>{}}\t{}", start_line++, width, it.line));
   vase::Shard::release(s);
 }
 
@@ -179,7 +179,7 @@ void ClipBuffer::list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   auto s = vase::Shard::from_command("xclip -selection clipboard -o", true);
   vase::Iterator it(s, start_line - 1, Direction::Forward);
   while (it.next() && start_line++ <= end_line)
-    std::cout << list_string(it.line) << std::endl;
+    ctx.io.write_line(list_string(it.line));
   vase::Shard::release(s);
 }
 } // namespace bed::internal::buffer

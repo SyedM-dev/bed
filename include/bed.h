@@ -50,5 +50,6 @@ struct BEd {
   void handle(std::string_view cmd, bool eof);
   void run();
   void suffix_handle(char s);
+  bool escape_command(std::string &cmd, std::string_view filename);
 };
 } // namespace bed

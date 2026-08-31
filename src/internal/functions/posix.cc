@@ -1,34 +1,8 @@
-#include "internal/functions/functions.h"
 #include "bed.h"
+#include "internal/functions/functions.h"
 #include "internal/functions/suffixes.h"
 
 namespace bed::internal::functions {
-static bool escape_command(BEd &ctx, std::string &cmd, std::string_view filename) {
-  bool modified = false;
-  if (cmd == "!") {
-    cmd = ctx.last_shell;
-    modified = true;
-  }
-  ctx.last_shell = cmd;
-  for (size_t i = 0; i < cmd.size();) {
-    if (cmd[i] == '\\') {
-      if (i + 1 >= cmd.size())
-        break;
-      cmd.erase(i++, 1);
-      continue;
-    }
-    if (cmd[i] == '%') {
-      cmd.erase(i, 1);
-      cmd.insert(i, filename);
-      i += filename.size();
-      modified = true;
-      continue;
-    }
-    i++;
-  }
-  return modified;
-}
-
 void Suffix::register_suffixes(BEd &ctx) {
   ctx.suffixes['p' - 'a'] = Suffix{
     .desc = "Prints current line.",
@@ -54,24 +28,6 @@ void Suffix::register_suffixes(BEd &ctx) {
 }
 
 void Function::register_posix(BEd &ctx) {
-  ctx.eof_op = Function{
-    .address_kind = Function::AddressKind::None,
-    .argument_kind = Function::ArgumentKind::None,
-    .input_mode = Function::InputMode::None,
-    .desc = "Try quitting.",
-    .default_address = "",
-    .accept_zero = false,
-    .pre_text_mode = nullptr,
-    .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
-      for (auto &[name, buffer] : ctx.buffers) {
-        if (buffer->state == buffer::Buffer::Modified) {
-          buffer->state = buffer::Buffer::Warned;
-          throw ed_error("Buffer " + name + " modified.");
-        }
-      }
-      throw fatal_error("Quitting", 0);
-    }
-  };
   ctx.functions.insert(
     "a",
     Function{
@@ -150,7 +106,7 @@ void Function::register_posix(BEd &ctx) {
           buf.set_filename(path);
         } else if (std::holds_alternative<ShellArg>(arg)) {
           auto cmd = std::get<ShellArg>(arg).cmd;
-          escape_command(ctx, cmd, buf.filename().string());
+          ctx.escape_command(cmd, buf.filename().string());
           s = vase::Shard::from_command(cmd.c_str(), true);
         } else {
           auto path = buf.filename();
@@ -165,7 +121,7 @@ void Function::register_posix(BEd &ctx) {
           vase::Shard::release(s);
           throw;
         }
-        std::cout << buf.bytes() << std::endl;
+        ctx.io.write_line(std::format("{}", buf.bytes()));
         ctx.current() = {addr, buf.lines()};
       }
     }
@@ -190,7 +146,7 @@ void Function::register_posix(BEd &ctx) {
           buf.set_filename(path);
         } else if (std::holds_alternative<ShellArg>(arg)) {
           auto cmd = std::get<ShellArg>(arg).cmd;
-          escape_command(ctx, cmd, buf.filename().string());
+          ctx.escape_command(cmd, buf.filename().string());
           s = vase::Shard::from_command(cmd.c_str(), true);
         } else {
           auto path = buf.filename();
@@ -205,7 +161,7 @@ void Function::register_posix(BEd &ctx) {
           vase::Shard::release(s);
           throw;
         }
-        std::cout << buf.bytes() << std::endl;
+        ctx.io.write_line(std::format("{}", buf.bytes()));
         ctx.current() = {addr, buf.lines()};
       }
     }
@@ -232,7 +188,7 @@ void Function::register_posix(BEd &ctx) {
           throw ed_error("Can't save shell command as save path.");
         if (buf.filename().empty())
           throw ed_error("Filename needed.");
-        std::cout << buf.filename() << std::endl;
+        ctx.io.write_line(buf.filename().string());
       }
     }
   );
@@ -247,7 +203,7 @@ void Function::register_posix(BEd &ctx) {
       .accept_zero = false,
       .pre_text_mode = nullptr,
       .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
-        std::cout << ctx.last_help << std::endl;
+        ctx.io.write_line(ctx.last_help);
       }
     }
   );
@@ -264,7 +220,7 @@ void Function::register_posix(BEd &ctx) {
       .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         ctx.help_mode = !ctx.help_mode;
         if (ctx.help_mode)
-          std::cout << ctx.last_help << std::endl;
+          ctx.io.write_line(ctx.last_help);
       }
     }
   );
@@ -490,7 +446,7 @@ void Function::register_posix(BEd &ctx) {
             buf.set_filename(path);
         } else if (std::holds_alternative<ShellArg>(arg)) {
           auto cmd = std::get<ShellArg>(arg).cmd;
-          escape_command(ctx, cmd, buf.filename().string());
+          ctx.escape_command(cmd, buf.filename().string());
           s = vase::Shard::from_command(cmd.c_str(), true);
         } else {
           auto path = buf.filename();
@@ -500,7 +456,7 @@ void Function::register_posix(BEd &ctx) {
         };
         try {
           buf.append(ctx, s, addr.number);
-          std::cout << (s ? s->length + 1 : 0) << std::endl;
+          ctx.io.write_line(std::format("{}", s ? s->length + 1 : 0));
           ctx.current() = {addr.buffername, addr.number + (s ? s->lines + 1 : 0)};
           vase::Shard::release(s);
         } catch (...) {
@@ -601,7 +557,7 @@ void Function::register_posix(BEd &ctx) {
             buf.set_filename(path);
           } else if (std::holds_alternative<ShellArg>(arg)) {
             auto cmd = std::get<ShellArg>(arg).cmd;
-            escape_command(ctx, cmd, buf.filename().string());
+            ctx.escape_command(cmd, buf.filename().string());
             vase::write_command(cmd.c_str(), text);
           } else {
             auto path = buf.filename();
@@ -631,9 +587,9 @@ void Function::register_posix(BEd &ctx) {
       .handle = [](BEd &ctx, const buffer::Address &addr_, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
         auto &addr = std::get<buffer::Range>(addr_);
         if (addr.start == addr.end)
-          std::cout << ':' << addr.buffername << ':' << addr.start << "\n";
+          ctx.io.write_line(std::format(":{}:{}", addr.buffername, addr.start));
         else
-          std::cout << ':' << addr.buffername << ':' << addr.start << "," << addr.end << "\n";
+          ctx.io.write_line(std::format(":{}:{},{}", addr.buffername, addr.start, addr.end));
         ctx.current() = {addr.buffername, addr.end};
       },
     }
@@ -653,7 +609,7 @@ void Function::register_posix(BEd &ctx) {
         auto filename = ctx.buffer(addr).filename();
         auto &arg = std::get<ShellArg>(arg_);
         auto cmd = arg.cmd;
-        if (escape_command(ctx, cmd, filename.string()))
+        if (ctx.escape_command(cmd, filename.string()))
           ctx.io.write(cmd + "\n");
         ctx.io.run_pty(cmd);
         ctx.io.write("!\n");
@@ -673,6 +629,28 @@ void Function::register_posix(BEd &ctx) {
       if (addr.number != 0)
         ctx.buffer(addr.buffername).print(ctx, addr.number, addr.number);
       ctx.current() = addr;
+    }
+  };
+  ctx.eof_op = Function{
+    .address_kind = Function::AddressKind::None,
+    .argument_kind = Function::ArgumentKind::None,
+    .input_mode = Function::InputMode::None,
+    .desc = "Try quitting.",
+    .default_address = "",
+    .accept_zero = false,
+    .pre_text_mode = nullptr,
+    .handle = [](BEd &ctx, const buffer::Address &, vase::Shard *, const Argument &, std::vector<buffer::Line> *) {
+      std::string modified_buffers;
+      for (auto &[name, buffer] : ctx.buffers) {
+        if (buffer->state == buffer::Buffer::Modified) {
+          buffer->state = buffer::Buffer::Warned;
+          modified_buffers.append(name + ", ");
+        }
+      }
+      if (!modified_buffers.size())
+        throw fatal_error("Quitting", 0);
+      modified_buffers.erase(modified_buffers.size() - 2);
+      throw ed_error("Buffer(s) " + modified_buffers + " modified.");
     }
   };
 }

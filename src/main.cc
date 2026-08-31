@@ -9,12 +9,12 @@ int main(int argc, char *argv[]) {
     ed.run();
   } catch (bed::fatal_error &e) {
     if (e.code)
-      std::cout << "Fatal error: " << e.what() << std::endl;
+      printf("Fatal error: %s\n", e.what());
     return e.code;
   }
 #ifndef DEBUG
   catch (...) {
-    std::cout << "Unexpected error." << std::endl;
+    printf("Unexpected error.\n");
     return 1;
   }
 #endif

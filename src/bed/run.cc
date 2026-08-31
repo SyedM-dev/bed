@@ -5,6 +5,7 @@ namespace bed {
 BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
     : theme(internal::theme::Theme::default_theme()), io(io) {
   internal::functions::Function::register_posix(*this);
+  internal::functions::Function::register_extented(*this);
   internal::functions::Suffix::register_suffixes(*this);
   std::string prompt_ = "";
   std::string file = "";
@@ -36,9 +37,9 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
     if (file != "")
       handle(":default:E " + file, false);
   } catch (ed_error &e) {
-    std::cout << "?" << std::endl;
+    io.write_line("?");
     if (help_mode)
-      std::cout << e.what() << std::endl;
+      io.write_line(e.what());
     last_help = e.what();
   }
 }
@@ -55,9 +56,9 @@ void BEd::run() {
     try {
       handle(cmd, eof);
     } catch (ed_error &e) {
-      std::cout << "?" << std::endl;
+      io.write_line("?");
       if (help_mode)
-        std::cout << e.what() << std::endl;
+        io.write_line(e.what());
       last_help = e.what();
     }
   }
@@ -182,5 +183,31 @@ internal::buffer::Range &BEd::prev() {
 
 void BEd::mark(uint8_t m, internal::buffer::Line line) {
   marks.get(m) = line;
+}
+
+bool BEd::escape_command(std::string &cmd, std::string_view filename) {
+  bool modified = false;
+  if (cmd == "!") {
+    cmd = last_shell;
+    modified = true;
+  }
+  last_shell = cmd;
+  for (size_t i = 0; i < cmd.size();) {
+    if (cmd[i] == '\\') {
+      if (i + 1 >= cmd.size())
+        break;
+      cmd.erase(i++, 1);
+      continue;
+    }
+    if (cmd[i] == '%') {
+      cmd.erase(i, 1);
+      cmd.insert(i, filename);
+      i += filename.size();
+      modified = true;
+      continue;
+    }
+    i++;
+  }
+  return modified;
 }
 } // namespace bed
