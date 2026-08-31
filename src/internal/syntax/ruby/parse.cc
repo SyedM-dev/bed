@@ -102,7 +102,7 @@ bool handle_escapes(RubyParser &p, std::vector<Token> *tokens, uint32_t &start, 
   return false;
 };
 
-bool handle_heredoc(RubyParser &p, std::vector<Token> *tokens) {
+bool handle_heredoc(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseEvent> *events) {
   uint8_t *heredocs = p.state->heredocs();
   uint32_t start = p.i;
   if (start == 0) {
@@ -114,6 +114,7 @@ bool handle_heredoc(RubyParser &p, std::vector<Token> *tokens) {
         && memcmp(p.line.data() + start, heredocs + 1, heredoc_len) == 0) {
       if (!p.dequeue_doc(heredoc_len))
         p.current().state = RubyState::RubyInternalState::NONE;
+      events->push_back(true);
       tokens->push_back({p.i, p.len(), Token::Annotation});
       p.current().flags |= RubyState::RubyInternalState::EXPECTING_EXPRESSION;
       return true;
@@ -366,6 +367,7 @@ bool handle_syntax(RubyParser &p, std::vector<Token> *tokens, std::vector<ParseE
       return false;
     p.current().flags &= ~RubyState::RubyInternalState::EXPECTING_EXPRESSION;
     if (!delim.empty()) {
+      events->push_back(false);
       tokens->push_back({s, p.i + j, Token::Annotation});
       uint8_t header = delim.size();
       if (interpolation)
@@ -1073,7 +1075,7 @@ void ruby_parse(
     }
     if (!p.heredoc_start_line
         && p.current().state == RubyState::RubyInternalState::HEREDOC) {
-      if (handle_heredoc(p, tokens))
+      if (handle_heredoc(p, tokens, events))
         return;
       else
         continue;
