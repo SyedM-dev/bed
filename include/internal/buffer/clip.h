@@ -13,10 +13,9 @@ struct ClipBuffer : Buffer {
   bool waste() override;
   uint64_t lines() override;
   uint64_t bytes() override;
-  void load(BEd &ctx) override;
   void load(BEd &ctx, vase::Shard *text) override;
-  void load(BEd &ctx, const char *cmd) override;
-  void load(BEd &ctx, std::filesystem::path path) override;
+  void set_filename(std::filesystem::path path) override;
+  std::filesystem::path filename() override;
   vase::Shard *copy(uint64_t start_line, uint64_t end_line) override;
   void substitute(
     BEd &ctx, uint64_t start_line, uint64_t end_line,
@@ -27,6 +26,7 @@ struct ClipBuffer : Buffer {
   void append(BEd &ctx, vase::Shard *text, uint64_t line) override;
   void print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
+  void list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   uint64_t next_closing(uint64_t start) override;
   uint64_t prev_closing(uint64_t start) override;
   uint64_t find_next(std::string_view pattern, uint64_t start) override;

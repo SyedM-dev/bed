@@ -23,14 +23,15 @@ struct BEd {
   internal::vase::AppendStorage append{"/tmp"};
 
   bool help_mode = false;
-  std::string last_help = "";
   bool prompt_mode = true;
   std::function<std::string(BEd &)> prompt = nullptr;
   bool suppress_mode = false;
   bool temporary_current = false;
+  std::string last_help = "";
   std::string last_regex = "";
   std::string last_symbol = "";
   std::string last_replacement = "";
+  std::string last_shell = "";
 
   std::unordered_map<std::string, internal::buffer::Buffer *> buffers;
 
@@ -44,7 +45,7 @@ struct BEd {
   internal::buffer::Buffer &buffer(const std::string &);
   internal::buffer::Line &current();
   internal::buffer::Range &prev();
-  void mark(char, internal::buffer::Line);
+  void mark(uint8_t, internal::buffer::Line);
 
   void handle(std::string_view cmd, bool eof);
   void run();

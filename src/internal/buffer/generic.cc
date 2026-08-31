@@ -24,81 +24,31 @@ uint64_t GenericBuffer::bytes() {
 }
 
 void GenericBuffer::load(BEd &ctx, vase::Shard *text) {
-  try {
-    if (lines())
-      ctx.marks.erase(name, 1, lines());
-    vase::Shard::release(root);
-    root = text;
-    state = buffer::GenericBuffer::Unmodified;
-    if (!text) {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 0;
-      ctx.prev().end = 0;
-    } else {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 1;
-      ctx.prev().end = text->lines + 1;
-    }
-    parser.emplace(root, lines(), syntax::ruby::lang_ruby());
-  } catch (...) {
-    vase::Shard::release(text);
-    throw;
+  if (lines())
+    ctx.marks.erase(name, 1, lines());
+  vase::Shard::release(root);
+  vase::Shard::retain(text);
+  root = text;
+  state = buffer::GenericBuffer::Unmodified;
+  if (!text) {
+    ctx.prev().buffername = name;
+    ctx.prev().start = 0;
+    ctx.prev().end = 0;
+  } else {
+    ctx.prev().buffername = name;
+    ctx.prev().start = 1;
+    ctx.prev().end = text->lines + 1;
   }
+  parser.emplace(root, lines(), syntax::ruby::lang_ruby());
 }
 
-void GenericBuffer::load(BEd &ctx) {
-  if (save_path.empty())
-    throw ed_error("File cannot be implied.");
-  load(ctx, save_path);
+void GenericBuffer::set_filename(std::filesystem::path path) {
+  save_path = path;
 }
 
-void GenericBuffer::load(BEd &ctx, const char *cmd) {
-  auto text = vase::Shard::from_command(cmd, true);
-  try {
-    if (lines())
-      ctx.marks.erase(name, 1, lines());
-    vase::Shard::release(root);
-    root = text;
-    state = buffer::GenericBuffer::Unmodified;
-    if (!text) {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 0;
-      ctx.prev().end = 0;
-    } else {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 1;
-      ctx.prev().end = text->lines + 1;
-    }
-    parser.emplace(root, lines(), syntax::ruby::lang_ruby());
-  } catch (...) {
-    vase::Shard::release(text);
-    throw;
-  }
-}
-
-void GenericBuffer::load(BEd &ctx, std::filesystem::path path) {
-  auto text = vase::Shard::from_file(path, true);
-  try {
-    if (lines())
-      ctx.marks.erase(name, 1, lines());
-    vase::Shard::release(root);
-    root = text;
-    state = buffer::GenericBuffer::Unmodified;
-    if (!text) {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 0;
-      ctx.prev().end = 0;
-    } else {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 1;
-      ctx.prev().end = text->lines + 1;
-    }
-    parser.emplace(root, lines(), syntax::ruby::lang_ruby());
-  } catch (...) {
-    vase::Shard::release(text);
-    throw;
-  }
-}
+std::filesystem::path GenericBuffer::filename() {
+  return save_path;
+};
 
 void GenericBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   ctx.prev().buffername = name;
@@ -114,8 +64,8 @@ void GenericBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
 void GenericBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   root = vase::erase(root, start_line, end_line);
   ctx.prev().buffername = name;
-  ctx.prev().start = lines() ? 1 : 0;
-  ctx.prev().end = lines();
+  ctx.prev().start = std::min(start_line, lines());
+  ctx.prev().end = std::min(start_line, lines());
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
   if (parser)
     parser->erase(root, start_line, end_line - start_line + 1);
@@ -327,61 +277,12 @@ void GenericBuffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_lin
   }
 }
 
-/*std::string GenericBuffer::list_string(std::string_view s) {
-  uint32_t width = 80;
-  winsize ws{};
-  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col != 0)
-    width = ws.ws_col;
-  std::string out;
-  out.reserve(s.size());
-  const uint32_t max_width = width > 1 ? width - 1 : 1;
-  uint32_t column = 0;
-  auto append = [&](std::string_view text) {
-    if (column + text.size() > max_width) {
-      out += "\\\n";
-      column = 0;
-    }
-    out += text;
-    column += text.size();
-  };
-  for (unsigned char c : s) {
-    switch (c) {
-    case '\\':
-      append("\\\\");
-      break;
-    case '$':
-      append("\\$");
-      break;
-    case '\a':
-      append("\\a");
-      break;
-    case '\b':
-      append("\\b");
-      break;
-    case '\f':
-      append("\\f");
-      break;
-    case '\r':
-      append("\\r");
-      break;
-    case '\t':
-      append("\\t");
-      break;
-    case '\v':
-      append("\\v");
-      break;
-    default:
-      if (!std::isprint(c)) {
-        char buf[5];
-        std::snprintf(buf, sizeof(buf), "\\%03o", c);
-        append(buf);
-      } else {
-        append(std::string_view((const char *)&c, 1));
-      }
-      break;
-    }
-  }
-  out += '$';
-  return out;
-}*/
+void GenericBuffer::list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = end_line;
+  vase::Iterator it(root, start_line - 1, Direction::Forward);
+  while (it.next() && start_line++ <= end_line)
+    std::cout << list_string(it.line) << std::endl;
+}
 } // namespace bed::internal::buffer

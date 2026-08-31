@@ -32,10 +32,9 @@ struct Buffer {
   virtual bool waste() = 0;
   virtual uint64_t lines() = 0;
   virtual uint64_t bytes() = 0;
+  virtual void set_filename(std::filesystem::path path) = 0;
+  virtual std::filesystem::path filename() = 0;
   virtual void load(BEd &ctx, vase::Shard *text) = 0;
-  virtual void load(BEd &ctx, const char *cmd) = 0;
-  virtual void load(BEd &ctx, std::filesystem::path path) = 0;
-  virtual void load(BEd &ctx) = 0;
   virtual vase::Shard *copy(uint64_t start_line, uint64_t end_line) = 0;
   virtual void substitute(
     BEd &ctx, uint64_t start_line, uint64_t end_line,
@@ -46,6 +45,7 @@ struct Buffer {
   virtual void append(BEd &ctx, vase::Shard *text, uint64_t line) = 0;
   virtual void print(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
   virtual void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
+  virtual void list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) = 0;
   virtual uint64_t find_next(std::string_view pattern, uint64_t start) = 0;
   virtual uint64_t find_prev(std::string_view pattern, uint64_t start) = 0;
   virtual uint64_t next_closing(uint64_t start) = 0;
@@ -85,4 +85,62 @@ using Address = std::variant<
   std::string,
   buffer::Range,
   buffer::Line>;
+
+inline static std::string list_string(std::string_view s) {
+  uint32_t width = 80;
+  winsize ws{};
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col != 0)
+    width = ws.ws_col;
+  std::string out;
+  out.reserve(s.size());
+  const uint32_t max_width = width > 1 ? width - 1 : 1;
+  uint32_t column = 0;
+  auto append = [&](std::string_view text) {
+    if (column + text.size() > max_width) {
+      out += "\\\n";
+      column = 0;
+    }
+    out += text;
+    column += text.size();
+  };
+  for (unsigned char c : s) {
+    switch (c) {
+    case '\\':
+      append("\\\\");
+      break;
+    case '$':
+      append("\\$");
+      break;
+    case '\a':
+      append("\\a");
+      break;
+    case '\b':
+      append("\\b");
+      break;
+    case '\f':
+      append("\\f");
+      break;
+    case '\r':
+      append("\\r");
+      break;
+    case '\t':
+      append("\\t");
+      break;
+    case '\v':
+      append("\\v");
+      break;
+    default:
+      if (!std::isprint(c)) {
+        char buf[5];
+        std::snprintf(buf, sizeof(buf), "\\%03o", c);
+        append(buf);
+      } else {
+        append(std::string_view((const char *)&c, 1));
+      }
+      break;
+    }
+  }
+  out += '$';
+  return out;
+}
 } // namespace bed::internal::buffer

@@ -103,6 +103,8 @@ void Parser::operation() {
     command->argument = functions::Function::GlobalArg(delim, std::move(val));
   } break;
   case functions::Function::ArgumentKind::File:
+    if (!(peek() == '\t' || peek() == ' ' || peek() == '\0'))
+      throw ed_error("Incorrect file input usage.");
     skip_ws();
     switch (peek()) {
     case '!':

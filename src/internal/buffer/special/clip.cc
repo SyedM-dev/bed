@@ -33,67 +33,23 @@ void ClipBuffer::clip_write(vase::Shard *text) {
 }
 
 void ClipBuffer::load(BEd &ctx, vase::Shard *text) {
-  try {
-    clip_write(text);
-    if (!text) {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 0;
-      ctx.prev().end = 0;
-    } else {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 1;
-      ctx.prev().end = text->lines + 1;
-    }
-    vase::Shard::release(text);
-  } catch (...) {
-    vase::Shard::release(text);
-    throw;
+  clip_write(text);
+  if (!text) {
+    ctx.prev().buffername = name;
+    ctx.prev().start = 0;
+    ctx.prev().end = 0;
+  } else {
+    ctx.prev().buffername = name;
+    ctx.prev().start = 1;
+    ctx.prev().end = text->lines + 1;
   }
 }
 
-void ClipBuffer::load(BEd &) {
-  throw ed_error("File cannot be implied.");
-}
+void ClipBuffer::set_filename(std::filesystem::path) {}
 
-void ClipBuffer::load(BEd &ctx, const char *cmd) {
-  auto text = vase::Shard::from_command(cmd, true);
-  try {
-    clip_write(text);
-    if (!text) {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 0;
-      ctx.prev().end = 0;
-    } else {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 1;
-      ctx.prev().end = text->lines + 1;
-    }
-    vase::Shard::release(text);
-  } catch (...) {
-    vase::Shard::release(text);
-    throw;
-  }
-}
-
-void ClipBuffer::load(BEd &ctx, std::filesystem::path path) {
-  auto text = vase::Shard::from_file(path, true);
-  try {
-    clip_write(text);
-    if (!text) {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 0;
-      ctx.prev().end = 0;
-    } else {
-      ctx.prev().buffername = name;
-      ctx.prev().start = 1;
-      ctx.prev().end = text->lines + 1;
-    }
-    vase::Shard::release(text);
-  } catch (...) {
-    vase::Shard::release(text);
-    throw;
-  }
-}
+std::filesystem::path ClipBuffer::filename() {
+  return "";
+};
 
 void ClipBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   ctx.prev().buffername = name;
@@ -111,8 +67,8 @@ void ClipBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   s = vase::erase(s, start_line, end_line);
   clip_write(s);
   ctx.prev().buffername = name;
-  ctx.prev().start = (s ? s->length + 1 : 0) ? 1 : 0;
-  ctx.prev().end = s ? s->length + 1 : 0;
+  ctx.prev().start = std::min(start_line, s ? s->lines + 1 : 0);
+  ctx.prev().end = std::min(start_line, s ? s->lines + 1 : 0);
   vase::Shard::release(s);
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
 }
@@ -213,6 +169,17 @@ void ClipBuffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) 
   vase::Iterator it(s, start_line - 1, Direction::Forward);
   while (it.next() && start_line <= end_line)
     std::cout << std::setw(width) << start_line++ << "\t" << it.line << std::endl;
+  vase::Shard::release(s);
+}
+
+void ClipBuffer::list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
+  ctx.prev().buffername = name;
+  ctx.prev().start = start_line;
+  ctx.prev().end = end_line;
+  auto s = vase::Shard::from_command("xclip -selection clipboard -o", true);
+  vase::Iterator it(s, start_line - 1, Direction::Forward);
+  while (it.next() && start_line++ <= end_line)
+    std::cout << list_string(it.line) << std::endl;
   vase::Shard::release(s);
 }
 } // namespace bed::internal::buffer

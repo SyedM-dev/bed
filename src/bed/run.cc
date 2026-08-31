@@ -17,6 +17,8 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
       prompt_ = args[i];
     } else if (args[i] == "-s") {
       suppress = true;
+    } else if (args[i] == "-v" || args[i] == "--verbose") {
+      help_mode = true;
     } else {
       if (file.size())
         throw fatal_error("Invalid arguments given.", 1);
@@ -29,6 +31,7 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
     prompt_mode = false;
   suppress_mode = suppress;
   buffers["clip"] = new internal::buffer::ClipBuffer("clip");
+  current() = {"default", 0};
   try {
     if (file != "")
       handle(":default:E " + file, false);
@@ -105,12 +108,16 @@ void BEd::handle(std::string_view cmd, bool eof) {
   } break;
   }
   if (std::holds_alternative<internal::buffer::Line>(c.argument)) {
+    if (c.argument_addresses.empty())
+      throw ed_error("Function needs address argument.");
     auto a = internal::parser::AddressPromise::get_line(*this, c.argument_addresses);
     if (a.has_value())
       c.argument = *a;
     else
       c.argument = current();
   } else if (std::holds_alternative<internal::buffer::Range>(c.argument)) {
+    if (c.argument_addresses.empty())
+      throw ed_error("Function needs address argument.");
     auto a = internal::parser::AddressPromise::get_range(*this, c.argument_addresses);
     if (a.has_value())
       c.argument = *a;
@@ -173,7 +180,7 @@ internal::buffer::Range &BEd::prev() {
     return prev_1;
 }
 
-void BEd::mark(char m, internal::buffer::Line line) {
+void BEd::mark(uint8_t m, internal::buffer::Line line) {
   marks.get(m) = line;
 }
 } // namespace bed

@@ -74,6 +74,7 @@ struct IO {
   KeyEvent read_key();
   void write(const char *, uint64_t);
   void write(std::string_view);
+  void run_pty(const std::string &);
 
   std::deque<char> input_queue;
 

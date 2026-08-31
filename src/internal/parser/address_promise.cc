@@ -192,7 +192,19 @@ std::optional<buffer::Range> AddressPromise::get_range(BEd &ctx, std::vector<Add
           return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));
         }
       } else if (std::holds_alternative<LastRange>(curr.base)) {
-        return ctx.prev();
+        auto previous = ctx.prev();
+        auto &buf = ctx.buffer(previous.buffername);
+        if (curr.offset < 0 && previous.start < (uint64_t)-curr.offset)
+          throw ed_error("Can't have negative addresses");
+        previous.start += curr.offset;
+        if (previous.start > buf.lines())
+          throw ed_error("Line number too high.");
+        if (curr.offset < 0 && previous.end < (uint64_t)-curr.offset)
+          throw ed_error("Can't have negative addresses");
+        previous.end += curr.offset;
+        if (previous.end > buf.lines())
+          throw ed_error("Line number too high.");
+        return previous;
       }
       if (prev_given)
         return buffer::Range(prev.resolve(ctx), curr.resolve(ctx));

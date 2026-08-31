@@ -50,6 +50,8 @@ Shard *insert(AppendStorage *ap, Shard *root, Shard *text, uint64_t line);
 Shard *erase(Shard *root, uint64_t start, uint64_t end);
 Shard *join(Shard *root, uint64_t start, uint64_t end);
 Shard *copy(Shard *root, uint64_t start, uint64_t end);
+void write_file(std::filesystem::path path, Shard *text);
+void write_command(const char *cmd, Shard *text);
 
 uint64_t find_next(Shard *root, std::string_view pattern, uint64_t start);
 uint64_t find_prev(Shard *root, std::string_view pattern, uint64_t start);

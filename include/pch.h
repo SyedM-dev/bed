@@ -35,6 +35,7 @@ extern "C" {
 #include <mutex>
 #include <optional>
 #include <poll.h>
+#include <pty.h>
 #include <queue>
 #include <set>
 #include <shared_mutex>

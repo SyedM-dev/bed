@@ -105,4 +105,66 @@ void IO::write(const char *buf, uint64_t n) {
 void IO::write(std::string_view s) {
   write_all(STDOUT_FILENO, s.data(), s.size());
 }
+
+void IO::run_pty(const std::string &cmd) {
+  int master_fd = -1;
+  struct winsize ws{};
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1)
+    throw fatal_error("Can't get terminal size.", 1);
+  pid_t pid = forkpty(
+    &master_fd,
+    nullptr,
+    &orig_termios,
+    &ws
+  );
+  if (pid == -1)
+    throw fatal_error("Can't create PTY.", 1);
+  if (pid == 0) {
+    execl("/bin/sh", "sh", "-c", cmd.c_str(), (char *)nullptr);
+    _exit(127);
+  }
+  struct pollfd fds[2];
+  while (true) {
+    fds[0].fd = STDIN_FILENO;
+    fds[0].events = POLLIN;
+    fds[1].fd = master_fd;
+    fds[1].events = POLLIN;
+    int rc = poll(fds, 2, -1);
+    if (rc == -1) {
+      if (errno == EINTR)
+        continue;
+      break;
+    }
+    if (resized.exchange(false)) {
+      struct winsize new_ws{};
+      if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &new_ws) == 0)
+        ioctl(master_fd, TIOCSWINSZ, &new_ws);
+    }
+    if (fds[0].revents & POLLIN) {
+      char buf[4096];
+      ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+      if (n > 0)
+        write_all(master_fd, buf, n);
+      else if (n == 0)
+        break;
+    }
+    if (fds[1].revents & POLLIN) {
+      char buf[8192];
+      ssize_t n = read(master_fd, buf, sizeof(buf));
+      if (n > 0)
+        write_all(STDOUT_FILENO, buf, n);
+      else
+        break;
+    }
+    if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL))
+      break;
+    if (fds[1].revents & (POLLERR | POLLHUP | POLLNVAL))
+      break;
+  }
+  close(master_fd);
+  int status;
+  while (waitpid(pid, &status, 0) == -1)
+    if (errno != EINTR)
+      break;
+}
 } // namespace bed::internal::io

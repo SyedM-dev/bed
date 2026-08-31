@@ -1,4 +1,5 @@
 #include "internal/vase/vase.h"
+#include "internal/io/io.h"
 
 namespace bed::internal::vase {
 std::string to_string(Shard *root) {
@@ -128,7 +129,11 @@ uint64_t offset_of(Shard *root, Point point) {
 uint64_t offset_of(Shard *root, uint64_t line) {
   if (!root)
     return 0;
-  if (line > root->lines)
+  if (line == 0)
+    return 0;
+  if (line == root->lines + 1)
+    return root->length;
+  if (line > root->lines + 1)
     throw ed_error("line out of range");
   uint64_t offset = 0;
   Shard *curr = root;
@@ -207,10 +212,9 @@ Shard *erase(Shard *root, uint64_t start, uint64_t end) {
   if (start > end || end >= line_count)
     throw ed_error("line range out of bounds");
   uint64_t start_offset = offset_of(root, start);
-  uint64_t end_offset =
-    (end + 1 == line_count)
-      ? root->length
-      : offset_of(root, end + 1);
+  uint64_t end_offset = offset_of(root, end + 1);
+  if (end == root->lines && start_offset)
+    start_offset--;
   auto [left, rest] = Shard::split(root, start_offset);
   auto [middle, right] = Shard::split(rest, end_offset - start_offset);
   Shard *new_root = Shard::concat(left, right);
@@ -267,12 +271,57 @@ Shard *copy(Shard *root, uint64_t start, uint64_t end) {
   uint64_t end_offset =
     (end + 1 == line_count)
       ? root->length
-      : offset_of(root, end + 1);
+      : offset_of(root, end + 1) - 1;
   auto [left, rest] = Shard::split(root, start_offset);
   auto [middle, right] = Shard::split(rest, end_offset - start_offset);
   Shard::release(left);
   Shard::release(rest);
   Shard::release(right);
   return middle;
+}
+
+void write_file(std::filesystem::path path, Shard *text) {
+  std::ofstream file(path, std::ios::binary);
+  if (!text)
+    return;
+  PetalIterator it(text, Direction::Forward);
+  it.seek_offset(0);
+  const char *data;
+  uint64_t len;
+  while (it.next(&data, &len)) {
+    if (!file)
+      throw ed_error("Failed while writing file: " + path.string());
+    file.write(data, len);
+  }
+  file.write("\n", 1);
+  if (!file)
+    throw ed_error("Failed while writing file: " + path.string());
+}
+
+void write_command(const char *cmd, Shard *text) {
+  io::IO::cleanup();
+  FILE *pipe = popen(cmd, "w");
+  if (!pipe) {
+    io::IO::enable_raw();
+    throw ed_error("Failed to start command: " + std::string(cmd));
+  }
+  if (!text) {
+    int status = pclose(pipe);
+    if (status == -1)
+      throw ed_error("Failed to wait for command: " + std::string(cmd));
+    return;
+  }
+  PetalIterator it(text, Direction::Forward);
+  it.seek_offset(0);
+  const char *data;
+  uint64_t len;
+  while (it.next(&data, &len))
+    fwrite(data, 1, len, pipe);
+  fwrite("\n", 1, 1, pipe);
+  int status = pclose(pipe);
+  io::IO::enable_raw();
+  if (status == -1)
+    throw ed_error("Failed to wait for command: " + std::string(cmd));
+  return;
 }
 } // namespace bed::internal::vase
