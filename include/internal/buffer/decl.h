@@ -10,7 +10,7 @@ namespace bed::internal::buffer {
 struct Buffer {
   enum struct Kind : uint8_t {
     Generic,
-    Null,
+    History,
     Clip,
     Cancel,
     Shell,
@@ -26,7 +26,7 @@ struct Buffer {
   std::string name;
 
   explicit Buffer(std::string name, Kind kind)
-      : kind(kind), state(Unmodified), name(name) {};
+      : kind(kind), state(Unmodified), name(std::move(name)) {};
   virtual ~Buffer() = default;
 
   virtual bool waste() = 0;

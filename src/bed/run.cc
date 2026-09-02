@@ -7,6 +7,7 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
   internal::functions::Function::register_posix(*this);
   internal::functions::Function::register_extented(*this);
   internal::functions::Suffix::register_suffixes(*this);
+  languages["ruby"] = new internal::syntax::Language(internal::syntax::ruby::lang_ruby());
   std::string prompt_ = "";
   std::string file = "";
   bool suppress = false;
@@ -47,6 +48,8 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
 BEd::~BEd() {
   for (auto &[_, buffer] : buffers)
     delete buffer;
+  for (auto &[_, lang] : languages)
+    delete lang;
 }
 
 void BEd::run() {
@@ -162,9 +165,38 @@ void BEd::handle(std::string_view cmd, bool eof) {
 internal::buffer::Buffer &BEd::buffer(const std::string &name) {
   if (name.empty())
     throw ed_error("can't have empty buffer name");
-  auto it = buffers.find(name);
-  if (it != buffers.end())
-    return *it->second;
+  {
+    auto it = buffers.find(name);
+    if (it != buffers.end())
+      return *it->second;
+  }
+  constexpr std::string_view prefix = "history/";
+  if (name.starts_with(prefix)) {
+    std::string_view path{name};
+    path.remove_prefix(prefix.size());
+    auto slash = path.rfind('/');
+    if (slash == std::string_view::npos || slash == 0 || slash == path.size() - 1)
+      throw ed_error("invalid history");
+    std::string bufname(path.substr(0, slash));
+    auto version_str = path.substr(slash + 1);
+    std::size_t version;
+    try {
+      version = std::stoull(std::string(version_str));
+    } catch (...) {
+      throw ed_error("invalid history version");
+    }
+    auto it = buffers.find(bufname);
+    if (it != buffers.end()) {
+      auto &buf_ = *it->second;
+      if (buf_.kind != internal::buffer::Buffer::Kind::Generic)
+        throw ed_error("Only normal buffers can have history.");
+      auto &buf = *(internal::buffer::GenericBuffer *)&buf_;
+      auto *history_buf = buf.get_history(version);
+      buffers.emplace(name, history_buf);
+      return *history_buf;
+    }
+    throw ed_error("Buffer has no history.");
+  }
   auto *buf = new internal::buffer::GenericBuffer(name);
   buffers.emplace(name, buf);
   return *buf;

@@ -213,10 +213,7 @@ void Function::register_posix(BEd &ctx) {
                   std::vector<buffer::Line> *
                 ) {
         auto &addr = std::get<std::string>(addr_);
-        auto &buf_ = ctx.buffer(addr);
-        if (buf_.kind != buffer::Buffer::Kind::Generic)
-          return;
-        auto &buf = *(buffer::GenericBuffer *)&buf_;
+        auto &buf = ctx.buffer(addr);
         if (std::holds_alternative<std::filesystem::path>(arg))
           buf.set_filename(std::get<std::filesystem::path>(arg));
         else if (std::holds_alternative<ShellArg>(arg))
@@ -647,6 +644,33 @@ void Function::register_posix(BEd &ctx) {
         }
         ctx.current() = {arg.buffername, arg.number + addr.end - addr.start + 1};
       },
+    }
+  );
+  ctx.functions.insert(
+    "u",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "Undo last modification to buffer.",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
+        auto &addr = std::get<std::string>(addr_);
+        auto &buf_ = ctx.buffer(addr);
+        if (buf_.kind != buffer::Buffer::Kind::Generic)
+          throw ed_error("Can't undo buffer");
+        auto &buf = *(buffer::GenericBuffer *)&buf_;
+        if (!buf.undo(ctx))
+          throw ed_error("Can't undo buffer.");
+      }
     }
   );
   ctx.functions.insert(

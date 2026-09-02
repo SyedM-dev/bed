@@ -1,7 +1,19 @@
 #include "internal/syntax/decl.h"
 
 namespace bed::internal::syntax {
-TreeCursor::TreeCursor(ParseState *root, uint64_t target_line, uint64_t *relative) {
+TreeCursor::~TreeCursor() {
+  ParseState::release(lang, root);
+}
+
+TreeCursor::TreeCursor(
+  Language &lang, ParseState *root,
+  uint64_t target_line, uint64_t *relative
+) : lang(lang), root(root) {
+  if (!root) {
+    *relative = 0;
+    return;
+  }
+  ParseState::retain(root);
   ParseState *node = root;
   while (node->is_branch()) {
     auto *branch = (ParseStateBranch *)node;
@@ -62,5 +74,43 @@ void TreeCursor::prev() {
     return;
   }
   leaf = nullptr;
+}
+
+ParseState *TreeCursor::prefix() {
+  ParseState *result = nullptr;
+  for (uint8_t i = 0; i < depth; ++i) {
+    if (went_left[i])
+      continue;
+    auto *branch = stack[i];
+    ParseState *piece = branch->left;
+    if (!result) {
+      ParseState::retain(piece);
+      result = piece;
+    } else {
+      ParseState *next = ParseState::concat(lang, result, piece);
+      ParseState::release(lang, result);
+      result = next;
+    }
+  }
+  return result;
+}
+
+ParseState *TreeCursor::suffix() {
+  ParseState *result = nullptr;
+  for (uint8_t i = depth; i-- > 0;) {
+    if (!went_left[i])
+      continue;
+    auto *branch = stack[i];
+    ParseState *piece = branch->right;
+    if (!result) {
+      ParseState::retain(piece);
+      result = piece;
+    } else {
+      ParseState *next = ParseState::concat(lang, result, piece);
+      ParseState::release(lang, result);
+      result = next;
+    }
+  }
+  return result;
 }
 } // namespace bed::internal::syntax

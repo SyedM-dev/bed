@@ -97,5 +97,58 @@ void Function::register_extented(BEd &ctx) {
       },
     }
   );
+  ctx.functions.insert(
+    "U",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "Redo last undo.",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
+        auto &addr = std::get<std::string>(addr_);
+        auto &buf_ = ctx.buffer(addr);
+        if (buf_.kind != buffer::Buffer::Kind::Generic)
+          throw ed_error("Can't redo buffer");
+        auto &buf = *(buffer::GenericBuffer *)&buf_;
+        if (!buf.redo(ctx))
+          throw ed_error("Can't redo buffer.");
+      }
+    }
+  );
+  ctx.functions.insert(
+    "history-list",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "List history versions.",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
+        auto &addr = std::get<std::string>(addr_);
+        auto &buf_ = ctx.buffer(addr);
+        if (buf_.kind != buffer::Buffer::Kind::Generic)
+          throw ed_error("Can't redo buffer");
+        auto &buf = *(buffer::GenericBuffer *)&buf_;
+        buf.list_history(ctx);
+      }
+    }
+  );
 }
 } // namespace bed::internal::functions

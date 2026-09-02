@@ -12,13 +12,13 @@ struct Shard {
     Petal
   } kind;
 
-  uint8_t height;
+  uint16_t height;
   std::atomic_uint32_t refs;
 
   uint64_t length;
   uint64_t lines;
 
-  Shard(Kind kind, uint64_t length, uint64_t lines, uint8_t height)
+  Shard(Kind kind, uint64_t length, uint64_t lines, uint16_t height)
       : kind(kind), height(height), refs(1), length(length), lines(lines) {};
 
   static void retain(Shard *n);
@@ -62,5 +62,4 @@ struct Petal : Shard {
     source->retain();
   };
 };
-
 } // namespace bed::internal::vase

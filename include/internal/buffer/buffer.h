@@ -1,6 +1,5 @@
 #pragma once
 
-#include "clip.h"
+#include "./types/clip.h"
+#include "./types/generic.h"
 #include "decl.h"
-#include "generic.h"
-#include "pch.h"

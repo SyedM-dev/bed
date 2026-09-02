@@ -18,7 +18,7 @@ struct BEd {
   internal::functions::Function eof_op;
   std::array<std::optional<internal::functions::Suffix>, 26> suffixes;
   internal::theme::Theme theme;
-  std::unordered_map<std::string, internal::syntax::Language> languages;
+  std::unordered_map<std::string, internal::syntax::Language *> languages;
   internal::io::IO &io;
   internal::vase::AppendStorage append{"/tmp"};
 

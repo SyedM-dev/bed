@@ -1,7 +1,6 @@
 #pragma once
 
-#include "decl.h"
-#include "pch.h"
+#include "../decl.h"
 
 namespace bed::internal::buffer {
 struct ClipBuffer : Buffer {

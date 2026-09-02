@@ -1,265 +1,32 @@
 #include "internal/syntax/parser.h"
 
 namespace bed::internal::syntax {
-static void destroy_tree(ParseState *node, Language &lang) {
-  if (!node)
-    return;
-  if (node->is_branch()) {
-    auto *branch = (ParseStateBranch *)node;
-    destroy_tree(branch->left, lang);
-    destroy_tree(branch->right, lang);
-    free(branch);
-  } else {
-    auto *leaf = (ParseStateLeaf *)node;
-    if (leaf->state)
-      lang.destroy(leaf->state);
-    if (leaf->blocks)
-      free(leaf->blocks);
-    free(leaf);
-  }
-}
-
-static ParseState *make_branch(ParseState *left, ParseState *right) {
-  if (!left)
-    return right;
-  if (!right)
-    return left;
-  auto *branch = (ParseStateBranch *)malloc(sizeof(ParseStateBranch));
-  branch->header = ParseState::BRANCH_BIT + left->lines() + right->lines();
-  branch->left = left;
-  branch->right = right;
-  return branch;
-}
-
-static ParseState *build_tree(std::vector<ParseStateLeaf *> &leaves, size_t begin, size_t end) {
-  const size_t count = end - begin;
-  if (count == 0)
-    return nullptr;
-  if (count == 1)
-    return leaves[begin];
-  const size_t mid = begin + count / 2;
-  ParseState *left = build_tree(leaves, begin, mid);
-  ParseState *right = build_tree(leaves, mid, end);
-  return make_branch(left, right);
-}
-
-Parser::Parser(vase::Shard *vase, uint64_t lines, Language lang)
-    : root(nullptr), lang(lang) {
-  reset(vase, lines, lang);
-}
-
-Parser::~Parser() {
-  destroy_tree(root, lang);
-}
-
-void Parser::reset(vase::Shard *vase, uint64_t lines, Language lang_) {
-  destroy_tree(root, lang);
-  root = nullptr;
+ParserSnapshot make_parser(vase::Shard *vase, uint64_t lines, Language *lang) {
+  ParserSnapshot snap{nullptr, lang};
   if (lines == 0)
-    return;
-  lang = std::move(lang_);
-  std::vector<ParseStateLeaf *> leaves;
-  leaves.reserve((lines + MAX_CHUNK - 1) / MAX_CHUNK);
-  uint64_t consumed = 0;
-  while (consumed < lines) {
-    auto *leaf = (ParseStateLeaf *)malloc(sizeof(ParseStateLeaf));
-    leaf->state = nullptr;
-    leaf->blocks = nullptr;
-    leaf->n = 0;
-    leaf->cap = 0;
-    uint64_t chunk = std::min(MAX_CHUNK, lines - consumed);
-    leaf->header = chunk;
-    consumed += chunk;
-    leaves.push_back(leaf);
-  }
-  root = build_tree(leaves, 0, leaves.size());
-  modify(vase, 0, lines);
+    return snap;
+  if (lang)
+    snap.root = ParseState::splice(*lang, nullptr, vase, 0, 0, lines);
+  return snap;
 }
 
-std::pair<ParseState *, ParseState *> Parser::split_tree(ParseState *node, uint64_t line) {
-  if (!node)
-    return {nullptr, nullptr};
-  if (line == 0)
-    return {nullptr, node};
-  if (line >= node->lines())
-    return {node, nullptr};
-  if (node->is_branch()) {
-    auto *branch = (ParseStateBranch *)node;
-    uint64_t left_lines = branch->left->lines();
-    if (line < left_lines) {
-      auto [a, b] = split_tree(branch->left, line);
-      ParseState *right = join_tree(b, branch->right);
-      free(branch);
-      return {a, right};
-    }
-    if (line == left_lines) {
-      ParseState *left = branch->left;
-      ParseState *right = branch->right;
-      free(branch);
-      return {left, right};
-    }
-    auto [a, b] = split_tree(branch->right, line - left_lines);
-    ParseState *left = join_tree(branch->left, a);
-    free(branch);
-    return {left, b};
-  } else {
-    auto *leaf = (ParseStateLeaf *)node;
-    uint64_t lines = leaf->lines();
-    auto *right = (ParseStateLeaf *)malloc(sizeof(ParseStateLeaf));
-    right->header = lines - line;
-    right->state = nullptr;
-    right->blocks = nullptr;
-    right->n = 0;
-    right->cap = 0;
-    leaf->header = line;
-    leaf->n = 0;
-    return {leaf, right};
-  }
+ParserSnapshot retain(const ParserSnapshot &snap) {
+  if (snap.root)
+    ParseState::retain(snap.root);
+  return snap;
 }
 
-ParseState *Parser::join_tree(ParseState *a, ParseState *b) {
-  // TODO: balance
-  return make_branch(a, b);
+void release(ParserSnapshot &snap) {
+  if (snap.root && snap.lang)
+    ParseState::release(*snap.lang, snap.root);
+  snap.root = nullptr;
 }
 
-void Parser::erase(vase::Shard *vase, uint64_t start, uint64_t count) {
-  begin_edit();
-  erase(start, count);
-  end_edit(vase);
-}
-
-void Parser::insert(vase::Shard *vase, uint64_t start, uint64_t count) {
-  begin_edit();
-  insert(start, count);
-  end_edit(vase);
-}
-
-void Parser::modify(vase::Shard *vase, uint64_t target, uint64_t count) {
-  if (count == 0 || !root)
-    return;
-  std::vector<Token> tokens;
-  std::vector<ParseEvent> events;
-  uint64_t offset;
-  TreeCursor c = TreeCursor(root, target, &offset);
-  uint64_t at = target - offset;
-  void *state = nullptr;
-  if (c.leaf->state) {
-    state = lang.copy(c.leaf->state);
-  } else {
-    while (!c.leaf->state) {
-      c.prev();
-      if (!c.leaf) {
-        at = 0;
-        break;
-      }
-      at -= c.leaf->lines();
-    }
-    if (c.leaf) {
-      state = lang.copy(c.leaf->state);
-    } else {
-      state = lang.none_state();
-      c = TreeCursor(root, 0, &offset);
-    }
-  }
-  vase::Iterator it(vase, at, Direction::Forward);
-  uint64_t chunk_start = at;
-  uint64_t next_boundary = at + c.leaf->lines();
-  c.leaf->n = 0;
-  while (true) {
-    it.next();
-    if (at == next_boundary) {
-      c.next();
-      if (!c.leaf)
-        break;
-      c.leaf->n = 0;
-      chunk_start = at;
-      next_boundary += c.leaf->lines();
-      if (at >= target + count
-          && c.leaf->state != nullptr
-          && lang.equal(state, c.leaf->state))
-        break;
-      if (c.leaf->state)
-        lang.destroy(c.leaf->state);
-      c.leaf->state = lang.copy(state);
-    }
-    tokens.clear();
-    events.clear();
-    lang.parse(&state, it.line, at == 0, &tokens, &events);
-    for (const auto &ev : events) {
-      if (c.leaf->n == c.leaf->cap) {
-        uint32_t cap = c.leaf->cap ? c.leaf->cap * 2 : 8;
-        c.leaf->blocks = (uint16_t *)realloc(c.leaf->blocks, cap * sizeof(uint16_t));
-        c.leaf->cap = cap;
-      }
-      c.leaf->blocks[c.leaf->n++] = ev.closing << 15 | (at - chunk_start);
-    }
-    at++;
-  }
-  lang.destroy(state);
-}
-
-void Parser::begin_edit() {
-  in_edit = true;
-}
-
-void Parser::mark_dirty(uint64_t start, uint64_t end) {
-  if (!dirty) {
-    dirty_start = start;
-    dirty_end = end;
-    dirty = true;
-  } else {
-    dirty_start = std::min(dirty_start, start);
-    dirty_end = std::max(dirty_end, end);
-  }
-}
-
-void Parser::erase(uint64_t start, uint64_t count) {
-  if (count == 0 || !root)
-    return;
-  auto [a, remaining] = split_tree(root, start);
-  auto [waste, b] = split_tree(remaining, count);
-  destroy_tree(waste, lang);
-  root = join_tree(a, b);
-  mark_dirty(start, start + 1);
-}
-
-void Parser::insert(uint64_t start, uint64_t count) {
-  if (count == 0)
-    return;
-  std::vector<ParseStateLeaf *> leaves;
-  leaves.reserve((count + MAX_CHUNK - 1) / MAX_CHUNK);
-  uint64_t consumed = 0;
-  while (consumed < count) {
-    auto *leaf = (ParseStateLeaf *)malloc(sizeof(ParseStateLeaf));
-    leaf->state = nullptr;
-    leaf->blocks = nullptr;
-    leaf->n = 0;
-    leaf->cap = 0;
-    uint64_t chunk = std::min(MAX_CHUNK, count - consumed);
-    leaf->header = chunk;
-    consumed += chunk;
-    leaves.push_back(leaf);
-  }
-  ParseState *subtree = build_tree(leaves, 0, leaves.size());
-  auto [left, right] = split_tree(root, start);
-  root = join_tree(join_tree(left, subtree), right);
-  mark_dirty(start, start + count);
-}
-
-void Parser::end_edit(vase::Shard *vase) {
-  in_edit = false;
-  if (!dirty)
-    return;
-  uint64_t count = dirty_end > dirty_start ? dirty_end - dirty_start : 1;
-  modify(vase, dirty_start, count);
-  dirty = false;
-}
-
-uint64_t Parser::next_closing(uint64_t line) {
-  if (!root)
-    return UINT64_MAX;
+uint64_t next_closing(const ParserSnapshot &snap, uint64_t line) {
+  if (!snap.root || !snap.lang)
+    return line + 10;
   uint64_t relative = 0;
-  TreeCursor c(root, line, &relative);
+  TreeCursor c(*snap.lang, snap.root, line, &relative);
   uint64_t line_offset = line - relative;
   int level = 0;
   bool first_leaf = true;
@@ -283,14 +50,14 @@ uint64_t Parser::next_closing(uint64_t line) {
     c.next();
     first_leaf = false;
   }
-  return UINT64_MAX;
+  return (snap.root->lines() - line > 10 ? line + 10 : snap.root->lines());
 }
 
-uint64_t Parser::prev_opening(uint64_t line) {
-  if (!root)
+uint64_t prev_opening(const ParserSnapshot &snap, uint64_t line) {
+  if (!snap.root || !snap.lang)
     return 0;
   uint64_t relative = 0;
-  TreeCursor c(root, line, &relative);
+  TreeCursor c(*snap.lang, snap.root, line, &relative);
   uint64_t line_offset = line - relative;
   int level = 0;
   bool first_leaf = true;
@@ -315,77 +82,66 @@ uint64_t Parser::prev_opening(uint64_t line) {
     if (c.leaf)
       line_offset -= c.leaf->lines();
   }
-  return 0;
+  return (line > 10 ? line - 10 : 0);
 }
 
-std::optional<Parser::Iterator> Parser::get_hl(vase::Shard *vase, uint64_t target) {
-  if (!root)
+std::optional<Iterator> get_hl(const ParserSnapshot &snap, vase::Shard *vase, uint64_t target) {
+  if (!snap.root || !snap.lang)
     return std::nullopt;
-  return Parser::Iterator(target, this, vase);
+  return Iterator(target, retain(snap), vase);
 }
 
-Parser::Iterator::Iterator(uint64_t target, Parser *p, vase::Shard *vase) : p(p) {
-  uint64_t offset;
-  TreeCursor c = TreeCursor(p->root, target, &offset);
-  at = target - offset;
-  if (c.leaf->state) {
-    state = p->lang.copy(c.leaf->state);
+void Edit::mark_dirty(uint64_t start, uint64_t end) {
+  if (!dirty) {
+    dirty_start = start;
+    dirty_end = end;
+    dirty = true;
   } else {
-    while (!c.leaf->state) {
-      c.prev();
-      if (!c.leaf) {
-        at = 0;
-        break;
-      }
-      at -= c.leaf->lines();
-    }
-    if (c.leaf) {
-      state = p->lang.copy(c.leaf->state);
-    } else {
-      state = p->lang.none_state();
-      c = TreeCursor(p->root, 0, &offset);
-    }
-  }
-  it = vase::Iterator(vase, at, Direction::Forward);
-  while (at < target) {
-    it->next();
-    tokens.clear();
-    events.clear();
-    p->lang.parse(&state, it->line, at == 0, &tokens, &events);
-    at++;
+    dirty_start = std::min(dirty_start, start);
+    dirty_end = std::max(dirty_end, end);
   }
 }
 
-Parser::Iterator::~Iterator() {
-  if (state)
-    p->lang.destroy(state);
+void Edit::insert(uint64_t start, uint64_t count) {
+  if (count == 0)
+    return;
+  uint64_t orig_pos = (uint64_t)((int64_t)start - edit_delta);
+  mark_dirty(orig_pos, orig_pos);
+  edit_delta += (int64_t)count;
 }
 
-Parser::Iterator::Iterator(Iterator &&other)
-    : p(other.p),
-      it(std::move(other.it)),
-      state(other.state),
-      tokens(std::move(other.tokens)) {
-  other.state = nullptr;
+void Edit::erase(uint64_t start, uint64_t count) {
+  if (count == 0 || !target->root)
+    return;
+  uint64_t orig_start = (uint64_t)((int64_t)start - edit_delta);
+  uint64_t orig_end = orig_start + count;
+  mark_dirty(orig_start, orig_end);
+  edit_delta -= (int64_t)count;
 }
 
-Parser::Iterator &Parser::Iterator::operator=(Iterator &&other) {
-  if (this == &other)
-    return *this;
-  if (state)
-    p->lang.destroy(state);
-  p = other.p;
-  it = std::move(other.it);
-  state = other.state;
-  tokens = std::move(other.tokens);
-  other.state = nullptr;
-  return *this;
+void Edit::commit(vase::Shard *vase) {
+  if (!dirty || !target->lang)
+    return;
+  uint64_t line = dirty_start;
+  uint64_t original = dirty_end - dirty_start;
+  uint64_t final = (uint64_t)((int64_t)original + edit_delta);
+  ParseState *new_root =
+    ParseState::splice(*target->lang, target->root, vase, line, original, final);
+  release(*target);
+  target->root = new_root;
+  dirty = false;
+  edit_delta = 0;
 }
 
-void Parser::Iterator::next() {
-  it->next();
-  tokens.clear();
-  events.clear();
-  p->lang.parse(&state, it->line, at++ == 0, &tokens, &events);
+void insert(ParserSnapshot &snap, vase::Shard *vase, uint64_t start, uint64_t count) {
+  Edit e(snap);
+  e.insert(start, count);
+  e.commit(vase);
+}
+
+void erase(ParserSnapshot &snap, vase::Shard *vase, uint64_t start, uint64_t count) {
+  Edit e(snap);
+  e.erase(start, count);
+  e.commit(vase);
 }
 } // namespace bed::internal::syntax

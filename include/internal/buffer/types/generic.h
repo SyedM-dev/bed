@@ -1,26 +1,41 @@
 #pragma once
 
-#include "decl.h"
-#include "pch.h"
+#include "../decl.h"
+#include "history.h"
+#include "shard.h"
 
 namespace bed::internal::buffer {
-struct GenericBuffer : Buffer {
-  vase::Shard *root;
+struct HistoryItem {
+  syntax::ParserSnapshot parse_state;
+  vase::Shard *text;
+  std::chrono::system_clock::time_point timestamp;
+  std::string summary;
+};
+
+struct GenericBuffer : ShardBuffer {
+  uint64_t base_version{0};
+  std::chrono::system_clock::time_point timestamp{
+    std::chrono::system_clock::now()
+  };
+  std::string action{"created"};
   std::filesystem::path save_path{};
-  std::string language{};
-  std::optional<syntax::Parser> parser{};
+  std::vector<HistoryItem> undo_stack;
+  std::vector<HistoryItem> redo_stack;
 
   GenericBuffer(std::string name)
-      : Buffer(name, Kind::Generic), root(nullptr) {};
+      : ShardBuffer(name, nullptr, nullptr, Kind::Generic) {}
   ~GenericBuffer();
 
+  void list_history(BEd &ctx);
+  HistoryBuffer *get_history(uint64_t version);
+  void snapshot(std::string action);
+  bool undo(BEd &ctx);
+  bool redo(BEd &ctx);
+  void prune(int = 0);
   bool waste() override;
-  uint64_t lines() override;
-  uint64_t bytes() override;
   void load(BEd &ctx, vase::Shard *text) override;
   void set_filename(std::filesystem::path path) override;
   std::filesystem::path filename() override;
-  vase::Shard *copy(uint64_t start_line, uint64_t end_line) override;
   void substitute(
     BEd &ctx, uint64_t start_line, uint64_t end_line,
     std::string &regex, std::string &replacement, std::string &options
@@ -29,12 +44,5 @@ struct GenericBuffer : Buffer {
   void remove(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
   void append(BEd &ctx, vase::Shard *text, uint64_t line) override;
   void replace(BEd &ctx, vase::Shard *text, uint64_t start_line, uint64_t end_line) override;
-  void print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
-  void number_print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
-  void list_print(BEd &ctx, uint64_t start_line, uint64_t end_line) override;
-  uint64_t next_closing(uint64_t start) override;
-  uint64_t prev_closing(uint64_t start) override;
-  uint64_t find_next(std::string_view pattern, uint64_t start) override;
-  uint64_t find_prev(std::string_view pattern, uint64_t start) override;
 };
 } // namespace bed::internal::buffer
