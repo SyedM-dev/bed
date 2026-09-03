@@ -90,12 +90,7 @@ Shard *substitute(
   if (matches.empty())
     return root;
   std::vector<ReplacePart> replace_parts = parse_replace(ap, replace);
-  struct Edit {
-    uint64_t line;
-    uint64_t old_lines;
-    uint64_t new_lines;
-  };
-  uint64_t orig_line = start;
+  uint64_t current_line = 1;
   int64_t line_delta = 0;
   std::vector<Shard *> pieces;
   pieces.reserve(matches.size() * 2 + 1);
@@ -109,7 +104,7 @@ Shard *substitute(
       Shard::release(remaining);
       pieces.push_back(keep);
       remaining = rest;
-      orig_line += keep ? keep->lines : 0;
+      current_line += keep ? keep->lines : 0;
     }
     auto [dropped, rest2] = Shard::split(remaining, match.end - match.start);
     Shard::release(remaining);
@@ -152,13 +147,11 @@ Shard *substitute(
       }
     }
     Shard::release(dropped);
-    if (old_lines || new_lines) {
-      uint64_t report_line = (uint64_t)((int64_t)orig_line + line_delta);
-      if (on_edit)
-        on_edit(report_line, old_lines, new_lines);
-      line_delta += (int64_t)new_lines - (int64_t)old_lines;
-    }
-    orig_line += old_lines;
+    uint64_t report_line = (uint64_t)((int64_t)current_line + line_delta);
+    if (on_edit)
+      on_edit(report_line, old_lines, new_lines);
+    line_delta += (int64_t)new_lines - (int64_t)old_lines;
+    current_line += old_lines;
     cursor = match.end;
   }
   pieces.push_back(remaining);

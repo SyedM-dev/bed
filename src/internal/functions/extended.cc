@@ -93,7 +93,6 @@ void Function::register_extented(BEd &ctx) {
           vase::Shard::release(text);
           throw;
         }
-        ctx.current() = {arg.buffername, arg.start + addr.end - addr.start + 1};
       },
     }
   );

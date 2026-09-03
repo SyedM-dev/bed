@@ -221,6 +221,7 @@ void GenericBuffer::load(BEd &ctx, vase::Shard *text) {
     ctx.prev().start = 1;
     ctx.prev().end = text->lines + 1;
   }
+  ctx.current() = {name, lines()};
   syntax::release(parse);
   parse = syntax::make_parser(root, lines(), ctx.languages["ruby"]);
 }
@@ -240,6 +241,7 @@ void GenericBuffer::append(BEd &ctx, vase::Shard *text, uint64_t line) {
   ctx.prev().buffername = name;
   ctx.prev().start = line + 1;
   ctx.prev().end = line + text->lines + 1;
+  ctx.current() = {name, line + text->lines + 1};
   root = vase::insert(&ctx.append, root, text, line);
   ctx.marks.insert(name, line, text->lines + 1);
   if (parse.lang)
@@ -251,8 +253,10 @@ void GenericBuffer::remove(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   snapshot(std::format("Remove lines {} to {}", start_line, end_line));
   root = vase::erase(root, start_line, end_line);
   ctx.prev().buffername = name;
-  ctx.prev().start = std::min(start_line, lines());
-  ctx.prev().end = std::min(start_line, lines());
+  uint64_t l = std::min(start_line, lines());
+  ctx.prev().start = l;
+  ctx.prev().end = l;
+  ctx.current() = {name, l};
   ctx.marks.erase(name, start_line, end_line - start_line + 1);
   if (parse.lang)
     syntax::erase(parse, root, start_line, end_line - start_line + 1);
@@ -268,6 +272,7 @@ void GenericBuffer::replace(BEd &ctx, vase::Shard *text, uint64_t start_line, ui
   ctx.prev().buffername = name;
   ctx.prev().start = start_line;
   ctx.prev().end = start_line + text->lines;
+  ctx.current() = {name, start_line + text->lines};
   uint64_t new_count = text->lines + 1;
   uint64_t old_count = end_line - start_line + 1;
   root = vase::replace(root, text, start_line, end_line);
@@ -293,6 +298,7 @@ void GenericBuffer::join(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.prev().buffername = name;
   ctx.prev().start = start_line;
   ctx.prev().end = start_line;
+  ctx.current() = {name, start_line};
   ctx.marks.collapse(name, start_line, end_line - start_line);
   if (parse.lang)
     syntax::erase(parse, root, start_line, end_line - start_line);
@@ -329,11 +335,11 @@ void GenericBuffer::substitute(
         if (edit)
           edit->insert(line, new_lines);
       }
+      ctx.current() = {name, line + new_lines};
     }
   );
   if (edit)
     edit->commit(root);
-  ctx.prev().buffername = name;
   state = Modified;
 }
 } // namespace bed::internal::buffer

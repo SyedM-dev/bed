@@ -47,7 +47,6 @@ void Function::register_posix(BEd &ctx) {
                 ) {
         auto addr = std::get<buffer::Line>(addr_);
         ctx.buffer(addr.buffername).append(ctx, text, addr.number);
-        ctx.current() = {ctx.prev().buffername, ctx.prev().end};
         vase::Shard::release(text);
       }
     }
@@ -71,7 +70,6 @@ void Function::register_posix(BEd &ctx) {
                 ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).replace(ctx, text, addr.start, addr.end);
-        ctx.current() = {ctx.prev().buffername, ctx.prev().end};
         vase::Shard::release(text);
       }
     }
@@ -95,7 +93,6 @@ void Function::register_posix(BEd &ctx) {
                 ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).remove(ctx, addr.start, addr.end);
-        ctx.current() = {addr.buffername, addr.start};
       }
     }
   );
@@ -145,7 +142,6 @@ void Function::register_posix(BEd &ctx) {
           throw;
         }
         ctx.io.write_line(std::format("{}", buf.bytes()));
-        ctx.current() = {addr, buf.lines()};
       }
     }
   );
@@ -191,7 +187,6 @@ void Function::register_posix(BEd &ctx) {
           throw;
         }
         ctx.io.write_line(std::format("{}", buf.bytes()));
-        ctx.current() = {addr, buf.lines()};
       }
     }
   );
@@ -289,7 +284,6 @@ void Function::register_posix(BEd &ctx) {
         if (addr.number)
           addr.number--;
         ctx.buffer(addr.buffername).append(ctx, text, addr.number);
-        ctx.current() = {ctx.prev().buffername, ctx.prev().end};
         vase::Shard::release(text);
       }
     }
@@ -313,7 +307,6 @@ void Function::register_posix(BEd &ctx) {
                 ) {
         auto addr = std::get<buffer::Range>(addr_);
         ctx.buffer(addr.buffername).join(ctx, addr.start, addr.end);
-        ctx.current() = {addr.buffername, addr.start};
       }
     }
   );
@@ -403,7 +396,6 @@ void Function::register_posix(BEd &ctx) {
           vase::Shard::release(text);
           throw;
         }
-        ctx.current() = {arg.buffername, arg.number + addr.end - addr.start + 1};
       },
     }
   );
@@ -567,7 +559,6 @@ void Function::register_posix(BEd &ctx) {
         try {
           buf.append(ctx, s, addr.number);
           ctx.io.write_line(std::format("{}", s ? s->length + 1 : 0));
-          ctx.current() = {addr.buffername, addr.number + (s ? s->lines + 1 : 0)};
           vase::Shard::release(s);
         } catch (...) {
           vase::Shard::release(s);
@@ -642,7 +633,6 @@ void Function::register_posix(BEd &ctx) {
           vase::Shard::release(text);
           throw;
         }
-        ctx.current() = {arg.buffername, arg.number + addr.end - addr.start + 1};
       },
     }
   );
@@ -746,6 +736,9 @@ void Function::register_posix(BEd &ctx) {
           ctx.io.write_line(std::format(":{}:{}", addr.buffername, addr.start));
         else
           ctx.io.write_line(std::format(":{}:{},{}", addr.buffername, addr.start, addr.end));
+        ctx.prev().buffername = addr.buffername;
+        ctx.prev().start = addr.start;
+        ctx.prev().end = addr.end;
         ctx.current() = {addr.buffername, addr.end};
       },
     }

@@ -165,12 +165,13 @@ void Parser::operation() {
         j++;
     }
     std::string replacement(peek_str(j));
+    std::string options;
     if (peek(j) != '\0') {
       advance(j + 1);
     } else {
       advance(j);
+      options = "p";
     }
-    std::string options;
     if (peek() != '\0') {
       options = std::string(peek_str());
       advance(peek_str().size());
