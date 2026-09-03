@@ -141,7 +141,8 @@ void Function::register_posix(BEd &ctx) {
           vase::Shard::release(s);
           throw;
         }
-        ctx.io.write_line(std::format("{}", buf.bytes()));
+        if (!ctx.suppress_mode)
+          ctx.io.write_line(std::format("{}", buf.bytes()));
       }
     }
   );
@@ -186,7 +187,8 @@ void Function::register_posix(BEd &ctx) {
           vase::Shard::release(s);
           throw;
         }
-        ctx.io.write_line(std::format("{}", buf.bytes()));
+        if (!ctx.suppress_mode)
+          ctx.io.write_line(std::format("{}", buf.bytes()));
       }
     }
   );
@@ -449,9 +451,9 @@ void Function::register_posix(BEd &ctx) {
     "P",
     Function{
       .address_kind = Function::AddressKind::None,
-      .argument_kind = Function::ArgumentKind::None,
+      .argument_kind = Function::ArgumentKind::Any,
       .input_mode = Function::InputMode::None,
-      .desc = "Toggle prompt.",
+      .desc = "Toggle/set prompt.",
       .default_address = "",
       .accept_zero = false,
       .pre_text_mode = nullptr,
@@ -459,13 +461,18 @@ void Function::register_posix(BEd &ctx) {
                   BEd &ctx,
                   const buffer::Address &,
                   vase::Shard *,
-                  const Argument &,
+                  const Argument &arg_,
                   std::vector<buffer::Line> *
                 ) {
-        ctx.prompt_mode = !ctx.prompt_mode;
-        if (ctx.prompt_mode && !ctx.prompt) {
-          ctx.prompt = [](BEd &) { return "*"; };
+        auto &arg = std::get<std::string>(arg_);
+        if (arg.size()) {
+          ctx.prompt_mode = true;
+          ctx.prompt = [arg](BEd &) { return arg; };
+          return;
         }
+        ctx.prompt_mode = !ctx.prompt_mode;
+        if (ctx.prompt_mode && !ctx.prompt)
+          ctx.prompt = [](BEd &) { return "*"; };
       }
     }
   );
@@ -558,12 +565,13 @@ void Function::register_posix(BEd &ctx) {
         };
         try {
           buf.append(ctx, s, addr.number);
-          ctx.io.write_line(std::format("{}", s ? s->length + 1 : 0));
           vase::Shard::release(s);
         } catch (...) {
           vase::Shard::release(s);
           throw;
         }
+        if (!ctx.suppress_mode)
+          ctx.io.write_line(std::format("{}", s ? s->length + 1 : 0));
       }
     }
   );
@@ -705,12 +713,13 @@ void Function::register_posix(BEd &ctx) {
               throw ed_error("Need filename.");
             vase::write_file(path, text);
           };
-          ctx.io.write(std::format("{}\n", text ? text->length + 1 : 0));
           vase::Shard::release(text);
         } catch (...) {
           vase::Shard::release(text);
           throw;
         }
+        if (!ctx.suppress_mode)
+          ctx.io.write(std::format("{}\n", text ? text->length + 1 : 0));
       }
     }
   );
@@ -767,7 +776,8 @@ void Function::register_posix(BEd &ctx) {
         if (ctx.escape_command(cmd, filename.string()))
           ctx.io.write(cmd + "\n");
         ctx.io.run_pty(cmd);
-        ctx.io.write("!\n");
+        if (!ctx.suppress_mode)
+          ctx.io.write("!\n");
       },
     }
   );
