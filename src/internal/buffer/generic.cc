@@ -178,7 +178,7 @@ bool GenericBuffer::redo(BEd &ctx) {
   return true;
 }
 
-void GenericBuffer::prune(int keep) {
+uint64_t GenericBuffer::prune(int keep) {
   size_t drop =
     undo_stack.size() > (size_t)keep
       ? undo_stack.size() - keep
@@ -197,11 +197,13 @@ void GenericBuffer::prune(int keep) {
     vase::Shard::release(item.text);
   }
   redo_stack.clear();
+  return undo_stack.size();
 }
 
 bool GenericBuffer::waste() {
   return save_path.empty()
-         && root == nullptr;
+         && root == nullptr
+         && undo_stack.empty();
 }
 
 void GenericBuffer::load(BEd &ctx, vase::Shard *text) {

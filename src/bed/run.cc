@@ -174,7 +174,7 @@ internal::buffer::Buffer &BEd::buffer(const std::string &name) {
   if (name.starts_with(prefix)) {
     std::string_view path{name};
     path.remove_prefix(prefix.size());
-    auto slash = path.rfind('/');
+    auto slash = path.rfind('_');
     if (slash == std::string_view::npos || slash == 0 || slash == path.size() - 1)
       throw ed_error("invalid history");
     std::string bufname(path.substr(0, slash));
@@ -197,6 +197,15 @@ internal::buffer::Buffer &BEd::buffer(const std::string &name) {
     }
     throw ed_error("Buffer has no history.");
   }
+  for (auto &c : name)
+    if (!(('0' <= c && c <= '9')
+          || ('a' <= c && c <= 'z')
+          || ('A' <= c && c <= 'Z')
+          || c == '-' || c == '_'
+          || c == '+' || c == '.'
+          || c == ',' || c == '$'
+          || c == '/' || c == '~'))
+      throw ed_error("Invalid buffer name.");
   auto *buf = new internal::buffer::GenericBuffer(name);
   buffers.emplace(name, buf);
   return *buf;

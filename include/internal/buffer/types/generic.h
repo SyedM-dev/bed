@@ -29,7 +29,7 @@ struct GenericBuffer : ShardBuffer {
   void snapshot(std::string action);
   bool undo(BEd &ctx);
   bool redo(BEd &ctx);
-  void prune(int = 0);
+  uint64_t prune(int);
   bool waste() override;
   void load(BEd &ctx, vase::Shard *text) override;
   void set_filename(std::filesystem::path path) override;

@@ -128,7 +128,7 @@ void ClipBuffer::substitute(
       if (old_lines)
         ctx.marks.erase(name, line, old_lines);
       if (new_lines)
-        ctx.marks.insert(name, line, new_lines - 1);
+        ctx.marks.insert(name, line, new_lines);
     }
   );
   clip_write(s);
