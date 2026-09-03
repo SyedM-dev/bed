@@ -41,6 +41,8 @@ struct CommandIO {
 
   CommandIO(BEd &);
   std::pair<std::string, bool> run();
+  std::pair<std::string, bool> run_pipe();
+  std::pair<std::string, bool> run_terminal();
   void redraw();
 };
 } // namespace bed::internal::ui

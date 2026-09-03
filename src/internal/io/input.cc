@@ -1,6 +1,31 @@
 #include "internal/io/io.h"
 
 namespace bed::internal::io {
+std::pair<std::string, bool> IO::read_pipe() {
+  char buf[4096];
+  while (true) {
+    auto pos = pipe_input.find('\n');
+    if (pos != std::string::npos) {
+      std::string line = pipe_input.substr(0, pos);
+      pipe_input.erase(0, pos + 1);
+      return {line, false};
+    }
+    ssize_t n = read(STDIN_FILENO, buf, sizeof(buf));
+    if (n > 0) {
+      pipe_input.append(buf, n);
+      continue;
+    }
+    if (n == 0) {
+      std::string line = std::move(pipe_input);
+      pipe_input.clear();
+      return {line, true};
+    }
+    if (errno == EINTR)
+      continue;
+    throw fatal_error("Can't read stdin.", 1);
+  }
+}
+
 KeyEvent::ReadResult IO::get_next_byte(char &out) {
   if (!input_queue.empty()) {
     out = input_queue.front();

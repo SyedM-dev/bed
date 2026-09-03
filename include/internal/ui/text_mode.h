@@ -15,6 +15,8 @@ struct TextMode {
 
   TextMode(BEd &);
   std::pair<vase::Shard *, bool> run();
+  std::pair<vase::Shard *, bool> run_pipe();
+  std::pair<vase::Shard *, bool> run_terminal();
   void grow();
   void redraw();
 };

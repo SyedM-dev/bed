@@ -58,12 +58,23 @@ struct IO {
   static volatile std::atomic_bool resized;
   static void handle_sigwinch(int);
 
+  static enum struct Mode {
+    PIPE,
+    TERMINAL
+  } mode;
+
+  std::string pipe_input;
+  std::deque<char> input_queue;
+
   IO();
   ~IO();
 
   IO(const IO &) = delete;
   IO &operator=(const IO &) = delete;
 
+  bool interactive() const {
+    return mode == Mode::TERMINAL;
+  }
   void enable_mouse();
   void disable_mouse();
 
@@ -71,13 +82,13 @@ struct IO {
   std::pair<uint16_t, uint16_t> cursor_position();
   void move_cursor(uint16_t row, uint16_t col);
 
+  std::pair<std::string, bool> read_pipe();
+
   KeyEvent read_key();
   void write(const char *, uint64_t);
   void write(std::string_view);
   void write_line(std::string_view);
   void run_pty(const std::string &);
-
-  std::deque<char> input_queue;
 
   KeyEvent::ReadResult get_next_byte(char &out);
   void enqueue_bytes(const std::string &bytes);

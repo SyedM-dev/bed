@@ -7,6 +7,23 @@ TextMode::TextMode(BEd &bed) : bed(bed) {
 }
 
 std::pair<vase::Shard *, bool> TextMode::run() {
+  if (!bed.io.interactive())
+    return run_pipe();
+  return run_terminal();
+}
+
+std::pair<vase::Shard *, bool> TextMode::run_pipe() {
+  cmd.clear();
+  while (true) {
+    auto [str, eof] = bed.io.read_pipe();
+    if (str == "." || eof)
+      break;
+    cmd += str + "\n";
+  }
+  return {vase::Shard::from_string(cmd.data(), cmd.length(), true), false};
+}
+
+std::pair<vase::Shard *, bool> TextMode::run_terminal() {
   auto [row, col] = bed.io.cursor_position();
   auto [rows, cols] = bed.io.terminal_size();
   if (row > rows)

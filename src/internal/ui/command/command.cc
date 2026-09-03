@@ -69,6 +69,17 @@ CommandIO::CommandIO(BEd &bed) : bed(bed) {
 }
 
 std::pair<std::string, bool> CommandIO::run() {
+  if (!bed.io.interactive())
+    return run_pipe();
+  return run_terminal();
+}
+
+std::pair<std::string, bool> CommandIO::run_pipe() {
+  bed.io.write(prompt);
+  return bed.io.read_pipe();
+}
+
+std::pair<std::string, bool> CommandIO::run_terminal() {
   auto [row, col] = bed.io.cursor_position();
   auto [rows, cols] = bed.io.terminal_size();
   if (row > rows)

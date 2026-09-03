@@ -5,8 +5,12 @@ termios IO::orig_termios{};
 termios IO::raw_termios{};
 bool IO::cleaned = true;
 volatile std::atomic_bool IO::resized(false);
+IO::Mode IO::mode = IO::Mode::PIPE;
 
 IO::IO() {
+  if (!isatty(STDIN_FILENO))
+    return;
+  mode = Mode::TERMINAL;
   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
     throw fatal_error("Can't get terminal state.", 1);
   struct sigaction sa{};
@@ -30,16 +34,22 @@ IO::~IO() {
 }
 
 void IO::enable_mouse() {
+  if (mode == Mode::PIPE)
+    throw fatal_error("no mouse in pipe mode.", 1);
   const char *seq = "\x1b[?1000h";
   write_all(STDOUT_FILENO, seq, 8);
 }
 
 void IO::disable_mouse() {
+  if (mode == Mode::PIPE)
+    throw fatal_error("no mouse in pipe mode.", 1);
   const char *seq = "\x1b[?1000l";
   write_all(STDOUT_FILENO, seq, 8);
 }
 
 std::pair<uint16_t, uint16_t> IO::terminal_size() {
+  if (mode == Mode::PIPE)
+    throw fatal_error("no terminal size in pipe mode.", 1);
   struct winsize ws{};
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1)
     throw fatal_error("Can't get terminal size.", 1);
@@ -47,6 +57,8 @@ std::pair<uint16_t, uint16_t> IO::terminal_size() {
 }
 
 std::pair<uint16_t, uint16_t> IO::cursor_position() {
+  if (mode == Mode::PIPE)
+    throw fatal_error("no cursor in pipe mode.", 1);
   write_all(STDOUT_FILENO, "\x1b[6n", 4);
   std::string response;
   char c;
@@ -69,7 +81,7 @@ std::pair<uint16_t, uint16_t> IO::cursor_position() {
 }
 
 void IO::enable_raw() {
-  if (!cleaned)
+  if (!cleaned || mode == Mode::PIPE)
     return;
   std::string os = "\x1b[?2004h";
   write_all(STDOUT_FILENO, os.c_str(), os.size());
@@ -79,7 +91,7 @@ void IO::enable_raw() {
 }
 
 void IO::cleanup() {
-  if (cleaned)
+  if (cleaned || mode == Mode::PIPE)
     return;
   std::string os = "\x1b[?1000l\x1b[?2004l";
   write_all(STDOUT_FILENO, os.c_str(), os.size());
@@ -93,6 +105,8 @@ void IO::handle_sigwinch(int) {
 }
 
 void IO::move_cursor(uint16_t row, uint16_t col) {
+  if (mode == Mode::PIPE)
+    return;
   char buf[32];
   int n = snprintf(buf, sizeof(buf), "\x1b[%u;%uH", row, col);
   write_all(STDOUT_FILENO, buf, n);
@@ -112,6 +126,8 @@ void IO::write_line(std::string_view s) {
 }
 
 void IO::run_pty(const std::string &cmd) {
+  if (mode == Mode::PIPE)
+    throw ed_error("Shell running not allowed in pipe mode.");
   int master_fd = -1;
   struct winsize ws{};
   if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1)
