@@ -4,31 +4,6 @@
 #include "pch.h"
 
 namespace bed::internal::ui {
-struct Token {
-  enum struct Type : uint8_t {
-    TempCurrent,      // @
-    AddressSeperator, // ; ,
-    Address,          // . $ % [ ] ^ ~
-    Offset,           // +N -N + -
-    AddressRegex,     // /re/ ?re?
-    AddressSymbol,    // >s> <s< <s>
-    Number,           // 10
-    Mark,             // 'm
-    RubyFunction,     // (func:arg)
-    RubyArg,
-    Function,
-    Any,
-    Shell,
-    Ruby,
-    File,
-    Regex,
-    Replacement,
-    Suffix
-  } type;
-  uint16_t start;
-  uint16_t end;
-};
-
 struct CommandIO {
   std::string cmd;
   uint16_t cursor;

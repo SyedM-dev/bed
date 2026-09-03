@@ -29,8 +29,6 @@ uint64_t ShardBuffer::find_prev(std::string_view pattern, uint64_t start) {
 uint64_t ShardBuffer::next_closing(uint64_t start) {
   if (parse.lang) {
     uint64_t closing = syntax::next_closing(parse, start - 1);
-    if (closing == UINT64_MAX)
-      return lines();
     return closing + 1;
   } else {
     start += 10;

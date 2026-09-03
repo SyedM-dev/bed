@@ -1,5 +1,6 @@
 #include "internal/ui/command.h"
 #include "bed.h"
+#include "internal/parser/parser.h"
 
 namespace bed::internal::ui {
 /*template <typename F>
@@ -162,7 +163,22 @@ void CommandIO::redraw() {
   bed.io.write("\x1b[2K", 4);
   bed.io.move_cursor(start, 1);
   bed.io.write(prompt);
-  bed.io.write(cmd);
+  const auto tokens = parser::Parser::get_highlight(cmd, bed);
+  uint32_t pos = 0;
+  for (const auto &token : tokens) {
+    const uint32_t tstart = token.start;
+    const uint32_t tend = token.end;
+    if (tstart > cmd.size())
+      break;
+    if (pos < tstart)
+      bed.io.write(cmd.data() + pos, tstart - pos);
+    bed.io.apply(token.type);
+    bed.io.write(cmd.data() + tstart, tend - tstart);
+    bed.io.reset();
+    pos = tend;
+  }
+  if (pos < cmd.size())
+    bed.io.write(cmd.data() + pos, cmd.size() - pos);
   bed.io.move_cursor(start, prompt.size() + cursor + 1);
 }
 } // namespace bed::internal::ui

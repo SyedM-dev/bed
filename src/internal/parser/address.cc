@@ -6,34 +6,74 @@ void Parser::locator(AddressPromise &addr) {
   addr.base = AddressPromise::None{};
   switch (peek()) {
   case '.':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Current{};
     break;
   case '$':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Last{};
     break;
   case '%':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::LastRange{};
     break;
   case '[':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Block{Direction::Backward};
     break;
   case ']':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Block{Direction::Forward};
     break;
   case '^':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Diagnostic{Direction::Backward};
     break;
   case '~':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Diagnostic{Direction::Forward};
     break;
   case '\'':
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)2,
+       .type = io::Token::Mark}
+    );
     advance();
     if (('a' <= peek() && peek() <= 'z')
         || ('A' <= peek() && peek() <= 'Z'))
@@ -43,6 +83,11 @@ void Parser::locator(AddressPromise &addr) {
     advance();
     break;
   case '{': {
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     uint16_t j = 0;
     std::string func;
@@ -64,8 +109,24 @@ void Parser::locator(AddressPromise &addr) {
       arg = peek_str(j);
     else
       func = peek_str(j);
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)func.size(),
+       .type = io::Token::RubyFunction}
+    );
+    if (arg.size())
+      tokens->push_back(
+        {.start = i + (uint64_t)func.size() + 1,
+         .end = i + (uint64_t)func.size() + 1 + (uint64_t)arg.size(),
+         .type = io::Token::RubyFunction}
+      );
     addr.base = AddressPromise::Scripted{std::move(func), std::move(arg)};
     advance(j + 1);
+    tokens->push_back(
+      {.start = i,
+       .end = i - (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
   } break;
   case '/': {
     advance();
@@ -87,9 +148,19 @@ void Parser::locator(AddressPromise &addr) {
       Direction::Forward,
       std::string(peek_str(j))
     );
+    tokens->push_back(
+      {.start = (uint64_t)i - 1,
+       .end = (uint64_t)i + j + 1,
+       .type = io::Token::Regexp}
+    );
     advance(j + 1);
   } break;
   case '?': {
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     uint16_t j = 0;
     while (true) {
@@ -108,6 +179,11 @@ void Parser::locator(AddressPromise &addr) {
     addr.base = AddressPromise::Regex(
       Direction::Backward,
       std::string(peek_str(j))
+    );
+    tokens->push_back(
+      {.start = (uint64_t)i - 1,
+       .end = (uint64_t)i + j + 1,
+       .type = io::Token::Regexp}
     );
     advance(j + 1);
   } break;
@@ -132,6 +208,11 @@ void Parser::locator(AddressPromise &addr) {
       };
       break;
     }
+    tokens->push_back(
+      {.start = (uint64_t)i - 1,
+       .end = (uint64_t)i + j + 1,
+       .type = io::Token::AddressSymbol}
+    );
     advance(j + 1);
   } break;
   case '>': {
@@ -149,9 +230,19 @@ void Parser::locator(AddressPromise &addr) {
       };
       break;
     }
+    tokens->push_back(
+      {.start = (uint64_t)i - 1,
+       .end = (uint64_t)i + j + 1,
+       .type = io::Token::AddressSymbol}
+    );
     advance(j + 1);
   } break;
   case '+': {
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Current{};
     uint16_t j = 0;
@@ -162,10 +253,20 @@ void Parser::locator(AddressPromise &addr) {
     }
     if (j == 0)
       num = 1;
+    tokens->push_back(
+      {.start = (uint64_t)i,
+       .end = (uint64_t)i + j,
+       .type = io::Token::Number}
+    );
     advance(j);
     addr.offset += num;
   } break;
   case '-': {
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSymbol}
+    );
     advance();
     addr.base = AddressPromise::Current{};
     uint16_t j = 0;
@@ -176,17 +277,28 @@ void Parser::locator(AddressPromise &addr) {
     }
     if (j == 0)
       num = 1;
+    tokens->push_back(
+      {.start = (uint64_t)i,
+       .end = (uint64_t)i + j,
+       .type = io::Token::Number}
+    );
     advance(j);
     addr.offset -= num;
   } break;
   default:
     if ('0' <= peek() && peek() <= '9') {
+      uint16_t start = i;
       uint64_t num = 0;
       while ('0' <= peek() && peek() <= '9') {
         num = num * 10 + (peek() - '0');
         advance();
       }
       addr.base = AddressPromise::Number{num};
+      tokens->push_back(
+        {.start = (uint64_t)start,
+         .end = (uint64_t)i,
+         .type = io::Token::Number}
+      );
     }
   }
 }
@@ -196,14 +308,25 @@ int64_t Parser::offset() {
   while (peek() == '+' || peek() == '-'
          || ('0' <= peek() && peek() <= '9')) {
     bool positive = peek() != '-';
-    if (peek() == '+' || peek() == '-')
+    if (peek() == '+' || peek() == '-') {
+      tokens->push_back(
+        {.start = i,
+         .end = i + (uint64_t)1,
+         .type = io::Token::AddressSymbol}
+      );
       advance();
+    }
     uint16_t j = 0;
     int64_t num = 0;
     while ('0' <= peek(j) && peek(j) <= '9')
       num = num * 10 + (peek(j++) - '0');
     if (j == 0)
       num = 1;
+    tokens->push_back(
+      {.start = (uint64_t)i,
+       .end = (uint64_t)i + j,
+       .type = io::Token::Number}
+    );
     advance(j);
     offset += positive ? num : -num;
     skip_ws();
@@ -214,6 +337,7 @@ int64_t Parser::offset() {
 
 void Parser::address(AddressPromise &addr) {
   if (peek() == ':') {
+    uint16_t start = i;
     advance();
     uint16_t j = 0;
     while (peek(j) != ':' && peek(j) != '\0')
@@ -222,6 +346,11 @@ void Parser::address(AddressPromise &addr) {
     advance(j);
     if (peek() == ':')
       advance();
+    tokens->push_back(
+      {.start = start,
+       .end = i,
+       .type = io::Token::BufferName}
+    );
   }
   skip_ws();
   if (peek() == '\0')
@@ -238,6 +367,11 @@ void Parser::addresses(std::vector<AddressPromise> &addresses) {
   address(*addr);
   while (peek() == ',' || peek() == ';') {
     addr->jumping = peek() == ';';
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::AddressSeperator}
+    );
     advance();
     skip_ws();
     addresses.push_back({});

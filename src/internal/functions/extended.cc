@@ -171,6 +171,27 @@ void Function::register_extented(BEd &ctx) {
     }
   );
   ctx.functions.insert(
+    "`",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::Ruby,
+      .input_mode = Function::InputMode::None,
+      .desc = "Execute some ruby code",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
+        // TODO: connect up to mruby.
+      },
+    }
+  );
+  ctx.functions.insert(
     "echo",
     Function{
       .address_kind = Function::AddressKind::Range,

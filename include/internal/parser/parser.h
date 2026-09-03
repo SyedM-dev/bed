@@ -85,12 +85,12 @@ struct Parser {
   std::string_view cmd;
   uint16_t i;
   Command *command;
-  std::vector<ui::Token> *tokens;
+  std::vector<io::Token> *tokens;
   CompletionContext *completion;
 
   explicit Parser(
     std::string_view cmd, BEd &bed, Command *command,
-    std::vector<ui::Token> *tokens, CompletionContext *completion
+    std::vector<io::Token> *tokens, CompletionContext *completion
   );
 
   char peek(uint16_t = 0); // == \0 if at eof.
@@ -107,7 +107,7 @@ struct Parser {
   void operation();
 
   void parse();
-
+  static std::vector<io::Token> get_highlight(std::string_view cmd, BEd &bed);
   static Command get_command(std::string_view, BEd &);
   static std::vector<AddressPromise> get_addresses(std::string_view cmd, BEd &bed);
 };

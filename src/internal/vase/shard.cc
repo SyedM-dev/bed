@@ -289,6 +289,8 @@ Shard *Shard::from_command(const char *cmd, bool posix_ending) {
         last = nullptr;
         if (!pieces.empty())
           last = (Petal *)pieces.back();
+        else
+          return nullptr;
       }
       if (last && ending[0] == '\r')
         last->length--;

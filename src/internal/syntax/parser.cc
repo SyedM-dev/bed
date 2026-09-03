@@ -50,7 +50,7 @@ uint64_t next_closing(const ParserSnapshot &snap, uint64_t line) {
     c.next();
     first_leaf = false;
   }
-  return (snap.root->lines() - line > 10 ? line + 10 : snap.root->lines());
+  return (snap.root->lines() - line > 10 ? line + 10 : snap.root->lines() - 1);
 }
 
 uint64_t prev_opening(const ParserSnapshot &snap, uint64_t line) {

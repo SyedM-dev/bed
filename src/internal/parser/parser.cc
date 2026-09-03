@@ -22,6 +22,11 @@ void Parser::skip_ws() {
 void Parser::parse() {
   skip_ws();
   if (peek() == '@') {
+    tokens->push_back(
+      {.start = 0,
+       .end = 1,
+       .type = io::Token::TempCurrent}
+    );
     advance();
     command->temp_address = true;
   } else {
@@ -37,14 +42,26 @@ void Parser::parse() {
 
 Parser::Parser(
   std::string_view cmd, BEd &bed, Command *command,
-  std::vector<ui::Token> *tokens, CompletionContext *completion
+  std::vector<io::Token> *tokens, CompletionContext *completion
 ) : bed(bed), cmd(cmd), command(command), tokens(tokens), completion(completion) {
   i = 0;
 }
 
+std::vector<io::Token> Parser::get_highlight(std::string_view cmd, BEd &bed) {
+  Command c;
+  std::vector<io::Token> tokens;
+  CompletionContext completion;
+  try {
+    Parser p(cmd, bed, &c, &tokens, &completion);
+    p.parse();
+  } catch (const ed_error &e) {
+  }
+  return tokens;
+}
+
 Command Parser::get_command(std::string_view cmd, BEd &bed) {
   Command c;
-  std::vector<ui::Token> tokens;
+  std::vector<io::Token> tokens;
   CompletionContext completion;
   Parser p(cmd, bed, &c, &tokens, &completion);
   p.parse();
@@ -53,7 +70,7 @@ Command Parser::get_command(std::string_view cmd, BEd &bed) {
 
 std::vector<AddressPromise> Parser::get_addresses(std::string_view cmd, BEd &bed) {
   std::vector<AddressPromise> result;
-  std::vector<ui::Token> tokens;
+  std::vector<io::Token> tokens;
   CompletionContext completion;
   Parser p(cmd, bed, nullptr, &tokens, &completion);
   p.addresses(result);

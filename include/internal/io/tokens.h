@@ -5,8 +5,8 @@
 
 namespace bed::internal::io {
 struct Token {
-  uint32_t start;
-  uint32_t end;
+  uint64_t start;
+  uint64_t end;
   enum Kind : uint8_t {
     TempCurrent,
     BufferName,
@@ -24,7 +24,6 @@ struct Token {
     Shell,
     Ruby,
     File,
-    Regex,
     Replacement,
     Suffix,
     Color1,

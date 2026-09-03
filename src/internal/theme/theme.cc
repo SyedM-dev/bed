@@ -15,53 +15,54 @@ io::Highlight Theme::get(const io::Token::Kind &token) const {
 
 Theme Theme::default_theme() {
   Theme theme;
+
   theme.hl[io::Token::TempCurrent] = {
-    .fg = 0x7DCFFF,
+    .fg = 0x7AA2F7,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::BufferName] = {
-    .fg = 0xAAD94C,
+    .fg = 0xBB9AF7,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::AddressSeperator] = {
-    .fg = 0xFF8F40,
+    .fg = 0xA9B1D6,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Address] = {
-    .fg = 0xD2A6FF,
+    .fg = 0xE0AF68,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Offset] = {
-    .fg = 0xEF5168,
+    .fg = 0xFFAF70,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::AddressRegex] = {
-    .fg = 0x7DCFFF,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::AddressSymbol] = {
-    .fg = 0xAAD94C,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Mark] = {
-    .fg = 0xFF8F40,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::RubyFunction] = {
     .fg = 0xD2A6FF,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
+  theme.hl[io::Token::AddressSymbol] = {
+    .fg = 0xFF9E64,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Mark] = {
+    .fg = 0xFF757F,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::RubyFunction] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
   theme.hl[io::Token::RubyArg] = {
-    .fg = 0xEF5168,
+    .fg = 0xA9B1D6,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
@@ -71,37 +72,32 @@ Theme Theme::default_theme() {
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Shell] = {
-    .fg = 0xAAD94C,
+    .fg = 0x89DDFF,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Ruby] = {
-    .fg = 0xFF8F40,
+    .fg = 0x95E6CB,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::File] = {
-    .fg = 0xD2A6FF,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Regex] = {
-    .fg = 0xEF5168,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Replacement] = {
-    .fg = 0x7DCFFF,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Suffix] = {
     .fg = 0xAAD94C,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
+  theme.hl[io::Token::Replacement] = {
+    .fg = 0x9ECE6A,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Suffix] = {
+    .fg = 0xF07178,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
   theme.hl[io::Token::Color1] = {
-    .fg = 0x7DCFFF,
+    .fg = 0x7AA2F7,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
@@ -111,17 +107,17 @@ Theme Theme::default_theme() {
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Color3] = {
-    .fg = 0xFF8F40,
+    .fg = 0xFF9E64,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Color4] = {
-    .fg = 0xD2A6FF,
+    .fg = 0xBB9AF7,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Color5] = {
-    .fg = 0xEF5168,
+    .fg = 0xFF757F,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
@@ -162,7 +158,7 @@ Theme Theme::default_theme() {
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Regexp] = {
-    .fg = 0xD2A6FF,
+    .fg = 0x7DCFFF,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };

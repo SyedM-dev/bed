@@ -11,6 +11,11 @@ void Parser::operation() {
   if (len == 0)
     throw ed_error("Function not found.");
   functions::Function *function = bed.functions.get_ptr(peek_str(len));
+  tokens->push_back(
+    {.start = i,
+     .end = i + len,
+     .type = io::Token::Function}
+  );
   advance(len);
   command->function = function;
   char suffix = '\0';
@@ -27,10 +32,20 @@ void Parser::operation() {
       command->argument = peek();
     else
       throw ed_error("Valid mark needed.");
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::Mark}
+    );
     advance();
     break;
   case functions::Function::ArgumentKind::Any:
     command->argument = std::string(peek_str());
+    tokens->push_back(
+      {.start = i,
+       .end = i + peek_str().size(),
+       .type = io::Token::Any}
+    );
     advance(peek_str().size());
     break;
   case functions::Function::ArgumentKind::Global: {
@@ -108,8 +123,18 @@ void Parser::operation() {
     skip_ws();
     switch (peek()) {
     case '!':
+      tokens->push_back(
+        {.start = i,
+         .end = (uint64_t)i + 1,
+         .type = io::Token::Error}
+      );
       advance();
       command->argument = functions::Function::ShellArg(std::string(peek_str()));
+      tokens->push_back(
+        {.start = i,
+         .end = i + peek_str().size(),
+         .type = io::Token::Shell}
+      );
       advance(peek_str().size());
       break;
     case '\0':
@@ -117,6 +142,11 @@ void Parser::operation() {
       break;
     default:
       command->argument = std::filesystem::path(peek_str());
+      tokens->push_back(
+        {.start = i,
+         .end = i + peek_str().size(),
+         .type = io::Token::File}
+      );
       advance(peek_str().size());
       break;
     }
@@ -133,6 +163,7 @@ void Parser::operation() {
     char delim = peek();
     if (delim == '\0')
       throw ed_error("regex expected");
+    uint16_t start = i;
     advance();
     uint16_t j = 0;
     while (true) {
@@ -172,8 +203,18 @@ void Parser::operation() {
       advance(j);
       options = "p";
     }
+    tokens->push_back(
+      {.start = start,
+       .end = i,
+       .type = io::Token::Regexp}
+    );
     if (peek() != '\0') {
       options = std::string(peek_str());
+      tokens->push_back(
+        {.start = i,
+         .end = i + peek_str().size(),
+         .type = io::Token::Suffix}
+      );
       advance(peek_str().size());
     }
     std::erase_if(options, [&](char c) {
@@ -185,17 +226,38 @@ void Parser::operation() {
     });
     command->argument = functions::Function::RegexArg(expression, replacement, options);
   } break;
-  case functions::Function::ArgumentKind::Ruby:
+  case functions::Function::ArgumentKind::Ruby: {
     command->argument = functions::Function::RubyArg(std::string(peek_str()));
+    auto *ruby_parser = bed.languages["ruby"];
+    void *state = ruby_parser->none_state();
+    std::vector<syntax::ParseEvent> events;
+    std::vector<io::Token> tokens_;
+    ruby_parser->parse(&state, peek_str(), false, &tokens_, &events);
+    for (auto &token : tokens_) {
+      token.start += i;
+      token.end += i;
+      tokens->push_back(token);
+    }
+    ruby_parser->destroy(state);
     advance(peek_str().size());
-    break;
+  } break;
   case functions::Function::ArgumentKind::Shell:
     command->argument = functions::Function::ShellArg(std::string(peek_str()));
+    tokens->push_back(
+      {.start = i,
+       .end = i + peek_str().size(),
+       .type = io::Token::Shell}
+    );
     advance(peek_str().size());
     break;
   }
   if (!suffix) {
     suffix = peek();
+    tokens->push_back(
+      {.start = i,
+       .end = i + (uint64_t)1,
+       .type = io::Token::Suffix}
+    );
     advance();
   }
   if (suffix) {
