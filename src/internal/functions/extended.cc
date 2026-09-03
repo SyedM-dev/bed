@@ -125,7 +125,7 @@ void Function::register_extented(BEd &ctx) {
     }
   );
   ctx.functions.insert(
-    "history-list",
+    "hl",
     Function{
       .address_kind = Function::AddressKind::None,
       .argument_kind = Function::ArgumentKind::None,

@@ -39,7 +39,7 @@ void GenericBuffer::list_history(BEd &ctx) {
     std::tm tm = *std::localtime(&time);
     ctx.io.write_line(
       std::format(
-        "X {}  {:04}-{:02}-{:02} {:02}:{:02}:{:02} {}",
+        "* {}  {:04}-{:02}-{:02} {:02}:{:02}:{:02} {}",
         current,
         tm.tm_year + 1900,
         tm.tm_mon + 1,
@@ -58,7 +58,7 @@ void GenericBuffer::list_history(BEd &ctx) {
     std::tm tm = *std::localtime(&time);
     ctx.io.write_line(
       std::format(
-        "  {}  {:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        "  {}  {:04}-{:02}-{:02} {:02}:{:02}:{:02} {}",
         version,
         tm.tm_year + 1900,
         tm.tm_mon + 1,
@@ -90,15 +90,19 @@ HistoryBuffer *GenericBuffer::get_history(uint64_t version) {
 }
 
 void GenericBuffer::snapshot(std::string action_) {
-  vase::Shard::retain(root);
-  undo_stack.push_back(
-    HistoryItem{
-      syntax::retain(parse),
-      root,
-      timestamp,
-      action
-    }
-  );
+  if (base_version == 0) {
+    base_version++;
+  } else {
+    vase::Shard::retain(root);
+    undo_stack.push_back(
+      HistoryItem{
+        syntax::retain(parse),
+        root,
+        timestamp,
+        action
+      }
+    );
+  }
   for (auto &item : redo_stack) {
     syntax::release(item.parse_state);
     vase::Shard::release(item.text);
@@ -126,6 +130,8 @@ bool GenericBuffer::undo(BEd &ctx) {
   root = prev.text;
   syntax::release(parse);
   parse = prev.parse_state;
+  timestamp = prev.timestamp;
+  action = prev.summary;
   state = Modified;
   if (!root) {
     ctx.prev().buffername = name;
@@ -157,6 +163,8 @@ bool GenericBuffer::redo(BEd &ctx) {
   root = next.text;
   syntax::release(parse);
   parse = next.parse_state;
+  timestamp = next.timestamp;
+  action = next.summary;
   state = Modified;
   if (!root) {
     ctx.prev().buffername = name;

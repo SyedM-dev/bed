@@ -14,10 +14,8 @@ struct HistoryItem {
 
 struct GenericBuffer : ShardBuffer {
   uint64_t base_version{0};
-  std::chrono::system_clock::time_point timestamp{
-    std::chrono::system_clock::now()
-  };
-  std::string action{"created"};
+  std::chrono::system_clock::time_point timestamp;
+  std::string action;
   std::filesystem::path save_path{};
   std::vector<HistoryItem> undo_stack;
   std::vector<HistoryItem> redo_stack;
