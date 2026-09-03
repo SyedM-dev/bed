@@ -5,6 +5,79 @@
 namespace bed::internal::functions {
 void Function::register_extented(BEd &ctx) {
   ctx.functions.insert(
+    "#",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::Any,
+      .input_mode = Function::InputMode::None,
+      .desc = "Comment.",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &,
+                  const buffer::Address &,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {},
+    }
+  );
+  ctx.functions.insert(
+    "echo",
+    Function{
+      .address_kind = Function::AddressKind::Range,
+      .argument_kind = Function::ArgumentKind::Any,
+      .input_mode = Function::InputMode::None,
+      .desc = "Echo given message.",
+      .default_address = "",
+      .accept_zero = true,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &arg_,
+                  std::vector<buffer::Line> *
+                ) {
+        auto &addr = std::get<buffer::Range>(addr_);
+        auto str = std::get<std::string>(arg_);
+        const auto first = str.find_first_not_of(" \t");
+        const auto last = str.find_last_not_of(" \t");
+        if (first == std::string::npos)
+          str.clear();
+        else
+          str = str.substr(first, last - first + 1);
+        for (size_t i = 0; i < str.size();) {
+          if (str[i] == '\\') {
+            if (i + 1 >= str.size())
+              break;
+            str.erase(i++, 1);
+            if (str[i - 1] == 'n')
+              str[i - 1] = '\n';
+            continue;
+          }
+          if (str[i] == '$' && i < str.size() && '1' <= str[i + 1] && str[i + 1] <= '2') {
+            bool one = str[i + 1] == '1';
+            str.erase(i, 2);
+            if (one) {
+              auto start = std::to_string(addr.start);
+              str.insert(i, start);
+              i += start.size();
+            } else {
+              auto end = std::to_string(addr.end);
+              str.insert(i, end);
+              i += end.size();
+            }
+            continue;
+          }
+          i++;
+        }
+        ctx.io.write_line(str);
+      },
+    }
+  );
+  ctx.functions.insert(
     "cd",
     Function{
       .address_kind = Function::AddressKind::None,
