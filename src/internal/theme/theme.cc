@@ -15,6 +15,91 @@ io::Highlight Theme::get(const io::Token::Kind &token) const {
 
 Theme Theme::default_theme() {
   Theme theme;
+  theme.hl[io::Token::TempCurrent] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::BufferName] = {
+    .fg = 0xAAD94C,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::AddressSeperator] = {
+    .fg = 0xFF8F40,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Address] = {
+    .fg = 0xD2A6FF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Offset] = {
+    .fg = 0xEF5168,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::AddressRegex] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::AddressSymbol] = {
+    .fg = 0xAAD94C,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Mark] = {
+    .fg = 0xFF8F40,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::RubyFunction] = {
+    .fg = 0xD2A6FF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::RubyArg] = {
+    .fg = 0xEF5168,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Any] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Shell] = {
+    .fg = 0xAAD94C,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Ruby] = {
+    .fg = 0xFF8F40,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::File] = {
+    .fg = 0xD2A6FF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Regex] = {
+    .fg = 0xEF5168,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Replacement] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Suffix] = {
+    .fg = 0xAAD94C,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
   theme.hl[io::Token::Color1] = {
     .fg = 0x7DCFFF,
     .bg = 0x000000,
@@ -187,7 +272,6 @@ Theme Theme::default_theme() {
 Theme Theme::from_name(std::string_view name) {
   if (name == "default")
     return default_theme();
-  throw std::runtime_error("Unknown theme: " + std::string(name));
+  throw ed_error("Unknown theme: " + std::string(name));
 }
-
 } // namespace bed::internal::theme

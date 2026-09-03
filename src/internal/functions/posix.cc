@@ -745,10 +745,19 @@ void Function::register_posix(BEd &ctx) {
                   std::vector<buffer::Line> *
                 ) {
         auto &addr = std::get<buffer::Range>(addr_);
-        if (addr.start == addr.end)
-          ctx.io.write_line(std::format(":{}:{}", addr.buffername, addr.start));
-        else
-          ctx.io.write_line(std::format(":{}:{},{}", addr.buffername, addr.start, addr.end));
+        ctx.io.apply(io::Token::BufferName);
+        ctx.io.write(":" + addr.buffername + ":");
+        ctx.io.apply(io::Token::Number);
+        if (addr.start == addr.end) {
+          ctx.io.write_line(std::format(" {}", addr.start));
+        } else {
+          ctx.io.write(std::format(" {}", addr.start));
+          ctx.io.apply(io::Token::AddressSeperator);
+          ctx.io.write(",");
+          ctx.io.apply(io::Token::Number);
+          ctx.io.write_line(std::format("{}", addr.end));
+        }
+        ctx.io.reset();
         ctx.prev().buffername = addr.buffername;
         ctx.prev().start = addr.start;
         ctx.prev().end = addr.end;

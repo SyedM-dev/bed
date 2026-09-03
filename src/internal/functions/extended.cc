@@ -119,6 +119,39 @@ void Function::register_extented(BEd &ctx) {
     }
   );
   ctx.functions.insert(
+    "b",
+    Function{
+      .address_kind = Function::AddressKind::None,
+      .argument_kind = Function::ArgumentKind::None,
+      .input_mode = Function::InputMode::None,
+      .desc = "List active buffers",
+      .default_address = "",
+      .accept_zero = false,
+      .pre_text_mode = nullptr,
+      .handle = [](
+                  BEd &ctx,
+                  const buffer::Address &addr_,
+                  vase::Shard *,
+                  const Argument &,
+                  std::vector<buffer::Line> *
+                ) {
+        auto &current = std::get<std::string>(addr_);
+        bool current_real = false;
+        for (auto &[name, _] : ctx.buffers) {
+          if (current == name) {
+            ctx.io.write("* ");
+            current_real = true;
+          } else {
+            ctx.io.write("  ");
+          }
+          ctx.io.write_line(name);
+        }
+        if (!current_real)
+          ctx.io.write_line("* " + current);
+      },
+    }
+  );
+  ctx.functions.insert(
     "#",
     Function{
       .address_kind = Function::AddressKind::None,

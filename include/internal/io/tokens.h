@@ -9,6 +9,7 @@ struct Token {
   uint32_t end;
   enum Kind : uint8_t {
     TempCurrent,
+    BufferName,
     AddressSeperator,
     Address,
     Offset,
