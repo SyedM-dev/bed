@@ -1,4 +1,5 @@
 #include "internal/io/io.h"
+#include "bed.h"
 
 namespace bed::internal::io {
 termios IO::orig_termios{};
@@ -7,7 +8,7 @@ bool IO::cleaned = true;
 volatile std::atomic_bool IO::resized(false);
 IO::Mode IO::mode = IO::Mode::PIPE;
 
-IO::IO() {
+IO::IO(BEd &bed) : bed(bed) {
   if (!isatty(STDIN_FILENO))
     return;
   mode = Mode::TERMINAL;
@@ -31,6 +32,37 @@ IO::IO() {
 
 IO::~IO() {
   cleanup();
+}
+
+void IO::apply(const io::Token::Kind &t) {
+  if (bed.suppress_mode)
+    return;
+  write("\x1b[0m");
+  const auto &hl = bed.theme.get(t);
+  const uint8_t r = (hl.fg >> 16) & 0xff;
+  const uint8_t g = (hl.fg >> 8) & 0xff;
+  const uint8_t b = hl.fg & 0xff;
+  write(std::format("\x1b[38;2;{};{};{}m", r, g, b));
+  if (hl.bg != 0) {
+    const uint8_t br = (hl.bg >> 16) & 0xff;
+    const uint8_t bg = (hl.bg >> 8) & 0xff;
+    const uint8_t bb = hl.bg & 0xff;
+    write(std::format("\x1b[48;2;{};{};{}m", br, bg, bb));
+  }
+  if (hl.flags & Highlight::Bold)
+    write("\x1b[1m");
+  if (hl.flags & Highlight::Italic)
+    write("\x1b[3m");
+  if (hl.flags & Highlight::Underline)
+    write("\x1b[4m");
+  if (hl.flags & Highlight::Strikethrough)
+    write("\x1b[9m");
+}
+
+void IO::reset() {
+  if (bed.suppress_mode)
+    return;
+  write("\x1b[0m");
 }
 
 void IO::enable_mouse() {

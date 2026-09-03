@@ -4,8 +4,7 @@
 int main(int argc, char *argv[]) {
   std::vector<std::string> args(argv, argv + argc);
   try {
-    bed::internal::io::IO io = bed::internal::io::IO();
-    bed::BEd ed(args, io);
+    bed::BEd ed(args);
     ed.run();
   } catch (bed::fatal_error &e) {
     if (e.code)

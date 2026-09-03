@@ -21,7 +21,7 @@ struct Iterator {
   std::optional<vase::Iterator> it;
   void *state;
   uint64_t at;
-  std::vector<Token> tokens;
+  std::vector<io::Token> tokens;
   std::vector<ParseEvent> events;
   Iterator(uint64_t, ParserSnapshot, vase::Shard *);
   ~Iterator();

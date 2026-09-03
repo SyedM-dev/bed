@@ -238,7 +238,9 @@ void Function::register_posix(BEd &ctx) {
                   const Argument &,
                   std::vector<buffer::Line> *
                 ) {
+        ctx.io.apply(internal::io::Token::Warning);
         ctx.io.write_line(ctx.last_help);
+        ctx.io.reset();
       }
     }
   );
@@ -260,8 +262,10 @@ void Function::register_posix(BEd &ctx) {
                   std::vector<buffer::Line> *
                 ) {
         ctx.help_mode = !ctx.help_mode;
+        ctx.io.apply(internal::io::Token::Warning);
         if (ctx.help_mode)
           ctx.io.write_line(ctx.last_help);
+        ctx.io.reset();
       }
     }
   );

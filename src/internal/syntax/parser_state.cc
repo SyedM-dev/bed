@@ -106,7 +106,7 @@ ParseState *ParseState::splice(
   if (!root || (line == 0 && root->lines() == original)) {
     vase::Iterator it(vase, 0, Direction::Forward);
     void *state = lang.none_state();
-    std::vector<Token> tokens;
+    std::vector<io::Token> tokens;
     std::vector<ParseEvent> events;
     ParsePieceBuilder builder(lang, 0);
     for (uint64_t at = 0; at < final; ++at) {
@@ -130,7 +130,7 @@ ParseState *ParseState::splice(
     state = lang.copy(c.leaf->state);
   }
   vase::Iterator it(vase, at, Direction::Forward);
-  std::vector<Token> tokens;
+  std::vector<io::Token> tokens;
   std::vector<ParseEvent> events;
   uint64_t end_in_tree = line + original;
   uint64_t end_extra;

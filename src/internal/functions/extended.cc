@@ -3,28 +3,6 @@
 #include "internal/functions/suffixes.h"
 
 namespace bed::internal::functions {
-namespace ansi {
-constexpr auto reset = "\033[0m";
-constexpr auto bold = "\033[1m";
-constexpr auto cyan = "\033[36m";
-constexpr auto yellow = "\033[33m";
-constexpr auto magenta = "\033[35m";
-constexpr auto green = "\033[32m";
-constexpr auto blue = "\033[34m";
-} // namespace ansi
-
-static void append_field(std::string &msg, std::string_view label, std::string_view label_color, std::string_view value) {
-  if (value.empty())
-    return;
-  msg += "\n";
-  msg += ansi::bold;
-  msg += label_color;
-  msg += label;
-  msg += ansi::reset;
-  msg += ": ";
-  msg += value;
-}
-
 static std::string_view address_kind_str(Function::AddressKind k) {
   switch (k) {
   case Function::AddressKind::None:
@@ -79,17 +57,27 @@ static std::string_view argument_kind_str(Function::ArgumentKind a) {
   return "";
 }
 
-static std::string describe_function(const Function &func) {
-  std::string msg = ansi::bold;
-  msg += func.desc;
-  msg += ansi::reset;
-  append_field(msg, "Default address", ansi::cyan, func.default_address);
-  append_field(msg, "Address", ansi::yellow, address_kind_str(func.address_kind));
+static void append_field(BEd &ctx, std::string_view label, io::Token::Kind color, std::string_view value) {
+  if (value.empty())
+    return;
+  ctx.io.write("\n");
+  ctx.io.apply(color);
+  ctx.io.write(label);
+  ctx.io.reset();
+  ctx.io.write(": ");
+  ctx.io.write(value);
+}
+
+static void describe_function(BEd &ctx, const Function &func) {
+  ctx.io.write(func.desc);
+  ctx.io.reset();
+  append_field(ctx, "Default address", io::Token::Color1, func.default_address);
+  append_field(ctx, "Address", io::Token::Color2, address_kind_str(func.address_kind));
   if (func.accept_zero)
-    append_field(msg, "Zero address", ansi::magenta, "allowed");
-  append_field(msg, "Input", ansi::green, input_mode_str(func.input_mode));
-  append_field(msg, "Argument", ansi::blue, argument_kind_str(func.argument_kind));
-  return msg;
+    append_field(ctx, "Zero address", io::Token::Color3, "allowed");
+  append_field(ctx, "Input", io::Token::Color4, input_mode_str(func.input_mode));
+  append_field(ctx, "Argument", io::Token::Color5, argument_kind_str(func.argument_kind));
+  ctx.io.write("\n");
 }
 
 void Function::register_extented(BEd &ctx) {
@@ -110,14 +98,20 @@ void Function::register_extented(BEd &ctx) {
                   const Argument &arg_,
                   std::vector<buffer::Line> *
                 ) {
-        auto &str = std::get<std::string>(arg_);
+        auto str = std::get<std::string>(arg_);
+        const auto first = str.find_first_not_of(" \t");
+        const auto last = str.find_last_not_of(" \t");
+        if (first == std::string::npos)
+          str.clear();
+        else
+          str = str.substr(first, last - first + 1);
         if (str.empty()) {
-          ctx.io.write_line(describe_function(ctx.no_op));
+          describe_function(ctx, ctx.no_op);
           return;
         }
         auto len = ctx.functions.longest_match(str);
         if (len == str.size()) {
-          ctx.io.write_line(describe_function(*ctx.functions.get_ptr(str)));
+          describe_function(ctx, *ctx.functions.get_ptr(str));
           return;
         }
         throw ed_error("Not a valid function name.");

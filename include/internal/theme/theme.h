@@ -6,11 +6,11 @@
 
 namespace bed::internal::theme {
 struct Theme {
-  std::array<Highlight, internal::syntax::Token::Count> hl;
+  std::array<io::Highlight, io::Token::Count> hl;
 
   Theme();
 
-  Highlight get(internal::syntax::Token token) const;
+  io::Highlight get(const io::Token::Kind &token) const;
 
   static Theme default_theme();
   static Theme from_name(std::string_view name);

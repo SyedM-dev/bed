@@ -2,12 +2,8 @@
 #include "internal/parser/parser.h"
 
 namespace bed {
-BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
-    : theme(internal::theme::Theme::default_theme()), io(io) {
-  internal::functions::Function::register_posix(*this);
-  internal::functions::Function::register_extented(*this);
-  internal::functions::Suffix::register_suffixes(*this);
-  languages["ruby"] = new internal::syntax::Language(internal::syntax::ruby::lang_ruby());
+BEd::BEd(std::vector<std::string> args)
+    : theme(internal::theme::Theme::default_theme()), io(*this) {
   std::string prompt_ = "";
   std::string file = "";
   bool suppress = false;
@@ -21,6 +17,9 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
       suppress = true;
     } else if (args[i] == "-v" || args[i] == "--verbose") {
       help_mode = true;
+    } else if (args[i] == "-h" || args[i] == "--help") {
+      print_help();
+      throw fatal_error("", 0);
     } else {
       if (file.size())
         throw fatal_error("Invalid arguments given.", 1);
@@ -32,6 +31,10 @@ BEd::BEd(std::vector<std::string> args, internal::io::IO &io)
   else
     prompt_mode = false;
   suppress_mode = suppress;
+  internal::functions::Function::register_posix(*this);
+  internal::functions::Function::register_extented(*this);
+  internal::functions::Suffix::register_suffixes(*this);
+  languages["ruby"] = new internal::syntax::Language(internal::syntax::ruby::lang_ruby());
   buffers["clip"] = new internal::buffer::ClipBuffer("clip");
   current() = {"default", 0};
   try {
@@ -52,6 +55,10 @@ BEd::~BEd() {
     delete lang;
 }
 
+void BEd::print_help() {
+  io.write("BEd - A line editor.\n");
+}
+
 void BEd::run() {
   while (true) {
     internal::ui::CommandIO command(*this);
@@ -59,9 +66,11 @@ void BEd::run() {
     try {
       handle(cmd, eof);
     } catch (ed_error &e) {
+      io.apply(internal::io::Token::Warning);
       io.write_line("?");
       if (help_mode)
         io.write_line(e.what());
+      io.reset();
       last_help = e.what();
     }
   }

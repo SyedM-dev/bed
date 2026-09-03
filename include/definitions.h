@@ -15,17 +15,4 @@ struct fatal_error : std::runtime_error {
 struct ed_error : std::runtime_error {
   ed_error(std::string msg) : std::runtime_error(msg) {}
 };
-
-struct Highlight {
-  enum : uint8_t {
-    None = 0,
-    Bold = 1 << 0,
-    Italic = 1 << 1,
-    Strikethrough = 1 << 2,
-    Underline = 1 << 3,
-  };
-  uint32_t fg;
-  uint32_t bg;
-  uint8_t flags;
-};
 } // namespace bed

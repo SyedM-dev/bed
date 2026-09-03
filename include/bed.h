@@ -19,7 +19,7 @@ struct BEd {
   std::array<std::optional<internal::functions::Suffix>, 26> suffixes;
   internal::theme::Theme theme;
   std::unordered_map<std::string, internal::syntax::Language *> languages;
-  internal::io::IO &io;
+  internal::io::IO io;
   internal::vase::AppendStorage append{"/tmp"};
 
   bool help_mode = false;
@@ -39,7 +39,7 @@ struct BEd {
   internal::buffer::Range prev_2;
   internal::marks::MarksEngine marks;
 
-  BEd(std::vector<std::string> args, internal::io::IO &io);
+  BEd(std::vector<std::string> args);
   ~BEd();
 
   internal::buffer::Buffer &buffer(const std::string &);
@@ -47,6 +47,7 @@ struct BEd {
   internal::buffer::Range &prev();
   void mark(uint8_t, internal::buffer::Line);
 
+  void print_help();
   void handle(std::string_view cmd, bool eof);
   void run();
   void suffix_handle(char s);

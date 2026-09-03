@@ -5,150 +5,181 @@ Theme::Theme() {
   hl.fill({
     .fg = 0xF0F0F0,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   });
 }
 
-Highlight Theme::get(internal::syntax::Token token) const {
-  return hl[token.type];
+io::Highlight Theme::get(const io::Token::Kind &token) const {
+  return hl[token];
 }
 
 Theme Theme::default_theme() {
   Theme theme;
-  theme.hl[internal::syntax::Token::Shebang] = {
+  theme.hl[io::Token::Color1] = {
     .fg = 0x7DCFFF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Error] = {
-    .fg = 0xEF5168,
-    .bg = 0x000000,
-    .flags = Highlight::None,
-  };
-  theme.hl[internal::syntax::Token::Comment] = {
-    .fg = 0xAAAAAA,
-    .bg = 0x000000,
-    .flags = Highlight::Italic,
-  };
-  theme.hl[internal::syntax::Token::String] = {
+  theme.hl[io::Token::Color2] = {
     .fg = 0xAAD94C,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Escape] = {
-    .fg = 0x7DCFFF,
+  theme.hl[io::Token::Color3] = {
+    .fg = 0xFF8F40,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Interpolation] = {
-    .fg = 0x7DCFFF,
-    .bg = 0x000000,
-    .flags = Highlight::None,
-  };
-  theme.hl[internal::syntax::Token::Regexp] = {
+  theme.hl[io::Token::Color4] = {
     .fg = 0xD2A6FF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Number] = {
-    .fg = 0xE6C08A,
-    .bg = 0x000000,
-    .flags = Highlight::None,
-  };
-  theme.hl[internal::syntax::Token::True] = {
-    .fg = 0x7AE93C,
-    .bg = 0x000000,
-    .flags = Highlight::None,
-  };
-  theme.hl[internal::syntax::Token::False] = {
+  theme.hl[io::Token::Color5] = {
     .fg = 0xEF5168,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Char] = {
+  theme.hl[io::Token::Warning] = {
+    .fg = 0xF1C55A,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  // Data is terminal default.
+  theme.hl[io::Token::Shebang] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Error] = {
+    .fg = 0xEF5168,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Comment] = {
+    .fg = 0xAAAAAA,
+    .bg = 0x000000,
+    .flags = io::Highlight::Italic,
+  };
+  theme.hl[io::Token::String] = {
+    .fg = 0xAAD94C,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Escape] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Interpolation] = {
+    .fg = 0x7DCFFF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Regexp] = {
+    .fg = 0xD2A6FF,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Number] = {
+    .fg = 0xE6C08A,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::True] = {
+    .fg = 0x7AE93C,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::False] = {
+    .fg = 0xEF5168,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
+  theme.hl[io::Token::Char] = {
     .fg = 0xFFAF70,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Keyword] = {
+  theme.hl[io::Token::Keyword] = {
     .fg = 0xFF8F40,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::KeywordOperator] = {
+  theme.hl[io::Token::KeywordOperator] = {
     .fg = 0xF07178,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Operator] = {
+  theme.hl[io::Token::Operator] = {
     .fg = 0xFFFFFF,
     .bg = 0x000000,
-    .flags = Highlight::Italic,
+    .flags = io::Highlight::Italic,
   };
-  theme.hl[internal::syntax::Token::Function] = {
+  theme.hl[io::Token::Function] = {
     .fg = 0xFFAF70,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Type] = {
+  theme.hl[io::Token::Type] = {
     .fg = 0xF07178,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Constant] = {
+  theme.hl[io::Token::Constant] = {
     .fg = 0x7DCFFF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::VariableInstance] = {
+  theme.hl[io::Token::VariableInstance] = {
     .fg = 0x95E6CB,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::VariableGlobal] = {
+  theme.hl[io::Token::VariableGlobal] = {
     .fg = 0xF07178,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Annotation] = {
+  theme.hl[io::Token::Annotation] = {
     .fg = 0x7DCFFF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Directive] = {
+  theme.hl[io::Token::Directive] = {
     .fg = 0xFF8F40,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Label] = {
+  theme.hl[io::Token::Label] = {
     .fg = 0xD2A6FF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Brace1] = {
+  theme.hl[io::Token::Brace1] = {
     .fg = 0xD2A6FF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Brace2] = {
+  theme.hl[io::Token::Brace2] = {
     .fg = 0xFFAFAF,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Brace3] = {
+  theme.hl[io::Token::Brace3] = {
     .fg = 0xFFFF00,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Brace4] = {
+  theme.hl[io::Token::Brace4] = {
     .fg = 0x0FFF0F,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
-  theme.hl[internal::syntax::Token::Brace5] = {
+  theme.hl[io::Token::Brace5] = {
     .fg = 0xFF0F0F,
     .bg = 0x000000,
-    .flags = Highlight::None,
+    .flags = io::Highlight::None,
   };
   return theme;
 }

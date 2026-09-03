@@ -2,6 +2,7 @@
 
 #include "definitions.h"
 #include "pch.h"
+#include "tokens.h"
 
 namespace bed::internal::io {
 struct KeyEvent {
@@ -57,6 +58,7 @@ struct IO {
   static void enable_raw();
   static volatile std::atomic_bool resized;
   static void handle_sigwinch(int);
+  BEd &bed;
 
   static enum struct Mode {
     PIPE,
@@ -66,7 +68,7 @@ struct IO {
   std::string pipe_input;
   std::deque<char> input_queue;
 
-  IO();
+  IO(BEd &);
   ~IO();
 
   IO(const IO &) = delete;
@@ -75,6 +77,8 @@ struct IO {
   bool interactive() const {
     return mode == Mode::TERMINAL;
   }
+  void apply(const io::Token::Kind &t);
+  void reset();
   void enable_mouse();
   void disable_mouse();
 

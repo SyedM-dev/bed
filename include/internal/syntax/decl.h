@@ -1,74 +1,11 @@
 #pragma once
 
+#include "internal/io/tokens.h"
 #include "internal/trie/trie.h"
 #include "internal/vase/vase.h"
 #include "pch.h"
 
 namespace bed::internal::syntax {
-struct Token {
-  uint32_t start;
-  uint32_t end;
-  enum Kind : uint8_t {
-    Data,
-    Shebang,
-    Comment,
-    Error,
-    String,
-    Escape,
-    Interpolation,
-    Regexp,
-    Number,
-    True,
-    False,
-    Char,
-    Keyword,
-    KeywordOperator,
-    Operator,
-    Function,
-    Namespace,
-    Class,
-    Module,
-    Type,
-    Constant,
-    VariableInstance,
-    VariableGlobal,
-    Annotation,
-    Directive,
-    Label,
-    Brace1,
-    Brace2,
-    Brace3,
-    Brace4,
-    Brace5,
-    Heading1,
-    Heading2,
-    Heading3,
-    Heading4,
-    Heading5,
-    Heading6,
-    Blockquote,
-    List,
-    ListItem,
-    Code,
-    LanguageName,
-    LinkLabel,
-    ImageLabel,
-    Link,
-    Table,
-    TableHeader,
-    Italic,
-    Bold,
-    Underline,
-    Strikethrough,
-    HorizontalRule,
-    Tag,
-    Attribute,
-    CheckDone,
-    CheckNotDone,
-    Count
-  } type;
-};
-
 struct ParseEvent {
   uint8_t closing;
   ParseEvent(uint8_t t) : closing(t) {}
@@ -78,7 +15,7 @@ struct Language {
   std::function<void *()> none_state;
   std::function<void(
     void **, std::string_view,
-    bool, std::vector<Token> *, std::vector<ParseEvent> *
+    bool, std::vector<io::Token> *, std::vector<ParseEvent> *
   )>
     parse;
   std::function<void *(void *)> copy;

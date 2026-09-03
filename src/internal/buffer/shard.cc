@@ -50,32 +50,6 @@ uint64_t ShardBuffer::prev_closing(uint64_t start) {
   }
 }
 
-inline void apply(io::IO &io, const Highlight &hl) {
-  io.write("\x1b[0m");
-  const uint8_t r = (hl.fg >> 16) & 0xff;
-  const uint8_t g = (hl.fg >> 8) & 0xff;
-  const uint8_t b = hl.fg & 0xff;
-  io.write(std::format("\x1b[38;2;{};{};{}m", r, g, b));
-  if (hl.bg != 0) {
-    const uint8_t br = (hl.bg >> 16) & 0xff;
-    const uint8_t bg = (hl.bg >> 8) & 0xff;
-    const uint8_t bb = hl.bg & 0xff;
-    io.write(std::format("\x1b[48;2;{};{};{}m", br, bg, bb));
-  }
-  if (hl.flags & Highlight::Bold)
-    io.write("\x1b[1m");
-  if (hl.flags & Highlight::Italic)
-    io.write("\x1b[3m");
-  if (hl.flags & Highlight::Underline)
-    io.write("\x1b[4m");
-  if (hl.flags & Highlight::Strikethrough)
-    io.write("\x1b[9m");
-}
-
-inline void reset(io::IO &io) {
-  io.write("\x1b[0m");
-}
-
 void ShardBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
   ctx.prev().buffername = name;
   ctx.prev().start = start_line;
@@ -97,10 +71,9 @@ void ShardBuffer::print(BEd &ctx, uint64_t start_line, uint64_t end_line) {
           break;
         if (cursor < start)
           ctx.io.write(line.data() + cursor, start - cursor);
-        const auto highlight = ctx.theme.get(token);
-        apply(ctx.io, highlight);
+        ctx.io.apply(token.type);
         ctx.io.write(line.data() + start, end - start);
-        reset(ctx.io);
+        ctx.io.reset();
         cursor = end;
       }
       if (cursor < line.size())
@@ -141,10 +114,9 @@ void ShardBuffer::number_print(BEd &ctx, uint64_t start_line, uint64_t end_line)
           break;
         if (cursor < start)
           ctx.io.write(line.data() + cursor, start - cursor);
-        const auto highlight = ctx.theme.get(token);
-        apply(ctx.io, highlight);
+        ctx.io.apply(token.type);
         ctx.io.write(line.data() + start, end - start);
-        reset(ctx.io);
+        ctx.io.reset();
         cursor = end;
       }
       if (cursor < line.size())
