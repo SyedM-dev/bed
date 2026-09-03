@@ -16,83 +16,70 @@ io::Highlight Theme::get(const io::Token::Kind &token) const {
 Theme Theme::default_theme() {
   Theme theme;
 
+  constexpr uint32_t PINK = 0xECA1AE;
+  constexpr uint32_t GREY = 0xAFB7D3;
+  constexpr uint32_t BLUE = 0x799EDB;
+  constexpr uint32_t LIGHT_BLUE = 0xB5BFFE;
+  constexpr uint32_t RED = 0xF38CAA;
+  constexpr uint32_t YELLOW = 0xF9E3B1;
+  constexpr uint32_t PURPLE = 0xA286C7;
+  constexpr uint32_t CYAN = 0x89DBEA;
+  constexpr uint32_t LIGHT_GREEN = 0x98CE94;
+  constexpr uint32_t TURQUOISE = 0x00BDB7;
+  constexpr uint32_t BRIGHT_GREEN = 0x4AF6CA;
+
   theme.hl[io::Token::TempCurrent] = {
-    .fg = 0x7AA2F7,
+    .fg = PINK,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::BufferName] = {
-    .fg = 0xBB9AF7,
+    .fg = PURPLE,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::AddressSeperator] = {
-    .fg = 0xA9B1D6,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Address] = {
-    .fg = 0xE0AF68,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Offset] = {
-    .fg = 0xFFAF70,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::AddressRegex] = {
-    .fg = 0xD2A6FF,
+    .fg = GREY,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::AddressSymbol] = {
-    .fg = 0xFF9E64,
+    .fg = BLUE,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Mark] = {
-    .fg = 0xFF757F,
+    .fg = LIGHT_BLUE,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::RubyFunction] = {
-    .fg = 0x7DCFFF,
+    .fg = RED,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::RubyArg] = {
-    .fg = 0xA9B1D6,
+    .fg = LIGHT_GREEN,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Any] = {
-    .fg = 0x7DCFFF,
+    .fg = GREY,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Shell] = {
-    .fg = 0x89DDFF,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Ruby] = {
-    .fg = 0x95E6CB,
+    .fg = BRIGHT_GREEN,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::File] = {
-    .fg = 0xAAD94C,
-    .bg = 0x000000,
-    .flags = io::Highlight::None,
-  };
-  theme.hl[io::Token::Replacement] = {
-    .fg = 0x9ECE6A,
+    .fg = GREY,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Suffix] = {
-    .fg = 0xF07178,
+    .fg = TURQUOISE,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
@@ -126,7 +113,11 @@ Theme Theme::default_theme() {
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
-  // Data is terminal default.
+  theme.hl[io::Token::Data] = {
+    .fg = GREY,
+    .bg = 0x000000,
+    .flags = io::Highlight::None,
+  };
   theme.hl[io::Token::Shebang] = {
     .fg = 0x7DCFFF,
     .bg = 0x000000,
@@ -238,12 +229,12 @@ Theme Theme::default_theme() {
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Brace1] = {
-    .fg = 0xD2A6FF,
+    .fg = BRIGHT_GREEN,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Brace2] = {
-    .fg = 0xFFAFAF,
+    .fg = YELLOW,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
@@ -253,7 +244,7 @@ Theme Theme::default_theme() {
     .flags = io::Highlight::None,
   };
   theme.hl[io::Token::Brace4] = {
-    .fg = 0x0FFF0F,
+    .fg = CYAN,
     .bg = 0x000000,
     .flags = io::Highlight::None,
   };
